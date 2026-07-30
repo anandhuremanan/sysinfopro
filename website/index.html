@@ -1,35 +1,143 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SysInfo Pro - Download</title>
+    <title>SysInfo Pro™ — Modern Real-Time System Diagnostics for Windows</title>
+    <meta name="description" content="SysInfo Pro is a lightweight, information-dense system diagnostics utility for Windows. Real-time CPU, RAM velocity, network speed, disk purging, and hardware lifespan projections." />
+    
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="container">
-      <h1>🖥️ SysInfo Pro</h1>
-      <p class="tagline">Clean, real-time system diagnostics for Windows</p>
+    <!-- Background Glow Effects -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
 
-      <p class="description">
-        SysInfo Pro is a lightweight, zero-install system diagnostics tool that
-        delivers real-time CPU, memory, disk, and network insights in a
-        beautiful UI. Whether you're a developer, enthusiast, or just curious —
-        it's built for you.
-      </p>
+    <div class="site-wrapper">
+      <!-- Header Navigation -->
+      <header class="navbar">
+        <div class="nav-brand">
+          <span class="logo-icon">💻</span>
+          <span class="logo-text">SysInfo Pro<span class="badge-v2">v2.0</span></span>
+        </div>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#preview">Preview</a>
+          <a href="sysinfopro.exe" class="nav-btn-download" download>Download .exe</a>
+        </div>
+      </header>
 
-      <a href="sysinfopro.exe" class="download-btn" download
-        >⬇️ Download for Windows</a
-      >
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-badge">
+          <span class="pulse-dot"></span>
+          <span>Lightweight • Zero-Install • Windows 11 Ready</span>
+        </div>
+        
+        <h1 class="hero-title">
+          System Telemetry <br />
+          <span class="gradient-text">Redefined with Elegance</span>
+        </h1>
+        
+        <p class="hero-subtitle">
+          An ultra-clean, information-dense desktop utility built for developers, power users, and PC enthusiasts. Real-time RAM velocity forecasting, Google-accuracy speed testing, and 1-click disk purging.
+        </p>
 
-      <img
-        src="sysinfopro.webp"
-        alt="SysInfo Pro Screenshot"
-        class="screenshot"
-      />
+        <div class="hero-actions">
+          <a href="sysinfopro.exe" class="primary-btn" download>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Free for Windows
+          </a>
+          <span class="sys-req">Windows 10/11 • 64-bit • Single Portable Executable</span>
+        </div>
+      </section>
 
-      <footer>
-        <p>© 2025 SysInfo Pro. All rights reserved.</p>
+      <!-- App Screenshot Preview -->
+      <section id="preview" class="preview-section">
+        <div class="glass-frame">
+          <div class="frame-header">
+            <div class="frame-dots">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <div class="frame-title">SysInfo Pro 2.0 — Live Interface</div>
+          </div>
+          <img src="sysinfopro.webp" alt="SysInfo Pro Interface Preview" class="app-screenshot" />
+        </div>
+      </section>
+
+      <!-- Feature Grid Section -->
+      <section id="features" class="features-section">
+        <div class="section-header">
+          <h2 class="section-title">Engineered for Peak Clarity</h2>
+          <p class="section-subtitle">No bloatware. No registration. Just instant, authoritative hardware metrics.</p>
+        </div>
+
+        <div class="features-grid">
+          <!-- Feature 1 -->
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3 class="feature-title">Resource Velocity Forecast</h3>
+            <p class="feature-desc">Continuously tracks RAM consumption velocity (MB/s) and predicts Out-Of-Memory slowdowns before your OS freezes.</p>
+          </div>
+
+          <!-- Feature 2 -->
+          <div class="feature-card">
+            <div class="feature-icon">🚀</div>
+            <h3 class="feature-title">Multi-Stream Speed Test</h3>
+            <p class="feature-desc">Parallel 4-stream CDN speed engine measuring download/upload Mbps, ping latency, jitter, and packet loss with M-Lab precision.</p>
+          </div>
+
+          <!-- Feature 3 -->
+          <div class="feature-card">
+            <div class="feature-icon">🖼️</div>
+            <h3 class="feature-title">1-Click Spec Card Exporter</h3>
+            <p class="feature-desc">Generates a high-res PNG hardware specification badge saved directly to your Downloads folder for sharing on GitHub & social media.</p>
+          </div>
+
+          <!-- Feature 4 -->
+          <div class="feature-card">
+            <div class="feature-icon">🧹</div>
+            <h3 class="feature-title">Safe One-Click Disk Purge</h3>
+            <p class="feature-desc">Scans and safely eliminates temporary system files, log dumps, and browser caches with real-time freed storage feedback.</p>
+          </div>
+
+          <!-- Feature 5 -->
+          <div class="feature-card">
+            <div class="feature-icon">🔋</div>
+            <h3 class="feature-title">Battery Longevity Analytics</h3>
+            <p class="feature-desc">Deep battery degradation %, design vs current mWh capacity, cycle count estimates, and operational health badges for laptops.</p>
+          </div>
+
+          <!-- Feature 6 -->
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3 class="feature-title">Per-Process Energy Rating</h3>
+            <p class="feature-desc">Calculates an Energy Impact score (1-100) per running process to immediately spot background tasks draining your battery.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA Footer Section -->
+      <footer class="footer-cta">
+        <div class="cta-box">
+          <h2>Ready to Upgrade Your Diagnostics?</h2>
+          <p>Get SysInfo Pro 2.0 now. Portable, fast, and completely free.</p>
+          <a href="sysinfopro.exe" class="primary-btn" download>Download SysInfo Pro v2.0</a>
+        </div>
+        <div class="footer-bottom">
+          <p>© 2026 SysInfo Pro. Built with Wails, Go & Svelte.</p>
+        </div>
       </footer>
     </div>
   </body>

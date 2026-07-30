@@ -9,15 +9,18 @@
 		aria-labelledby="modal-title"
 		role="dialog"
 		aria-modal="true"
-		class="fixed z-10 overflow-y-auto inset-0 flex items-center justify-center bg-slate-700/50 dark:bg-slate-700/90 transition-opacity"
+		class="fixed z-50 overflow-y-auto inset-0 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs transition-opacity"
 	>
-		<div class="bg-zinc-200 m-10 md:w-[80vh] rounded-xl dark:bg-zinc-800 dark:text-white">
+		<div class="bg-zinc-200 m-4 w-full max-w-lg rounded-2xl dark:bg-zinc-800 dark:text-white p-5 relative shadow-2xl border border-slate-300 dark:border-slate-700">
 			{#if showClose}
-				<button class="float-right p-2 text-xs cursor-pointer" onclick={() => (showModal = false)}
-					><Icons iconName="x" /></button
+				<button
+					class="absolute top-4 right-4 text-xs cursor-pointer text-slate-400 hover:text-slate-200 transition-colors"
+					onclick={() => (showModal = false)}
 				>
+					<Icons iconName="x" />
+				</button>
 			{/if}
-			<div class="p-4 mt-2">{@render children()}</div>
+			<div>{@render children()}</div>
 		</div>
 	</div>
 {/if}

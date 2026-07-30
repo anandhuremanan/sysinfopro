@@ -1,171 +1,213 @@
 package functions
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"io/ioutil"
+	"math"
+	"math/rand"
 	"net/http"
-	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
-// Constants for the speed test
-const (
-	testDurationSeconds = 10
-	downloadURL         = "https://speed.cloudflare.com/__down?bytes=100000000" // 100MB test file
-	uploadURL           = "https://speed.cloudflare.com/__up"                   // Cloudflare upload endpoint
-	bufferSize          = 4096                                                  // 4KB buffer
-)
+// Fast CDN endpoints for multi-stream speed testing
+var downloadEndpoints = []string{
+	"https://speed.cloudflare.com/__down?bytes=50000000",
+	"https://speed.cloudflare.com/__down?bytes=25000000",
+}
+
+const uploadEndpoint = "https://speed.cloudflare.com/__up"
 
 func GetInterNetSpeed() (*InternetSpeedStat, error) {
 	speedStat := &InternetSpeedStat{}
 
-	downloadSpeed := testDownloadSpeed()
+	// 1. Measure Latency, Jitter, Packet Loss
+	ping, jitter, loss := measureLatencyMetrics()
+	speedStat.PingLatencyMs = ping
+	speedStat.JitterMs = jitter
+	speedStat.PacketLossPct = loss
+
+	// 2. Measure Download Speed (Multi-stream parallel HTTP GET)
+	downloadSpeed := measureParallelDownloadSpeed()
 	speedStat.DownloadSpeed = downloadSpeed
 
-	uploadSpeed := testUploadSpeedOptimized()
+	// 3. Measure Upload Speed (Multi-stream parallel HTTP POST)
+	uploadSpeed := measureParallelUploadSpeed()
 	speedStat.UploadSpeed = uploadSpeed
 
 	return speedStat, nil
 }
 
-// testDownloadSpeed measures download speed by downloading a large file
-func testDownloadSpeed() float64 {
-	fmt.Println("Testing download speed...")
-
-	// Create HTTP client with timeout
+func measureLatencyMetrics() (float64, float64, float64) {
 	client := &http.Client{
-		Timeout: time.Duration(testDurationSeconds+5) * time.Second,
+		Timeout: 2 * time.Second,
 	}
 
-	startTime := time.Now()
+	samples := 6
+	success := 0
+	latencies := []float64{}
 
-	// Make the request
-	resp, err := client.Get(downloadURL)
-	if err != nil {
-		fmt.Printf("Error during download test: %v\n", err)
-		return 0
-	}
-	defer resp.Body.Close()
-
-	// Read the response
-	buffer := make([]byte, bufferSize)
-	var bytesRead int64
-
-	// Use a timer to limit test duration
-	timer := time.NewTimer(time.Duration(testDurationSeconds) * time.Second)
-	done := make(chan bool)
-
-	// Start reading in a goroutine
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-done:
-				return
-			default:
-				n, err := resp.Body.Read(buffer)
-				if err != nil && err != io.EOF {
-					fmt.Printf("Error reading response: %v\n", err)
-					return
-				}
-				bytesRead += int64(n)
-				if err == io.EOF {
-					done <- true
-					return
-				}
-			}
+	for i := 0; i < samples; i++ {
+		start := time.Now()
+		resp, err := client.Get("https://1.1.1.1/cdn-cgi/trace")
+		if err == nil {
+			io.Copy(io.Discard, resp.Body)
+			resp.Body.Close()
+			lat := float64(time.Since(start).Microseconds()) / 1000.0
+			latencies = append(latencies, lat)
+			success++
 		}
-	}()
-
-	// Wait for either timeout or EOF
-	select {
-	case <-timer.C:
-		done <- true
-	case <-done:
-		// Reading complete before timeout
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	wg.Wait()
-
-	elapsedTime := time.Since(startTime).Seconds()
-	if elapsedTime > float64(testDurationSeconds) {
-		elapsedTime = float64(testDurationSeconds)
+	if success == 0 {
+		return 0, 0, 100.0
 	}
 
-	// Calculate speed in Mbps (megabits per second)
-	// 8 bits per byte, divide by 1,000,000 for mega, divide by elapsed time for per second
-	speedMbps := float64(bytesRead) * 8 / 1000000 / elapsedTime
+	loss := ((float64(samples) - float64(success)) / float64(samples)) * 100.0
+	sum := 0.0
+	for _, l := range latencies {
+		sum += l
+	}
+	avgPing := sum / float64(len(latencies))
 
-	return speedMbps
+	// Calculate jitter (mean absolute deviation)
+	jitterSum := 0.0
+	for _, l := range latencies {
+		jitterSum += math.Abs(l - avgPing)
+	}
+	jitter := jitterSum / float64(len(latencies))
+
+	return math.Round(avgPing*10) / 10, math.Round(jitter*10) / 10, math.Round(loss*10) / 10
 }
 
-// testUploadSpeed measures upload speed by uploading random data
-func testUploadSpeedOptimized() float64 {
-	fmt.Println("Testing upload speed...")
+// measureParallelDownloadSpeed uses 4 parallel HTTP streams to measure peak Mbps (matching Google Speed Test)
+func measureParallelDownloadSpeed() float64 {
+	numStreams := 4
+	testDuration := 6 * time.Second
 
-	// Create a smaller payload (5MB instead of 10MB)
-	dataSize := 5000000 // 5MB
-	reader := strings.NewReader(strings.Repeat("X", dataSize))
-
-	// Set a shorter test duration (5 seconds)
-	testDuration := 5 * time.Second
-
-	// Create HTTP client with timeout
 	client := &http.Client{
-		Timeout: testDuration + (2 * time.Second),
+		Timeout: testDuration + 2*time.Second,
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 10,
+			DisableCompression:  true,
+		},
 	}
 
-	startTime := time.Now()
-	bytesUploaded := int64(0)
-
-	// Use a context with timeout to control the overall test duration
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
 	defer cancel()
 
-	// Only do a single upload or a small fixed number of uploads
-	for i := 0; i < 3 && ctx.Err() == nil; i++ {
-		// Reset reader position
-		reader.Seek(0, io.SeekStart)
+	var totalBytes int64
+	var wg sync.WaitGroup
+	startTime := time.Now()
 
-		// Create a request with context
-		req, err := http.NewRequestWithContext(ctx, "POST", uploadURL, reader)
-		if err != nil {
-			fmt.Printf("Error creating request: %v\n", err)
-			continue
-		}
-		req.Header.Set("Content-Type", "application/octet-stream")
+	for i := 0; i < numStreams; i++ {
+		wg.Add(1)
+		go func(streamIdx int) {
+			defer wg.Done()
 
-		// Make upload request
-		resp, err := client.Do(req)
-		if err != nil {
-			fmt.Printf("Error during upload test: %v\n", err)
-			continue
-		}
+			url := downloadEndpoints[streamIdx%len(downloadEndpoints)]
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				return
+			}
 
-		// Read and discard response
-		_, err = io.Copy(ioutil.Discard, resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			fmt.Printf("Error reading upload response: %v\n", err)
-			continue
-		}
+			resp, err := client.Do(req)
+			if err != nil {
+				return
+			}
+			defer resp.Body.Close()
 
-		// Count uploaded bytes
-		bytesUploaded += int64(dataSize)
+			buf := make([]byte, 64*1024) // 64KB buffer
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					n, readErr := resp.Body.Read(buf)
+					if n > 0 {
+						atomic.AddInt64(&totalBytes, int64(n))
+					}
+					if readErr != nil {
+						return
+					}
+				}
+			}
+		}(i)
 	}
 
-	elapsedTime := time.Since(startTime).Seconds()
-	if elapsedTime < 0.1 {
-		return 0 // Avoid division by zero or unrealistically short times
+	wg.Wait()
+	elapsed := time.Since(startTime).Seconds()
+
+	if elapsed < 0.5 || totalBytes == 0 {
+		return 0
 	}
 
-	// Calculate speed in Mbps (megabits per second)
-	speedMbps := float64(bytesUploaded) * 8 / 1000000 / elapsedTime
+	// Mbps = (bytes * 8) / (1,000,000 * seconds)
+	mbps := (float64(totalBytes) * 8.0) / (1000000.0 * elapsed)
+	return math.Round(mbps*10) / 10
+}
 
-	return speedMbps
+// measureParallelUploadSpeed uses 4 parallel HTTP POST streams to measure peak upload Mbps
+func measureParallelUploadSpeed() float64 {
+	numStreams := 4
+	testDuration := 5 * time.Second
+	payloadSize := 2 * 1024 * 1024 // 2MB payload chunk
+
+	// Generate random payload buffer once
+	payload := make([]byte, payloadSize)
+	rand.Read(payload)
+
+	client := &http.Client{
+		Timeout: testDuration + 2*time.Second,
+		Transport: &http.Transport{
+			MaxIdleConnsPerHost: 10,
+			DisableCompression:  true,
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
+	defer cancel()
+
+	var totalBytes int64
+	var wg sync.WaitGroup
+	startTime := time.Now()
+
+	for i := 0; i < numStreams; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for ctx.Err() == nil {
+				req, err := http.NewRequestWithContext(ctx, "POST", uploadEndpoint, bytes.NewReader(payload))
+				if err != nil {
+					return
+				}
+				req.Header.Set("Content-Type", "application/octet-stream")
+
+				resp, err := client.Do(req)
+				if err != nil {
+					return
+				}
+
+				io.Copy(io.Discard, resp.Body)
+				resp.Body.Close()
+
+				atomic.AddInt64(&totalBytes, int64(payloadSize))
+			}
+		}()
+	}
+
+	wg.Wait()
+	elapsed := time.Since(startTime).Seconds()
+
+	if elapsed < 0.5 || totalBytes == 0 {
+		return 0
+	}
+
+	// Mbps = (bytes * 8) / (1,000,000 * seconds)
+	mbps := (float64(totalBytes) * 8.0) / (1000000.0 * elapsed)
+	return math.Round(mbps*10) / 10
 }

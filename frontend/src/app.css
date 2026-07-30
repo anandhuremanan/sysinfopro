@@ -2,8 +2,52 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/* Prevent WebView2 / WebKit overscroll bounce & rubber-banding */
+html,
+body {
+	overscroll-behavior: none;
+	overscroll-behavior-x: none;
+	overscroll-behavior-y: none;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
+	width: 100vw;
+	height: 100vh;
+	position: fixed;
+	touch-action: pan-x pan-y;
+}
+
+* {
+	overscroll-behavior: none;
+}
+
 .no-select {
 	user-select: none;
 	-webkit-user-select: none; /* Safari */
 	-ms-user-select: none; /* IE 10+ */
+}
+
+/* Custom sleek desktop scrollbar */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(148, 163, 184, 0.3);
+	border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(148, 163, 184, 0.6);
+}
+
+/* Firefox scrollbar support */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
 }

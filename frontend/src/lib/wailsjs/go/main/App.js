@@ -26,6 +26,14 @@ export function GetCPUStats() {
   return window['go']['main']['App']['GetCPUStats']();
 }
 
+export function GetDiagnosticReport() {
+  return window['go']['main']['App']['GetDiagnosticReport']();
+}
+
+export function GetDriveHealthDetails() {
+  return window['go']['main']['App']['GetDriveHealthDetails']();
+}
+
 export function GetFormattedSize(arg1) {
   return window['go']['main']['App']['GetFormattedSize'](arg1);
 }
@@ -38,12 +46,28 @@ export function GetMemoryStats() {
   return window['go']['main']['App']['GetMemoryStats']();
 }
 
+export function GetMemoryVelocity() {
+  return window['go']['main']['App']['GetMemoryVelocity']();
+}
+
 export function GetSysInfo() {
   return window['go']['main']['App']['GetSysInfo']();
 }
 
+export function GetTopProcesses(arg1) {
+  return window['go']['main']['App']['GetTopProcesses'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
+}
+
+export function PurgeJunkFiles() {
+  return window['go']['main']['App']['PurgeJunkFiles']();
+}
+
+export function SaveSpecCardPNG(arg1) {
+  return window['go']['main']['App']['SaveSpecCardPNG'](arg1);
 }
 
 export function ScanCleanableFiles() {
@@ -52,4 +76,8 @@ export function ScanCleanableFiles() {
 
 export function ScanSafeCleanableFiles() {
   return window['go']['main']['App']['ScanSafeCleanableFiles']();
+}
+
+export function TerminateProcess(arg1) {
+  return window['go']['main']['App']['TerminateProcess'](arg1);
 }

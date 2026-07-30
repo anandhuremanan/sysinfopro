@@ -11,6 +11,7 @@
 	let error = $state('');
 	let showSpeedTest = $state(false);
 	let showAdvancedDashboard = $state(false);
+	let showTopProcesses = $state(false);
 	let showQuitConfirm = $state(false);
 	let isLoading = $state(false);
 
@@ -19,6 +20,8 @@
 			showSpeedTest = false;
 		} else if (showAdvancedDashboard) {
 			showAdvancedDashboard = false;
+		} else if (showTopProcesses) {
+			showTopProcesses = false;
 		}
 	}
 
@@ -58,36 +61,53 @@
 	</div>
 {:else}
 	<section
-		class="min-h-screen flex flex-col items-center justify-center dark:bg-slate-800 bg-slate-300"
+		class="h-screen w-screen flex flex-col justify-between items-center p-4 dark:bg-slate-800 bg-slate-300 overflow-hidden select-none"
 	>
-		<div class="flex flex-col items-start space-y-1">
-			<div class="flex justify-between items-baseline w-full">
-				<div class="flex dark:text-white">
-					<Logo />™
-				</div>
-				<div class="flex space-x-6 items-center">
-					{#if !showSpeedTest && !showAdvancedDashboard}
-						<RefreshButton onclick={getSysInfo} />
-					{/if}
-
-					{#if showAdvancedDashboard || showSpeedTest}
-						<button class="dark:text-slate-400 cursor-pointer text-sm mr-4" onclick={toggleBack}
-							>Back</button
-						>
-					{/if}
-					<button class="dark:text-slate-400 cursor-pointer text-sm mr-2" onclick={toggleQuitModal}
-						>Close</button
-					>
-				</div>
+		<!-- Fixed Height Header Bar -->
+		<header class="flex justify-between items-center w-[95vw] h-10 shrink-0">
+			<div class="flex items-center dark:text-white">
+				<Logo />™
 			</div>
+			<div class="flex space-x-6 items-center h-full">
+				{#if !showSpeedTest && !showAdvancedDashboard && !showTopProcesses}
+					<RefreshButton onclick={getSysInfo} />
+				{/if}
 
+				{#if showAdvancedDashboard || showSpeedTest || showTopProcesses}
+					<button
+						class="dark:text-slate-400 cursor-pointer text-sm font-medium hover:text-slate-200 transition-colors"
+						onclick={toggleBack}
+					>
+						Back
+					</button>
+				{/if}
+				<button
+					class="dark:text-slate-400 cursor-pointer text-sm font-medium hover:text-slate-200 transition-colors"
+					onclick={toggleQuitModal}
+				>
+					Close
+				</button>
+			</div>
+		</header>
+
+		<!-- Main Card Container -->
+		<main class="flex-1 flex items-center justify-center w-full min-h-0 my-2">
 			{#if systemInfo}
-				<SysInfoCard {systemInfo} bind:showSpeedTest bind:showAdvancedDashboard />
+				<SysInfoCard
+					{systemInfo}
+					bind:showSpeedTest
+					bind:showAdvancedDashboard
+					bind:showTopProcesses
+				/>
 			{/if}
+		</main>
 
+		<!-- Right-Aligned Footer Bar -->
+		<footer class="w-[95vw] h-6 shrink-0 flex items-center justify-end">
 			<Credits />
-		</div>
+		</footer>
 
+		<!-- Quit Confirmation Modal -->
 		<Modal showModal={showQuitConfirm} showClose={false}>
 			<div class="flex flex-col justify-center items-center text-sm gap-2">
 				<div>Are You Sure to Quit?</div>

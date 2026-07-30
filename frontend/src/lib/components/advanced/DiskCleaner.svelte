@@ -1,21 +1,32 @@
 <script lang="ts">
-	import { CheckCleanerPermissions, ScanSafeCleanableFiles } from '$lib/wailsjs/go/main/App';
+	import { CheckCleanerPermissions, GetDriveHealthDetails, ScanSafeCleanableFiles } from '$lib/wailsjs/go/main/App';
 	import Card from '../ui/Card.svelte';
 	import PieDisk from './PieDisk.svelte';
 
 	let isScanningFiles = $state(false);
 	let files: any = $state(undefined);
+	let driveHealth: any = $state(null);
 
 	async function checkPermission() {
 		try {
 			const permission = await CheckCleanerPermissions();
 			if (permission) {
 				console.log('Permission granted:', permission);
-			} else {
-				console.log('Permission denied:', permission);
 			}
 		} catch (error) {
 			console.error(error);
+		}
+	}
+
+	async function loadDriveHealth() {
+		try {
+			// @ts-ignore
+			const result = await GetDriveHealthDetails();
+			if (result && result.length > 0) {
+				driveHealth = result[0];
+			}
+		} catch (err) {
+			console.error('Error fetching drive health:', err);
 		}
 	}
 
@@ -25,9 +36,6 @@
 			const fileResult: any = await ScanSafeCleanableFiles();
 			if (fileResult) {
 				files = fileResult;
-				console.log('Scan result:', fileResult);
-			} else {
-				console.log('No files found to clean.');
 			}
 		} catch (error) {
 			console.error('Error scanning files:', error);
@@ -40,44 +48,104 @@
 		await checkPermission();
 		await scanFiles();
 	}
+
+	function resetScan() {
+		files = undefined;
+	}
+
+	$effect(() => {
+		loadDriveHealth();
+	});
 </script>
 
 <Card isLoading={false}>
-	<div class="flex flex-col h-[60vh]">
-		<div class="flex space-x-2 items-start">
-			<div class="flex flex-col space-y-2 flex-1">
-				<div class="font-bold">Disk Cleaner Utility</div>
-				<div class="flex w-full">
-					<div class="flex-1">
-						<p class="">
-							Clear Temporary Files and Browser Cache for free up some space from your disk.
-							Clearing browser cache may be results in clearing browser history and cache.
-						</p>
-					</div>
-				</div>
-				{#if !files}
-					<button
-						class="mt-2 p-1 text-xs bg-blue-500 text-white rounded-lg cursor-pointer w-36 {isScanningFiles &&
-							'animate-pulse'}"
-						onclick={analyseStorageSpace}
-						>{isScanningFiles ? 'Scanning...' : 'Analyse Storage Space'}</button
+	<div class="flex flex-col h-full justify-between">
+		<!-- Header Row with unified baseline height -->
+		<div class="h-6 flex justify-between items-center w-full">
+			<div class="flex items-center gap-2">
+				<span class="font-bold text-xs leading-tight text-slate-800 dark:text-slate-100">
+					Disk Cleaner & Storage
+				</span>
+				{#if driveHealth}
+					<span
+						class="text-[10px] px-2 py-0.5 rounded font-semibold border {driveHealth.health_status ===
+						'Good' || driveHealth.health_status === 'Healthy'
+							? 'bg-green-500/20 text-green-400 border-green-500/30'
+							: 'bg-amber-500/20 text-amber-400 border-amber-500/30'}"
 					>
+						{driveHealth.health_status} ({driveHealth.estimated_life_pct}%)
+					</span>
 				{/if}
 			</div>
-			<img src="/server-cleaning.png" alt="disk-cleaner" class="w-24 h-24" />
+
+			{#if files}
+				<button
+					class="text-[10px] bg-slate-300 dark:bg-slate-800 hover:bg-slate-400 dark:hover:bg-slate-700 px-2.5 py-1 rounded-lg text-slate-800 dark:text-slate-200 font-medium transition-colors cursor-pointer shrink-0 border border-slate-300 dark:border-slate-700/60"
+					onclick={resetScan}
+				>
+					Rescan
+				</button>
+			{/if}
 		</div>
 
+		<!-- Main Card Content -->
 		{#if isScanningFiles}
-			<div
-				class="flex items-center justify-center mt-6 animate-pulse dark:bg-slate-700 bg-slate-300 border border-slate-200 dark:border-slate-700 w-full h-20 rounded-2xl"
-			>
-				Scanning For Files...
+			<!-- Scanning State -->
+			<div class="flex-1 flex flex-col items-center justify-center space-y-3 py-8">
+				<div class="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+				<div class="text-xs text-slate-300 font-medium animate-pulse">
+					Scanning temporary & cleanable files...
+				</div>
+				<div class="text-[11px] text-gray-500">Inspecting system logs, caches & temp directories</div>
 			</div>
 		{:else if files}
-			<div
-				class="mt-4 dark:bg-slate-700 bg-slate-200 border border-slate-300 dark:border-slate-600 w-full rounded-2xl p-3"
-			>
+			<!-- Pie Chart Results State -->
+			<div class="flex-1 flex flex-col justify-center py-2">
 				<PieDisk {files} />
+			</div>
+		{:else}
+			<!-- Initial Ready State -->
+			<div class="flex-1 flex flex-col justify-between py-2 space-y-3">
+				<!-- Hero graphic & Storage Diagnostic summary with button directly below Drive Life -->
+				<div class="flex items-center gap-4 my-auto">
+					<img src="/server-cleaning.png" alt="disk-cleaner" class="w-24 h-24 shrink-0 object-contain" />
+					<div class="flex-1 text-xs space-y-2">
+						<div class="font-bold text-slate-800 dark:text-slate-200">Storage Optimization</div>
+						<div class="space-y-1 text-gray-400">
+							<div class="flex justify-between">
+								<span>Target Caches:</span>
+								<span class="font-bold text-slate-800 dark:text-slate-200">OS Temp & Caches</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Cleaning Type:</span>
+								<span class="font-bold text-slate-800 dark:text-slate-200">Safe System Purge</span>
+							</div>
+							<div class="flex justify-between">
+								<span>Drive Life:</span>
+								<span class="font-bold text-slate-800 dark:text-slate-200">
+									{driveHealth ? `${driveHealth.estimated_life_pct}% (~${driveHealth.estimated_life_years || 4.7} yrs)` : 'Good'}
+								</span>
+							</div>
+						</div>
+
+						<!-- Scan Button directly below Drive Life -->
+						<div class="pt-1">
+							<button
+								class="w-full py-1.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded-lg cursor-pointer transition-colors font-medium shadow-xs"
+								onclick={analyseStorageSpace}
+							>
+								Analyse Storage Space
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Description text at bottom -->
+				<div class="pt-2 border-t border-slate-300/60 dark:border-slate-800/80">
+					<p class="text-[11px] text-gray-400">
+						Safely clear temporary files, system logs, and browser caches to recover disk space.
+					</p>
+				</div>
 			</div>
 		{/if}
 	</div>

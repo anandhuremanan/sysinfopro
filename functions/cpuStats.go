@@ -2,34 +2,55 @@ package functions
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// CPUStats holds the CPU utilization data
-type CPUStats struct {
-	Usage     float64 `json:"usage"`
-	Timestamp int64   `json:"timestamp"`
-}
+var (
+	recentHighLoadCount = 0
+)
 
-// GetCPUStats returns the current CPU utilization percentage
+// GetCPUStats returns the current CPU utilization percentage and frequency metrics
 func GetCPUStats() (*CPUStats, error) {
 	percentages, err := cpu.Percent(time.Second, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// Just get the overall CPU usage (not per core)
+	usage := percentages[0]
+
+	// Sample CPU clock frequency
+	freqGHz := 2.5
+	info, err := cpu.Info()
+	if err == nil && len(info) > 0 && info[0].Mhz > 0 {
+		freqGHz = math.Round((info[0].Mhz/1000.0)*100) / 100
+	}
+
+	// Detect sustained load (e.g. usage > 80% for multiple samples)
+	if usage > 80.0 {
+		recentHighLoadCount++
+	} else {
+		if recentHighLoadCount > 0 {
+			recentHighLoadCount--
+		}
+	}
+
+	sustained := recentHighLoadCount >= 3
+	isThrottling := sustained && freqGHz < 2.0
+
 	return &CPUStats{
-		Usage:     percentages[0],
-		Timestamp: time.Now().Unix(),
+		Usage:         usage,
+		Timestamp:     time.Now().Unix(),
+		FrequencyGHz:  freqGHz,
+		IsThrottling:  isThrottling,
+		SustainedLoad: sustained,
 	}, nil
 }
 
 // StartCPUMonitoring begins periodic monitoring of CPU usage and emits events
-// Context is passed from the main App
 func StartCPUMonitoring(ctx context.Context) {
 	ticker := time.NewTicker(2 * time.Second)
 
@@ -39,7 +60,6 @@ func StartCPUMonitoring(ctx context.Context) {
 		for range ticker.C {
 			stats, err := GetCPUStats()
 			if err == nil {
-				// Emit event to frontend with current CPU stats
 				runtime.EventsEmit(ctx, "cpu-stats-update", stats)
 			}
 		}

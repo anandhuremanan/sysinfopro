@@ -506,3 +506,15 @@ func SafeClean() CleanerResult {
 
 	return result
 }
+
+// PurgeJunk scans user & system temp/cache directories and actually removes cleanable junk files from disk
+func PurgeJunk() (int, int64, []string) {
+	scanResult := SafeClean()
+	var allFiles []FileInfo
+	for _, fileList := range scanResult.Files {
+		allFiles = append(allFiles, fileList...)
+	}
+
+	return CleanFiles(allFiles)
+}
+

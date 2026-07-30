@@ -48,10 +48,14 @@
 	});
 </script>
 
-<div class="grid grid-cols-2 gap-2 h-[72vh]">
-	<div class="flex flex-col space-y-2">
+<div class="grid grid-cols-2 gap-3 h-full py-0.5">
+	<!-- Left column with 2 strictly equal fixed-height rows -->
+	<div class="grid grid-rows-2 gap-3 h-full">
 		<BatteryDetails {batteryDetails} {isLoadingBattery} {getBatteryDetials} />
 		<SystemStat {overallScore} />
 	</div>
-	<DiskCleaner />
+	<!-- Right column matching exact full height -->
+	<div class="h-full">
+		<DiskCleaner />
+	</div>
 </div>

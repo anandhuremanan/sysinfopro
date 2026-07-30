@@ -10,10 +10,12 @@ export async function checkInternetConnection() {
 }
 
 export function mbToGb(mb: number) {
+	if (!mb) return '0.00';
 	return (mb / 1024).toFixed(2);
 }
 
 export function bytesToGb(kb: number) {
+	if (!kb) return '0.00';
 	return (kb / 1024 / 1024 / 1024).toFixed(2);
 }
 
@@ -29,20 +31,34 @@ export async function copyStat(systemInfo: any): Promise<string> {
 }
 
 export function getSystemHealthScore(metrics: any): number {
+	if (!metrics) return 0;
 	const {
-		battery: { designedCapacity, currentCapacity },
-		disk: { total: totalDisk, free: freeDisk },
-		ram: { total: totalRam, available: availableRam }
+		battery,
+		disk,
+		ram
 	} = metrics;
 
-	// Avoid division by zero
-	if (designedCapacity <= 0 || totalDisk <= 0 || totalRam <= 0) return 0;
+	let totalScore = 0;
+	let factorsCount = 0;
 
-	const batteryHealth = (currentCapacity / designedCapacity) * 100;
-	const diskHealth = (freeDisk / totalDisk) * 100;
-	const ramHealth = (availableRam / totalRam) * 100;
+	if (ram && ram.total > 0) {
+		const ramHealth = (ram.available / ram.total) * 100;
+		totalScore += ramHealth;
+		factorsCount++;
+	}
 
-	const score = (batteryHealth + diskHealth + ramHealth) / 3;
+	if (disk && disk.total > 0) {
+		const diskHealth = (disk.free / disk.total) * 100;
+		totalScore += diskHealth;
+		factorsCount++;
+	}
 
-	return Math.round(score * 100) / 100;
+	if (battery && battery.designedCapacity > 0 && battery.currentCapacity > 0) {
+		const batteryHealth = Math.min(100, (battery.currentCapacity / battery.designedCapacity) * 100);
+		totalScore += batteryHealth;
+		factorsCount++;
+	}
+
+	if (factorsCount === 0) return 0;
+	return Math.round((totalScore / factorsCount) * 100) / 100;
 }
