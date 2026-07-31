@@ -189,6 +189,12 @@ func (a *App) GetEnvPathAnalysis() (*system.EnvPathAnalysis, error) {
 	return system.GetEnvPathAnalysis()
 }
 
+// GetSoftwareHealthDetails audits installed software versions against official releases
+func (a *App) GetSoftwareHealthDetails() ([]system.SoftwareItem, error) {
+	return system.GetSoftwareHealthDetails()
+}
+
+
 
 
 

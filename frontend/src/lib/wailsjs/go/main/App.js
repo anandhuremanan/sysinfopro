@@ -58,6 +58,10 @@ export function GetMemoryVelocity() {
   return window['go']['main']['App']['GetMemoryVelocity']();
 }
 
+export function GetSoftwareHealthDetails() {
+  return window['go']['main']['App']['GetSoftwareHealthDetails']();
+}
+
 export function GetStartupItems() {
   return window['go']['main']['App']['GetStartupItems']();
 }

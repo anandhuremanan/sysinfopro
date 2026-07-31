@@ -35,6 +35,8 @@ export function GetMemoryStats():Promise<functions.MemoryStats>;
 
 export function GetMemoryVelocity():Promise<diagnostics.MemoryVelocitySample>;
 
+export function GetSoftwareHealthDetails():Promise<Array<system.SoftwareItem>>;
+
 export function GetStartupItems():Promise<Array<system.StartupItem>>;
 
 export function GetSysInfo():Promise<string>;

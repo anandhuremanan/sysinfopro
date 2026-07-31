@@ -418,6 +418,28 @@ export namespace system {
 	}
 	
 	
+	export class SoftwareItem {
+	    name: string;
+	    current_version: string;
+	    latest_version: string;
+	    is_outdated: boolean;
+	    release_date: string;
+	    official_download: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SoftwareItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.current_version = source["current_version"];
+	        this.latest_version = source["latest_version"];
+	        this.is_outdated = source["is_outdated"];
+	        this.release_date = source["release_date"];
+	        this.official_download = source["official_download"];
+	    }
+	}
 	export class StartupItem {
 	    name: string;
 	    command: string;

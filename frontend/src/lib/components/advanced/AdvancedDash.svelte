@@ -5,6 +5,7 @@
 	import DiskCleaner from './DiskCleaner.svelte';
 	import EnvPathInspector from './EnvPathInspector.svelte';
 	import PortInspector from './PortInspector.svelte';
+	import SoftwareChecker from './SoftwareChecker.svelte';
 	import StartupManager from './StartupManager.svelte';
 	import StressBenchmark from './StressBenchmark.svelte';
 	import SystemStat from './SystemStat.svelte';
@@ -14,7 +15,7 @@
 	let batteryDetails: any = $state(undefined);
 	let isLoadingBattery = $state(false);
 	let overallScore = $state(0);
-	let activeTab = $state<'health' | 'ports' | 'stress' | 'startup' | 'env'>('health');
+	let activeTab = $state<'health' | 'ports' | 'stress' | 'startup' | 'env' | 'software'>('health');
 
 	async function getBatteryDetials() {
 		try {
@@ -103,10 +104,19 @@
 		>
 			PATH Debug
 		</button>
+		<button
+			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
+			'software'
+				? 'bg-blue-500 text-white shadow-xs'
+				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
+			onclick={() => (activeTab = 'software')}
+		>
+			Software Health
+		</button>
 	</div>
 
 	<!-- Tab Content Area -->
-	<div class="flex-1 min-h-0 h-full">
+	<div class="flex-1 min-h-0">
 		{#if activeTab === 'health'}
 			<div class="grid grid-cols-2 gap-3 h-full py-0.5">
 				<div class="grid grid-rows-2 gap-3 h-full">
@@ -125,6 +135,8 @@
 			<StartupManager />
 		{:else if activeTab === 'env'}
 			<EnvPathInspector />
+		{:else if activeTab === 'software'}
+			<SoftwareChecker />
 		{/if}
 	</div>
 </div>
