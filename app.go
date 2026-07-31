@@ -13,7 +13,9 @@ import (
 	"myproject/functions"
 	"myproject/internal/diagnostics"
 	"myproject/internal/hardware"
+	"myproject/internal/network"
 	"myproject/internal/process"
+	"myproject/internal/system"
 )
 
 // App struct
@@ -166,6 +168,27 @@ func (a *App) SaveSpecCardPNG(base64Data string) (string, error) {
 
 	return targetPath, nil
 }
+
+// GetActiveSockets returns all active listening network ports and owning processes
+func (a *App) GetActiveSockets() ([]network.SocketItem, error) {
+	return network.GetActiveSockets()
+}
+
+// RunThermalStressTest executes a 10-second multi-threaded CPU thermal stress burn
+func (a *App) RunThermalStressTest() (*hardware.StressResult, error) {
+	return hardware.RunThermalStressTest()
+}
+
+// GetStartupItems returns all auto-starting registry and folder startup programs
+func (a *App) GetStartupItems() ([]system.StartupItem, error) {
+	return system.GetStartupItems()
+}
+
+// GetEnvPathAnalysis debugs system PATH entries and environment variables
+func (a *App) GetEnvPathAnalysis() (*system.EnvPathAnalysis, error) {
+	return system.GetEnvPathAnalysis()
+}
+
 
 
 

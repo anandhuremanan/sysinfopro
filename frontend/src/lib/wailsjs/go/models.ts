@@ -257,6 +257,59 @@ export namespace hardware {
 	        this.estimated_life_years = source["estimated_life_years"];
 	    }
 	}
+	export class StressResult {
+	    duration_sec: number;
+	    ops_completed: number;
+	    thermal_score: number;
+	    baseline_load_pct: number;
+	    peak_load_pct: number;
+	    status_text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StressResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.duration_sec = source["duration_sec"];
+	        this.ops_completed = source["ops_completed"];
+	        this.thermal_score = source["thermal_score"];
+	        this.baseline_load_pct = source["baseline_load_pct"];
+	        this.peak_load_pct = source["peak_load_pct"];
+	        this.status_text = source["status_text"];
+	    }
+	}
+
+}
+
+export namespace network {
+	
+	export class SocketItem {
+	    pid: number;
+	    process_name: string;
+	    protocol: string;
+	    local_port: number;
+	    local_ip: string;
+	    remote_ip: string;
+	    remote_port: number;
+	    status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SocketItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pid = source["pid"];
+	        this.process_name = source["process_name"];
+	        this.protocol = source["protocol"];
+	        this.local_port = source["local_port"];
+	        this.local_ip = source["local_ip"];
+	        this.remote_ip = source["remote_ip"];
+	        this.remote_port = source["remote_port"];
+	        this.status = source["status"];
+	    }
+	}
 
 }
 
@@ -284,6 +337,107 @@ export namespace process {
 	        this.memory_percent = source["memory_percent"];
 	        this.energy_impact = source["energy_impact"];
 	        this.energy_impact_label = source["energy_impact_label"];
+	    }
+	}
+
+}
+
+export namespace system {
+	
+	export class EnvVariable {
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvVariable(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
+	export class PathEntry {
+	    path: string;
+	    is_valid: boolean;
+	    is_duplicate: boolean;
+	    status_text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PathEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.is_valid = source["is_valid"];
+	        this.is_duplicate = source["is_duplicate"];
+	        this.status_text = source["status_text"];
+	    }
+	}
+	export class EnvPathAnalysis {
+	    total_entries: number;
+	    valid_entries: number;
+	    invalid_entries: number;
+	    duplicates_count: number;
+	    path_entries: PathEntry[];
+	    key_variables: EnvVariable[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvPathAnalysis(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total_entries = source["total_entries"];
+	        this.valid_entries = source["valid_entries"];
+	        this.invalid_entries = source["invalid_entries"];
+	        this.duplicates_count = source["duplicates_count"];
+	        this.path_entries = this.convertValues(source["path_entries"], PathEntry);
+	        this.key_variables = this.convertValues(source["key_variables"], EnvVariable);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class StartupItem {
+	    name: string;
+	    command: string;
+	    location: string;
+	    impact: string;
+	    impact_score: number;
+	    is_enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartupItem(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.command = source["command"];
+	        this.location = source["location"];
+	        this.impact = source["impact"];
+	        this.impact_score = source["impact_score"];
+	        this.is_enabled = source["is_enabled"];
 	    }
 	}
 

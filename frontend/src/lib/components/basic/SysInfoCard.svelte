@@ -52,7 +52,7 @@
 </script>
 
 <div
-	class="bg-slate-200 dark:bg-slate-900 dark:text-white p-5 rounded-2xl flex flex-col justify-between w-[95vw] h-[78vh] shrink-0 relative"
+	class="bg-slate-200 dark:bg-slate-900 dark:text-white p-4 rounded-2xl flex flex-col justify-between w-[95vw] h-[78vh] shrink-0 relative"
 >
 	{#if showSpeedTest}
 		<div class="h-full flex items-center justify-center">
@@ -204,31 +204,31 @@
 			<!-- Bottom Action Bar (Fixed Right Alignment) -->
 			<div class="flex justify-end items-center pt-1 w-full gap-2">
 				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-colors border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
+					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
 					onclick={copyStatHandler}
 				>
 					Copy Stat
 				</button>
 				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-colors border border-slate-300 dark:border-slate-700/60 shadow-xs text-sky-400 font-semibold shrink-0"
+					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs text-sky-400 font-semibold shrink-0"
 					onclick={exportSpecCardHandler}
 				>
 					Export Card
 				</button>
 				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-colors border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
+					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
 					onclick={() => (showTopProcesses = true)}
 				>
 					Top Processes
 				</button>
 				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-colors border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
+					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
 					onclick={getInternetSpeed}
 				>
 					Speed Test
 				</button>
 				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-colors border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
+					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
 					onclick={() => (showAdvancedDashboard = !showAdvancedDashboard)}
 				>
 					Advanced Metrics
