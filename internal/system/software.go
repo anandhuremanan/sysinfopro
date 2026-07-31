@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/registry"
@@ -36,7 +38,7 @@ func GetSoftwareHealthDetails() ([]SoftwareItem, error) {
 	// 1. Programmatically scan ALL installed applications from Windows Registry
 	registryApps := scanRegistryInstalledApps()
 
-	// 2. Fetch real-time latest release versions for CLI & core developer tools
+	// 2. Fetch real-time latest release versions for CLI & core developer tools in parallel
 	cliApps := scanCLITools()
 
 	// 3. Merge registry apps and CLI apps, prioritizing live API checks
@@ -47,7 +49,6 @@ func GetSoftwareHealthDetails() ([]SoftwareItem, error) {
 	}
 
 	for _, item := range cliApps {
-		// Match against registry app names or append
 		found := false
 		for k, regItem := range mergedMap {
 			if strings.Contains(k, strings.ToLower(item.Name)) || strings.Contains(strings.ToLower(item.Name), k) {
@@ -253,28 +254,37 @@ func scanCLITools() []SoftwareItem {
 		},
 	}
 
-	httpClient := &http.Client{Timeout: 3 * time.Second}
+	httpClient := &http.Client{Timeout: 2 * time.Second}
 	results := []SoftwareItem{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
 
 	for _, target := range targets {
-		currentVer := checkCommandVersion(target.cmd, target.cmdArgs, target.versionRegex)
-		if currentVer == "" {
-			continue
-		}
+		wg.Add(1)
+		go func(t apiTarget) {
+			defer wg.Done()
+			currentVer := checkCommandVersion(t.cmd, t.cmdArgs, t.versionRegex)
+			if currentVer == "" {
+				return
+			}
 
-		latestVer, releaseDate := fetchLatestVersion(httpClient, target.apiURL, target.parseFunc)
-		isOutdated := isVersionOlder(currentVer, latestVer)
+			latestVer, releaseDate := fetchLatestVersion(httpClient, t.apiURL, t.parseFunc)
+			isOutdated := isVersionOlder(currentVer, latestVer)
 
-		results = append(results, SoftwareItem{
-			Name:             target.name,
-			CurrentVersion:   currentVer,
-			LatestVersion:    latestVer,
-			IsOutdated:       isOutdated,
-			ReleaseDate:      releaseDate,
-			OfficialDownload: target.officialDownload,
-		})
+			mu.Lock()
+			results = append(results, SoftwareItem{
+				Name:             t.name,
+				CurrentVersion:   currentVer,
+				LatestVersion:    latestVer,
+				IsOutdated:       isOutdated,
+				ReleaseDate:      releaseDate,
+				OfficialDownload: t.officialDownload,
+			})
+			mu.Unlock()
+		}(target)
 	}
 
+	wg.Wait()
 	return results
 }
 
@@ -323,6 +333,11 @@ func parseGitHubRelease(data []byte) (string, string) {
 
 func checkCommandVersion(cmdName string, args []string, regexPattern string) string {
 	cmd := exec.Command(cmdName, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    true,
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW (0x08000000)
+	}
+
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()
