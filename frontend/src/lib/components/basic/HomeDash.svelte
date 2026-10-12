@@ -1,239 +1,233 @@
 <script lang="ts">
-	import { checkInternetConnection, copyStat, mbToGb } from '$lib';
-	import { exportSpecCardPNG } from '$lib/utils/cardExporter';
-	import AdvancedDash from '../advanced/AdvancedDash.svelte';
+	import { usageBarColor } from '$lib';
+	import { ALL_TOOLS_ICON, getTool, pinnedTools, tools, type ToolStatus } from '$lib/tools';
+	import {
+		GetBatteryDetails,
+		GetDiagnosticReport,
+		GetTopProcesses
+	} from '$lib/wailsjs/go/main/App';
+	import ToolTile from '../ui/ToolTile.svelte';
 	import CpuStats from './CpuStats.svelte';
-	import ProcessView from './ProcessView.svelte';
 	import RamStats from './RamStats.svelte';
-	import SpeedAnimation from './SpeedAnimation.svelte';
 
 	let {
 		systemInfo,
-		showSpeedTest = $bindable(),
-		showAdvancedDashboard = $bindable(),
-		showTopProcesses = $bindable()
+		toolStatus,
+		onOpen,
+		onSpeedTest
+	}: {
+		systemInfo: any;
+		toolStatus: Record<string, ToolStatus>;
+		onOpen: (view: string) => void;
+		onSpeedTest: () => void;
 	} = $props();
 
-	let logMessage = $state<string | undefined>(undefined);
+	let report: any = $state(undefined);
+	let battery: any = $state(undefined);
+	let batteryLoaded = $state(false);
+	let topProcess: any = $state(undefined);
 
-	async function getInternetSpeed() {
-		const isConnected = await checkInternetConnection();
+	const RING = 2 * Math.PI * 53; // r = 53
 
-		if (!isConnected) {
-			logMessage = 'No internet connection detected!';
-			setTimeout(() => {
-				logMessage = undefined;
-			}, 2000);
-			return;
+	// Every tile on the home grid opens something
+	const tile =
+		'bg-tile rounded-[14px] min-w-0 text-left cursor-pointer transition-transform active:scale-[0.99] hover:ring-1 hover:ring-line';
+
+	let score = $derived(Math.round(report?.overall_score ?? 0));
+	let issueCount = $derived(report?.recommendations?.length ?? 0);
+	let scoreColor = $derived(
+		!report
+			? 'text-muted'
+			: score >= 80
+				? 'text-accent'
+				: score >= 60
+					? 'text-amber-500'
+					: 'text-red-500'
+	);
+
+	let diskUsedPct = $derived(
+		systemInfo.total_disk_gb > 0
+			? Math.min(100, Math.max(0, 100 - (systemInfo.free_disk_gb / systemInfo.total_disk_gb) * 100))
+			: 0
+	);
+
+	async function loadReport() {
+		try {
+			report = await GetDiagnosticReport();
+		} catch (err) {
+			console.error('Failed to get diagnostic report:', err);
 		}
-
-		showSpeedTest = !showSpeedTest;
 	}
 
-	async function copyStatHandler() {
-		logMessage = await copyStat(systemInfo);
-
-		setTimeout(() => {
-			logMessage = undefined;
-		}, 2000);
-	}
-
-	async function exportSpecCardHandler() {
-		const savedPath = await exportSpecCardPNG(systemInfo);
-		if (savedPath) {
-			logMessage = `Spec Card saved: ${savedPath}`;
-		} else {
-			logMessage = 'Failed to export spec card.';
+	async function loadBattery() {
+		try {
+			const res = await GetBatteryDetails();
+			battery = res ? JSON.parse(res) : null;
+		} catch (err) {
+			console.error('Failed to get battery details:', err);
+		} finally {
+			batteryLoaded = true;
 		}
-		setTimeout(() => {
-			logMessage = undefined;
-		}, 4000);
 	}
+
+	async function loadTopProcess() {
+		try {
+			const res = await GetTopProcesses(1);
+			topProcess = res?.[0];
+		} catch (err) {
+			console.error('Failed to get processes:', err);
+		}
+	}
+
+	$effect(() => {
+		loadReport();
+		loadBattery();
+		loadTopProcess();
+	});
 </script>
 
-<div
-	class="bg-slate-200 dark:bg-slate-900 dark:text-white p-4 rounded-2xl flex flex-col justify-between w-[95vw] h-[78vh] shrink-0 relative"
->
-	{#if showSpeedTest}
-		<div class="h-full flex items-center justify-center">
-			<SpeedAnimation />
-		</div>
-	{:else if showAdvancedDashboard && systemInfo}
-		<div class="h-full">
-			<AdvancedDash {systemInfo} />
-		</div>
-	{:else if showTopProcesses}
-		<div class="h-full">
-			<ProcessView />
-		</div>
-	{:else}
-		<div class="flex flex-col justify-between h-full gap-3">
-			<!-- Header Bar: Minimal OS Hero Badge & System Status -->
-			<div
-				class="flex justify-between items-center pb-2.5 border-b border-slate-300 dark:border-slate-800"
-			>
-				<div class="flex items-center gap-3">
-					{#if systemInfo.host_os == 'windows'}
-						<img src="/windows.png" alt="windows" class="w-8 h-8 object-contain shrink-0" />
-					{:else if systemInfo.host_os == 'darwin'}
-						<img src="/mac.png" alt="macos" class="w-8 h-8 object-contain shrink-0" />
-					{:else}
-						<img src="/pc.png" alt="system" class="w-8 h-8 object-contain shrink-0" />
-					{/if}
-					<div>
-						<div class="font-bold text-sm leading-tight text-slate-800 dark:text-slate-100">
-							{systemInfo.host_platform || 'Desktop System'}
-						</div>
-						<div class="text-xs text-gray-500 dark:text-slate-400">
-							{systemInfo.host_platform_version} &bull; {systemInfo.logged_in_user}
-						</div>
-					</div>
-				</div>
-
-				<div
-					class="text-xs px-2.5 py-1 rounded-full bg-green-500/15 text-green-500 font-semibold border border-green-500/30 flex items-center gap-1.5"
-				>
-					<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-					System Active
-				</div>
-			</div>
-
-			<!-- Live Gauges Cards (CPU & RAM Side-by-Side) -->
-			<div class="grid grid-cols-2 gap-4 my-1">
-				<div
-					class="bg-slate-300/40 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-300 dark:border-slate-700/60 flex flex-col justify-center"
-				>
-					<CpuStats />
-				</div>
-
-				<div
-					class="bg-slate-300/40 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-300 dark:border-slate-700/60 flex flex-col justify-center"
-				>
-					<RamStats />
-				</div>
-			</div>
-
-			<!-- Specifications Grid (3 Columns) -->
-			<div
-				class="grid grid-cols-3 gap-4 bg-slate-300/20 dark:bg-slate-800/30 p-3.5 rounded-xl border border-slate-300/50 dark:border-slate-700/40 text-xs"
-			>
-				<!-- Col 1: CPU -->
-				<div class="space-y-1">
-					<div
-						class="font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[10px]"
+<div class="h-full grid grid-cols-4 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_82px] gap-3">
+	<!-- Health score (hero) -->
+	<button class="{tile} row-span-2 p-4 flex flex-col gap-2" onclick={() => onOpen('health')}>
+		<span class="text-muted font-medium">Health score</span>
+		<span class="relative w-[124px] h-[124px] self-center my-auto {scoreColor}">
+			<svg width="124" height="124" viewBox="0 0 124 124" fill="none" class="-rotate-90" aria-hidden="true">
+				<circle cx="62" cy="62" r="53" stroke-width="10" class="stroke-track" />
+				<circle
+					cx="62"
+					cy="62"
+					r="53"
+					stroke="currentColor"
+					stroke-width="10"
+					stroke-linecap="round"
+					stroke-dasharray="{(RING * score) / 100} {RING}"
+					class="transition-all duration-700 ease-out"
+				/>
+			</svg>
+			<span class="absolute inset-0 flex flex-col items-center justify-center text-ink">
+				<span class="text-[34px] font-semibold tracking-tight leading-none">
+					{report ? score : '–'}
+				</span>
+				<span class="text-muted">of 100</span>
+			</span>
+		</span>
+		<span class="flex flex-col gap-0.5 min-w-0 w-full">
+			<span class="flex items-center gap-1.5 font-semibold min-w-0">
+				<span class="w-1.5 h-1.5 rounded-full bg-current shrink-0 {scoreColor}"></span>
+				<span class="truncate">{report?.status_text || 'System active'}</span>
+			</span>
+			{#if issueCount > 0}
+				<span class="flex items-center gap-1.5 min-w-0">
+					<span
+						class="shrink-0 min-w-[18px] h-[18px] px-[5px] rounded-full bg-amber-200 text-amber-900 text-[11px] font-bold leading-[18px] text-center"
 					>
-						Processor
-					</div>
-					<div class="truncate" title={systemInfo.cpu_model}>
-						Model: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.cpu_model}</span
-						>
-					</div>
-					<div>
-						Vendor: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.cpu_vendor}</span
-						>
-					</div>
-					<div>
-						Cores: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.cpu_cores} Cores</span
-						>
-					</div>
-				</div>
-
-				<!-- Col 2: Storage & Memory -->
-				<div class="space-y-1">
-					<div
-						class="font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[10px]"
-					>
-						Memory & Storage
-					</div>
-					<div>
-						RAM: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{mbToGb(systemInfo.total_ram_mb)} GB Installed</span
-						>
-					</div>
-					<div>
-						Disk Type: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.disk_type}</span
-						>
-					</div>
-					<div>
-						Storage: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.free_disk_gb} GB free / {systemInfo.total_disk_gb} GB</span
-						>
-					</div>
-				</div>
-
-				<!-- Col 3: System & Network -->
-				<div class="space-y-1">
-					<div
-						class="font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider text-[10px]"
-					>
-						Network & User
-					</div>
-					<div>
-						Network: <span class="font-bold text-slate-800 dark:text-slate-100 capitalize"
-							>{systemInfo.network_status}</span
-						>
-					</div>
-					<div>
-						User: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.logged_in_user}</span
-						>
-					</div>
-					<div>
-						Platform: <span class="font-bold text-slate-800 dark:text-slate-100"
-							>{systemInfo.host_platform}</span
-						>
-					</div>
-				</div>
-			</div>
-
-			<!-- Floating Toast Badge (Prevents button displacement) -->
-			{#if logMessage}
-				<div
-					class="absolute bottom-14 left-6 z-30 bg-slate-900/95 dark:bg-slate-800/95 text-green-400 border border-green-500/40 px-3.5 py-2 rounded-xl shadow-2xl backdrop-blur-md text-xs font-semibold flex items-center gap-2 max-w-[420px]"
-					title={logMessage}
-				>
-					<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
-					<span class="truncate">{logMessage}</span>
-				</div>
+						{issueCount}
+					</span>
+					<span class="text-muted truncate">to review</span>
+				</span>
 			{/if}
+		</span>
+	</button>
 
-			<!-- Bottom Action Bar (Fixed Right Alignment) -->
-			<div class="flex justify-end items-center pt-1 w-full gap-2">
-				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
-					onclick={copyStatHandler}
+	<!-- Live gauges -->
+	<button class="{tile} px-4 py-3.5 flex flex-col" title="Run a stress test" onclick={() => onOpen('stress')}>
+		<CpuStats />
+	</button>
+
+	<button class="{tile} px-4 py-3.5 flex flex-col" onclick={() => onOpen('processes')}>
+		<RamStats />
+	</button>
+
+	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={() => onOpen('space')}>
+		<span class="flex justify-between text-muted font-medium w-full">
+			<span>Storage</span>
+			<span>{systemInfo.disk_type}</span>
+		</span>
+		<span class="text-[28px] font-semibold tracking-tight leading-none tabular-nums">
+			{systemInfo.free_disk_gb}<span class="text-sm text-muted ml-1">GB free</span>
+		</span>
+		<span class="flex flex-col gap-[5px] w-full">
+			<span class="block h-[5px] rounded-full bg-track">
+				<span
+					class="block h-[5px] rounded-full {usageBarColor(diskUsedPct)}"
+					style="width: {diskUsedPct}%"
+				></span>
+			</span>
+			<span class="text-muted">of {systemInfo.total_disk_gb} GB</span>
+		</span>
+	</button>
+
+	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={() => onOpen('processes')}>
+		<span class="text-muted font-medium">Processes</span>
+		{#if topProcess}
+			<span class="flex flex-col min-w-0 w-full">
+				<span class="text-[15px] font-semibold truncate" title={topProcess.name}>
+					{topProcess.name}
+				</span>
+				<span class="text-muted truncate">
+					Top consumer · {topProcess.memory_mb.toFixed(0)} MB
+				</span>
+			</span>
+		{:else}
+			<span class="text-[15px] font-semibold">Top consumers</span>
+		{/if}
+		<span class="font-semibold">View top processes</span>
+	</button>
+
+	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={onSpeedTest}>
+		<span class="text-muted font-medium">Network</span>
+		<span class="text-xl font-semibold tracking-tight leading-none capitalize truncate w-full">
+			{systemInfo.network_status}
+		</span>
+		<span class="font-semibold">Run speed test</span>
+	</button>
+
+	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={() => onOpen('health')}>
+		<span class="text-muted font-medium">Battery</span>
+		{#if battery}
+			<span class="text-xl font-semibold tracking-tight leading-none">
+				{battery.percentage.toFixed(0)}%<span
+					class="text-xs font-medium text-muted capitalize ml-1.5">{battery.state}</span
 				>
-					Copy Stat
-				</button>
-				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs text-sky-400 font-semibold shrink-0"
-					onclick={exportSpecCardHandler}
-				>
-					Export Card
-				</button>
-				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
-					onclick={() => (showTopProcesses = true)}
-				>
-					Top Processes
-				</button>
-				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
-					onclick={getInternetSpeed}
-				>
-					Speed Test
-				</button>
-				<button
-					class="dark:bg-zinc-800 bg-zinc-300 px-3 py-1.5 text-xs cursor-pointer rounded-lg hover:bg-zinc-400 dark:hover:bg-zinc-700 font-medium transition-transform active:scale-95 border border-slate-300 dark:border-slate-700/60 shadow-xs shrink-0"
-					onclick={() => (showAdvancedDashboard = !showAdvancedDashboard)}
-				>
-					Advanced Metrics
-				</button>
-			</div>
-		</div>
-	{/if}
+			</span>
+			<span class="text-muted truncate w-full">
+				{#if battery.health_status}
+					{battery.health_status} health{battery.degradation_pct !== undefined
+						? ` · ${battery.degradation_pct}% wear`
+						: ''}
+				{:else}
+					{battery.current_capacity} of {battery.design_capacity} mWh
+				{/if}
+			</span>
+		{:else}
+			<span class="text-[15px] font-semibold">
+				{batteryLoaded ? 'No battery' : 'Checking...'}
+			</span>
+			<span class="text-muted truncate w-full">
+				{batteryLoaded ? 'Laptop hardware only' : ''}
+			</span>
+		{/if}
+	</button>
+
+	<!-- Pinned tools -->
+	<nav aria-label="Tools" class="col-span-4 grid grid-cols-6 gap-3">
+		{#each pinnedTools as id (id)}
+			{@const tool = getTool(id)}
+			<ToolTile
+				compact
+				name={tool.name}
+				hint={toolStatus[id]?.hint ?? tool.hint}
+				icon={tool.icon}
+				count={toolStatus[id]?.count ?? 0}
+				onclick={() => onOpen(id)}
+			/>
+		{/each}
+		<ToolTile
+			compact
+			name="All tools"
+			hint="{tools.length} tools"
+			icon={ALL_TOOLS_ICON}
+			onclick={() => onOpen('tools')}
+		/>
+	</nav>
 </div>

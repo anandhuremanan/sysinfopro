@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { usageBarColor } from '$lib';
 	import { GetMemoryStats, GetMemoryVelocity } from '$lib/wailsjs/go/main/App';
 
 	type MemoryStats = {
@@ -82,68 +83,53 @@
 		};
 	});
 
-	function getUsageColor(percent: number): string {
-		if (percent < 50) return 'stroke-green-500';
-		if (percent < 80) return 'stroke-yellow-500';
-		return 'stroke-red-500';
-	}
-
-	const circumference = 2 * Math.PI * 45; // r = 45
+	let swapTitle = $derived.by(() => {
+		const stats = memStats as MemoryStats | null;
+		return stats?.swapTotalMB && stats.swapTotalMB > 0
+			? `Swap: ${formatRAM(stats.swapUsedMB || 0)} / ${formatRAM(stats.swapTotalMB)}`
+			: undefined;
+	});
 </script>
 
-<div class="">
+<div class="flex-1 w-full flex flex-col justify-between" title={swapTitle}>
 	{#if memStats}
-		<!-- Circular Arc -->
-		<div class="flex items-center text-xs gap-1">
-			<div class="relative w-14 h-14 mx-auto">
-				<svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-					<circle cx="50" cy="50" r="45" class="stroke-zinc-300 dark:stroke-zinc-700" stroke-width="10" fill="none" />
-					<circle
-						cx="50"
-						cy="50"
-						r="45"
-						stroke-width="10"
-						fill="none"
-						stroke-linecap="round"
-						stroke-dasharray={circumference}
-						stroke-dashoffset={circumference - (circumference * memStats.usagePercent) / 100}
-						class={`transition-all duration-700 ease-out ${getUsageColor(memStats.usagePercent)}`}
-					/>
-				</svg>
-				<div class="absolute inset-0 flex items-center justify-center font-semibold text-xs">
-					{memStats.usagePercent.toFixed(1)}%
-				</div>
-			</div>
-			<div class="ml-1 text-[11px] leading-tight flex-1">
-				<div class="flex justify-between items-center">
-					<span>Total Ram: <span class="font-bold">{formatRAM(memStats.totalRAMMB)}</span></span>
-				</div>
-				<div>Used Ram: <span class="font-bold">{formatRAM(memStats.usedRAMMB)}</span></div>
-				<div>Free Ram: <span class="font-bold">{formatRAM(memStats.freeRAMMB)}</span></div>
-				{#if memStats.swapTotalMB && memStats.swapTotalMB > 0}
-					<div class="text-[10px] text-gray-400 mt-0.5">
-						Swap: {formatRAM(memStats.swapUsedMB || 0)} / {formatRAM(memStats.swapTotalMB)}
-					</div>
-				{/if}
-
-				<!-- Live Velocity Indicator -->
-				{#if velocitySample}
-					<div class="mt-1 text-[9px] font-semibold flex items-center gap-1">
-						{#if velocitySample.velocity_mbps > 50}
-							<span class="text-amber-400 animate-pulse">⚡ Velocity: +{velocitySample.velocity_mbps} MB/s</span>
-							{#if velocitySample.estimated_oom_sec > 0}
-								<span class="text-red-400">(OOM: {velocitySample.estimated_oom_sec}s)</span>
-							{/if}
-						{:else if velocitySample.velocity_mbps < -50}
-							<span class="text-green-400">⚡ Velocity: {velocitySample.velocity_mbps} MB/s</span>
-						{:else}
-							<span class="text-gray-500">⚡ Velocity: Stable</span>
+		<div class="flex justify-between text-muted font-medium">
+			<span>Memory</span>
+			<!-- Live Velocity Indicator -->
+			{#if velocitySample}
+				{#if velocitySample.velocity_mbps > 50}
+					<span class="text-amber-600 dark:text-amber-400 animate-pulse">
+						+{velocitySample.velocity_mbps} MB/s
+						{#if velocitySample.estimated_oom_sec > 0}
+							<span class="text-red-500">(OOM: {velocitySample.estimated_oom_sec}s)</span>
 						{/if}
-					</div>
+					</span>
+				{:else if velocitySample.velocity_mbps < -50}
+					<span class="text-accent">{velocitySample.velocity_mbps} MB/s</span>
+				{:else}
+					<span>Stable</span>
 				{/if}
+			{/if}
+		</div>
+
+		<div class="text-[28px] font-semibold tracking-tight leading-none tabular-nums">
+			{memStats.usagePercent.toFixed(1)}<span class="text-sm text-muted">%</span>
+		</div>
+
+		<div class="flex flex-col gap-[5px]">
+			<div class="h-[5px] rounded-full bg-track">
+				<div
+					class="h-[5px] rounded-full transition-all duration-700 ease-out {usageBarColor(
+						memStats.usagePercent
+					)}"
+					style="width: {Math.min(100, memStats.usagePercent)}%"
+				></div>
+			</div>
+			<div class="text-muted truncate">
+				{formatRAM(memStats.usedRAMMB)} of {formatRAM(memStats.totalRAMMB)}
 			</div>
 		</div>
 	{:else}
-		<div class="text-gray-500 text-sm text-center">Loading RAM stats...</div>
+		<div class="text-muted m-auto">Loading RAM stats...</div>
 	{/if}
 </div>

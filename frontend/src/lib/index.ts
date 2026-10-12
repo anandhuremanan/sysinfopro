@@ -14,6 +14,33 @@ export function mbToGb(mb: number) {
 	return (mb / 1024).toFixed(2);
 }
 
+// Bar colour for a "how full is it" percentage (memory, storage)
+export function usageBarColor(percent: number): string {
+	if (percent < 80) return 'bg-accent';
+	if (percent < 90) return 'bg-amber-500';
+	return 'bg-red-500';
+}
+
+// "12th Gen Intel(R) Core(TM) i7-1260P CPU @ 2.10GHz" -> "Intel Core i7-1260P"
+export function shortCpuName(model: string): string {
+	if (!model) return '';
+	return model
+		.replace(/\((R|TM)\)/gi, '')
+		.replace(/\b\d+(st|nd|rd|th) Gen\b/i, '')
+		.replace(/\b(CPU|Processor)\b/gi, '')
+		.replace(/@.*$/, '')
+		.replace(/\s+/g, ' ')
+		.trim();
+}
+
+export function formatBytes(bytes: number): string {
+	if (!bytes || bytes < 0) return '0 B';
+	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+	const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+	const value = bytes / Math.pow(1024, i);
+	return `${value >= 100 || i === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[i]}`;
+}
+
 export function bytesToGb(kb: number) {
 	if (!kb) return '0.00';
 	return (kb / 1024 / 1024 / 1024).toFixed(2);

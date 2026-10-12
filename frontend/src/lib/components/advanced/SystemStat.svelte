@@ -40,7 +40,7 @@
 
 	let displayScore = $derived(report?.overall_score || overallScore);
 	let scoreColor = $derived(
-		displayScore >= 80 ? 'text-green-500' : displayScore >= 60 ? 'text-amber-500' : 'text-red-500'
+		displayScore >= 80 ? 'text-green-700 dark:text-green-400' : displayScore >= 60 ? 'text-amber-700 dark:text-amber-400' : 'text-red-500'
 	);
 </script>
 
@@ -49,16 +49,16 @@
 		<!-- Header Row with unified baseline height -->
 		<div class="h-6 flex justify-between items-center w-full">
 			<div class="flex items-center gap-2">
-				<span class="font-bold text-xs text-slate-800 dark:text-slate-100">System Health Score</span>
+				<span class="font-bold text-xs text-ink">System Health Score</span>
 				{#if report?.status_text}
-					<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-300 dark:bg-slate-700 font-semibold">
+					<span class="text-[10px] px-1.5 py-0.5 rounded bg-tile border border-line font-semibold">
 						{report.status_text}
 					</span>
 				{/if}
 			</div>
 			{#if report?.recommendations && report.recommendations.length > 0}
 				<button
-					class="text-[10px] bg-blue-500/90 text-white font-medium px-2 py-0.5 rounded hover:bg-blue-600 transition-colors cursor-pointer shrink-0"
+					class="text-[10px] bg-accent text-on-accent font-medium px-2 py-0.5 rounded hover:opacity-90 transition-colors cursor-pointer shrink-0"
 					onclick={() => (showRecommendationsModal = true)}
 				>
 					Actions ({report.recommendations.length})
@@ -81,71 +81,67 @@
 		</div>
 
 		<!-- Footer text -->
-		<p class="text-[11px] text-gray-400">
+		<p class="text-[11px] text-muted">
 			Evaluates CPU load, memory pressure, storage, battery wear & network status.
 		</p>
 	</div>
 </Card>
 
 <!-- Diagnostic Recommendations Modal -->
-<Modal bind:showModal={showRecommendationsModal} showClose={true}>
-	<div class="flex flex-col space-y-4 max-h-[70vh]">
-		<!-- Modal Header -->
-		<div class="flex justify-between items-center pb-3 border-b border-slate-300 dark:border-slate-700/80 pr-6">
-			<div>
-				<div class="font-bold text-sm text-slate-800 dark:text-slate-100">
-					Diagnostic Recommendations
-				</div>
-				<div class="text-xs text-gray-400 mt-0.5">
-					Actionable steps to optimize performance & health
-				</div>
-			</div>
-			{#if report?.status_text}
-				<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-300 dark:bg-slate-700/80 text-xs font-semibold shrink-0">
-					<span class="text-gray-400">Score:</span>
-					<span class={scoreColor}>{displayScore}</span>
-				</div>
-			{/if}
-		</div>
-
-		<!-- Recommendations List -->
-		{#if report?.recommendations && report.recommendations.length > 0}
-			<div class="space-y-3 overflow-y-auto max-h-[45vh] pr-1">
-				{#each report.recommendations as rec}
-					<div class="p-3.5 rounded-xl bg-slate-300/40 dark:bg-slate-800/80 border border-slate-300 dark:border-slate-700 flex flex-col space-y-2">
-						<div class="flex justify-between items-center gap-2">
-							<div class="flex items-center gap-2 font-bold text-xs text-slate-800 dark:text-slate-100">
-								{#if rec.severity === 'critical'}
-									<span class="text-red-500">🚨</span>
-								{:else if rec.severity === 'warning'}
-									<span class="text-amber-500">⚠️</span>
-								{:else}
-									<span class="text-blue-500">ℹ️</span>
-								{/if}
-								<span>{rec.title}</span>
-							</div>
-							<span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
-								{rec.severity}
-							</span>
-						</div>
-						<p class="text-xs text-gray-400 leading-relaxed pl-6">{rec.description}</p>
-					</div>
-				{/each}
-			</div>
-		{:else}
-			<div class="py-6 text-center text-xs text-gray-400">
-				No diagnostic issues detected. System is running optimally!
+<Modal
+	bind:showModal={showRecommendationsModal}
+	width="max-w-lg"
+	title="Diagnostic Recommendations"
+	description="Actionable steps to optimize performance & health"
+>
+	<div class="flex flex-col gap-3">
+		{#if report?.status_text}
+			<div class="flex items-center gap-2">
+				<span class="text-muted">Health score</span>
+				<span class="font-bold {scoreColor}">{displayScore}</span>
+				<span class="px-1.5 py-0.5 rounded bg-ground border border-line font-semibold">
+					{report.status_text}
+				</span>
 			</div>
 		{/if}
 
-		<!-- Modal Footer -->
-		<div class="pt-3 border-t border-slate-300 dark:border-slate-700/80 flex justify-end">
-			<button
-				class="px-4 py-1.5 text-xs bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-medium rounded-lg transition-colors cursor-pointer"
-				onclick={() => (showRecommendationsModal = false)}
-			>
-				Done
-			</button>
-		</div>
+		<!-- Recommendations List -->
+		{#if report?.recommendations && report.recommendations.length > 0}
+			{#each report.recommendations as rec}
+				<div class="p-3 rounded-xl bg-ground border border-line flex flex-col gap-1.5">
+					<div class="flex justify-between items-center gap-2">
+						<div class="flex items-center gap-2 font-bold text-ink min-w-0">
+							{#if rec.severity === 'critical'}
+								<span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+							{:else if rec.severity === 'warning'}
+								<span class="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+							{:else}
+								<span class="w-2 h-2 rounded-full bg-accent shrink-0"></span>
+							{/if}
+							<span class="truncate">{rec.title}</span>
+						</div>
+						<span
+							class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md shrink-0 border {rec.severity ===
+							'critical'
+								? 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30'
+								: rec.severity === 'warning'
+									? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30'
+									: 'bg-tile text-muted border-line'}"
+						>
+							{rec.severity}
+						</span>
+					</div>
+					<p class="text-muted leading-relaxed pl-4">{rec.description}</p>
+				</div>
+			{/each}
+		{:else}
+			<div class="py-6 text-center text-muted">
+				No diagnostic issues detected. System is running optimally!
+			</div>
+		{/if}
 	</div>
+
+	{#snippet actions()}
+		<button class="btn btn-primary" onclick={() => (showRecommendationsModal = false)}>Done</button>
+	{/snippet}
 </Modal>

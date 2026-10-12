@@ -5,6 +5,8 @@ import (
 	"os/user"
 	"strings"
 
+	"myproject/internal/storage"
+
 	// "github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -55,7 +57,7 @@ func GetSystemInfo() (*SystemInfo, error) {
 	if err != nil || len(partitions) == 0 {
 		return nil, fmt.Errorf("error getting disk partitions: %v", err)
 	}
-	usageStat, err := disk.Usage(partitions[0].Mountpoint)
+	usageStat, err := disk.Usage(storage.RootPath(partitions[0].Mountpoint))
 	if err != nil {
 		return nil, fmt.Errorf("error getting disk usage: %v", err)
 	}

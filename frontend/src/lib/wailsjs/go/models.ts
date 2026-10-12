@@ -1,3 +1,52 @@
+export namespace devcache {
+	
+	export class DeleteResult {
+	    freed_bytes: number;
+	    deleted: string[];
+	    failed: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DeleteResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.freed_bytes = source["freed_bytes"];
+	        this.deleted = source["deleted"];
+	        this.failed = source["failed"];
+	    }
+	}
+	export class Item {
+	    id: string;
+	    name: string;
+	    kind: string;
+	    path: string;
+	    size_bytes: number;
+	    files: number;
+	    note: string;
+	    deletable: boolean;
+	    last_used: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Item(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.path = source["path"];
+	        this.size_bytes = source["size_bytes"];
+	        this.files = source["files"];
+	        this.note = source["note"];
+	        this.deletable = source["deletable"];
+	        this.last_used = source["last_used"];
+	    }
+	}
+
+}
+
 export namespace diagnostics {
 	
 	export class Recommendation {
@@ -227,6 +276,76 @@ export namespace functions {
 
 export namespace hardware {
 	
+	export class BIOSSpec {
+	    vendor: string;
+	    version: string;
+	    date: string;
+	    serial: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BIOSSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.vendor = source["vendor"];
+	        this.version = source["version"];
+	        this.date = source["date"];
+	        this.serial = source["serial"];
+	    }
+	}
+	export class BoardSpec {
+	    manufacturer: string;
+	    product: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BoardSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.manufacturer = source["manufacturer"];
+	        this.product = source["product"];
+	    }
+	}
+	export class CPUSpec {
+	    name: string;
+	    cores: number;
+	    threads: number;
+	    max_mhz: number;
+	    socket: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CPUSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.cores = source["cores"];
+	        this.threads = source["threads"];
+	        this.max_mhz = source["max_mhz"];
+	        this.socket = source["socket"];
+	    }
+	}
+	export class DiskSpec {
+	    model: string;
+	    size_bytes: number;
+	    interface: string;
+	    media: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiskSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.size_bytes = source["size_bytes"];
+	        this.interface = source["interface"];
+	        this.media = source["media"];
+	    }
+	}
 	export class DriveHealthInfo {
 	    device: string;
 	    mount_point: string;
@@ -257,6 +376,134 @@ export namespace hardware {
 	        this.estimated_life_years = source["estimated_life_years"];
 	    }
 	}
+	export class GPUSpec {
+	    name: string;
+	    driver: string;
+	    vram_bytes: number;
+	    width: number;
+	    height: number;
+	    refresh_hz: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GPUSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.driver = source["driver"];
+	        this.vram_bytes = source["vram_bytes"];
+	        this.width = source["width"];
+	        this.height = source["height"];
+	        this.refresh_hz = source["refresh_hz"];
+	    }
+	}
+	export class MemoryModuleSpec {
+	    slot: string;
+	    size_bytes: number;
+	    speed_mhz: number;
+	    manufacturer: string;
+	    part: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MemoryModuleSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.slot = source["slot"];
+	        this.size_bytes = source["size_bytes"];
+	        this.speed_mhz = source["speed_mhz"];
+	        this.manufacturer = source["manufacturer"];
+	        this.part = source["part"];
+	    }
+	}
+	export class OSSpec {
+	    name: string;
+	    version: string;
+	    build: string;
+	    arch: string;
+	    installed: string;
+	    last_boot: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new OSSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.version = source["version"];
+	        this.build = source["build"];
+	        this.arch = source["arch"];
+	        this.installed = source["installed"];
+	        this.last_boot = source["last_boot"];
+	    }
+	}
+	export class SystemSpec {
+	    manufacturer: string;
+	    model: string;
+	    type: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemSpec(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.manufacturer = source["manufacturer"];
+	        this.model = source["model"];
+	        this.type = source["type"];
+	    }
+	}
+	export class HardwareSpecs {
+	    system: SystemSpec;
+	    bios: BIOSSpec;
+	    board: BoardSpec;
+	    os: OSSpec;
+	    cpus: CPUSpec[];
+	    gpus: GPUSpec[];
+	    memory: MemoryModuleSpec[];
+	    memory_slots: number;
+	    disks: DiskSpec[];
+	
+	    static createFrom(source: any = {}) {
+	        return new HardwareSpecs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.system = this.convertValues(source["system"], SystemSpec);
+	        this.bios = this.convertValues(source["bios"], BIOSSpec);
+	        this.board = this.convertValues(source["board"], BoardSpec);
+	        this.os = this.convertValues(source["os"], OSSpec);
+	        this.cpus = this.convertValues(source["cpus"], CPUSpec);
+	        this.gpus = this.convertValues(source["gpus"], GPUSpec);
+	        this.memory = this.convertValues(source["memory"], MemoryModuleSpec);
+	        this.memory_slots = source["memory_slots"];
+	        this.disks = this.convertValues(source["disks"], DiskSpec);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
 	export class StressResult {
 	    duration_sec: number;
 	    ops_completed: number;
@@ -338,6 +585,160 @@ export namespace process {
 	        this.energy_impact = source["energy_impact"];
 	        this.energy_impact_label = source["energy_impact_label"];
 	    }
+	}
+
+}
+
+export namespace security {
+	
+	export class Check {
+	    id: string;
+	    title: string;
+	    status: string;
+	    detail: string;
+	    advice: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Check(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.status = source["status"];
+	        this.detail = source["detail"];
+	        this.advice = source["advice"];
+	    }
+	}
+	export class Report {
+	    checks: Check[];
+	    passed: number;
+	    warned: number;
+	    failed: number;
+	    unknown: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.checks = this.convertValues(source["checks"], Check);
+	        this.passed = source["passed"];
+	        this.warned = source["warned"];
+	        this.failed = source["failed"];
+	        this.unknown = source["unknown"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace storage {
+	
+	export class DriveInfo {
+	    path: string;
+	    fs_type: string;
+	    total_bytes: number;
+	    free_bytes: number;
+	    used_bytes: number;
+	    used_pct: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DriveInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.fs_type = source["fs_type"];
+	        this.total_bytes = source["total_bytes"];
+	        this.free_bytes = source["free_bytes"];
+	        this.used_bytes = source["used_bytes"];
+	        this.used_pct = source["used_pct"];
+	    }
+	}
+	export class UsageEntry {
+	    name: string;
+	    path: string;
+	    is_dir: boolean;
+	    size_bytes: number;
+	    files: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.is_dir = source["is_dir"];
+	        this.size_bytes = source["size_bytes"];
+	        this.files = source["files"];
+	    }
+	}
+	export class FolderUsage {
+	    path: string;
+	    total_bytes: number;
+	    files: number;
+	    skipped: number;
+	    entries: UsageEntry[];
+	    largest_files: UsageEntry[];
+	    duration_ms: number;
+	    cancelled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.total_bytes = source["total_bytes"];
+	        this.files = source["files"];
+	        this.skipped = source["skipped"];
+	        this.entries = this.convertValues(source["entries"], UsageEntry);
+	        this.largest_files = this.convertValues(source["largest_files"], UsageEntry);
+	        this.duration_ms = source["duration_ms"];
+	        this.cancelled = source["cancelled"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

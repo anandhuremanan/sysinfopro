@@ -3,6 +3,8 @@ package hardware
 import (
 	"math"
 
+	"myproject/internal/storage"
+
 	"github.com/shirou/gopsutil/v4/disk"
 )
 
@@ -14,9 +16,9 @@ type DriveHealthInfo struct {
 	FreeGB             float64 `json:"free_gb"`
 	UsedGB             float64 `json:"used_gb"`
 	UsagePercent       float64 `json:"usage_percent"`
-	HealthStatus       string  `json:"health_status"`       // Good, Warning, Critical
-	EstimatedLifePct   float64 `json:"estimated_life_pct"`    // e.g. 94.0%
-	EstimatedLifeYears float64 `json:"estimated_life_years"`  // e.g. 4.5 Years remaining
+	HealthStatus       string  `json:"health_status"`        // Good, Warning, Critical
+	EstimatedLifePct   float64 `json:"estimated_life_pct"`   // e.g. 94.0%
+	EstimatedLifeYears float64 `json:"estimated_life_years"` // e.g. 4.5 Years remaining
 }
 
 func GetDriveHealthDetails() ([]DriveHealthInfo, error) {
@@ -27,7 +29,7 @@ func GetDriveHealthDetails() ([]DriveHealthInfo, error) {
 
 	results := []DriveHealthInfo{}
 	for _, p := range partitions {
-		usage, err := disk.Usage(p.Mountpoint)
+		usage, err := disk.Usage(storage.RootPath(p.Mountpoint))
 		if err != nil {
 			continue
 		}

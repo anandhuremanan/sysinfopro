@@ -2,6 +2,44 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/* Theme is chosen in Settings and applied as a .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+	--color-ground: var(--ground);
+	--color-tile: var(--tile);
+	--color-ink: var(--ink);
+	--color-muted: var(--muted);
+	--color-line: var(--line);
+	--color-track: var(--track);
+	--color-accent: var(--accent);
+	--color-on-accent: var(--on-accent);
+}
+
+:root {
+	--ground: #eceef1;
+	--tile: #ffffff;
+	--ink: #15171a;
+	--muted: #5e6570;
+	--line: #dde0e5;
+	--track: #e6e9ed;
+	--accent: #0f766e;
+	--on-accent: #ffffff;
+	color-scheme: light;
+}
+
+.dark {
+	--ground: #020617;
+	--tile: #0f172a;
+	--ink: #f1f5f9;
+	--muted: #94a3b8;
+	--line: #1e293b;
+	--track: #1e293b;
+	--accent: #2dd4bf;
+	--on-accent: #042f2e;
+	color-scheme: dark;
+}
+
 /* Prevent WebView2 / WebKit overscroll bounce & rubber-banding */
 html,
 body {
@@ -15,6 +53,25 @@ body {
 	height: 100vh;
 	position: fixed;
 	touch-action: pan-x pan-y;
+}
+
+/* Shared buttons (dialogs, toolbars) */
+@layer components {
+	.btn {
+		@apply h-7 px-3 rounded-lg text-xs font-medium cursor-pointer transition-colors inline-flex items-center justify-center whitespace-nowrap;
+	}
+	.btn:disabled {
+		@apply opacity-50 cursor-not-allowed;
+	}
+	.btn-primary {
+		@apply bg-accent text-on-accent font-semibold hover:opacity-90;
+	}
+	.btn-secondary {
+		@apply bg-ground text-ink border border-line hover:bg-line;
+	}
+	.btn-danger {
+		@apply bg-red-600 text-white font-semibold hover:bg-red-700;
+	}
 }
 
 .no-select {

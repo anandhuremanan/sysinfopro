@@ -24,6 +24,9 @@ type InternetSpeedStat struct {
 	PingLatencyMs float64 `json:"ping_latency_ms"`
 	JitterMs      float64 `json:"jitter_ms"`
 	PacketLossPct float64 `json:"packet_loss_pct"`
+	// "rate_limited" or "failed" when a phase could not be measured
+	DownloadError string `json:"download_error,omitempty"`
+	UploadError   string `json:"upload_error,omitempty"`
 }
 
 type MemoryStats struct {

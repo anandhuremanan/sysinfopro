@@ -8,19 +8,33 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"myproject/functions"
+	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/hardware"
 	"myproject/internal/network"
 	"myproject/internal/process"
+	"myproject/internal/security"
+	"myproject/internal/storage"
 	"myproject/internal/system"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
 type App struct {
-	ctx context.Context
+	ctx              context.Context
+	speedTestRunning atomic.Bool
+
+	diskScanMu     sync.Mutex
+	diskScanCancel context.CancelFunc
+
+	devScanMu     sync.Mutex
+	devScanCancel context.CancelFunc
 }
 
 // NewApp creates a new App application struct
@@ -56,7 +70,15 @@ func (a *App) GetSysInfo() (string, error) {
 }
 
 func (a *App) GetInterNetSpeed() (string, error) {
-	internetSpeedStat, err := functions.GetInterNetSpeed()
+	// Two tests at once would share the line and both read low
+	if !a.speedTestRunning.CompareAndSwap(false, true) {
+		return "Error Occured", fmt.Errorf("a speed test is already running")
+	}
+	defer a.speedTestRunning.Store(false)
+
+	internetSpeedStat, err := functions.GetInterNetSpeedWithProgress(func(p functions.SpeedProgress) {
+		runtime.EventsEmit(a.ctx, "speedtest-progress", p)
+	})
 	if err != nil {
 		return "Error Occured", fmt.Errorf("error gathering internet speed: %w", err)
 	}
@@ -81,7 +103,6 @@ func (a *App) GetMemoryStats() (*functions.MemoryStats, error) {
 func (a *App) GetMemoryVelocity() (*diagnostics.MemoryVelocitySample, error) {
 	return diagnostics.GetMemoryVelocity()
 }
-
 
 func (a *App) CheckInternetConnection() bool {
 	return functions.IsConnectedToInternet()
@@ -194,10 +215,6 @@ func (a *App) GetSoftwareHealthDetails() ([]system.SoftwareItem, error) {
 	return system.GetSoftwareHealthDetails()
 }
 
-
-
-
-
 // CheckCleanerPermissions checks if we have elevated permissions
 func (a *App) CheckCleanerPermissions() functions.PermissionStatus {
 	return functions.CheckPermissions()
@@ -222,6 +239,122 @@ func (a *App) CheckUpdate() (string, error) {
 	}
 
 	return string(jsonBytes), nil
+}
+
+// --- Version 3.0 RPC Endpoints ---
+
+// GetDrives lists mounted partitions with their capacity
+func (a *App) GetDrives() ([]storage.DriveInfo, error) {
+	return storage.ListDrives()
+}
+
+// AnalyzeDiskUsage sizes everything directly inside path; a new scan cancels the previous one
+func (a *App) AnalyzeDiskUsage(path string) (*storage.FolderUsage, error) {
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+
+	a.diskScanMu.Lock()
+	if a.diskScanCancel != nil {
+		a.diskScanCancel()
+	}
+	a.diskScanCancel = cancel
+	a.diskScanMu.Unlock()
+
+	return storage.AnalyzeFolder(ctx, path, func(p storage.ScanProgress) {
+		if ctx.Err() == nil {
+			runtime.EventsEmit(a.ctx, "disk-scan-progress", p)
+		}
+	})
+}
+
+// CancelDiskScan stops the running disk usage scan, if any
+func (a *App) CancelDiskScan() {
+	a.diskScanMu.Lock()
+	defer a.diskScanMu.Unlock()
+	if a.diskScanCancel != nil {
+		a.diskScanCancel()
+		a.diskScanCancel = nil
+	}
+}
+
+// RevealInExplorer opens the file manager with the given file or folder selected
+func (a *App) RevealInExplorer(path string) error {
+	return storage.RevealInFileManager(path)
+}
+
+// GetHardwareSpecs returns the hardware inventory (system, BIOS, CPU, GPU, memory modules, disks)
+func (a *App) GetHardwareSpecs() (*hardware.HardwareSpecs, error) {
+	return hardware.GetHardwareSpecs(a.ctx)
+}
+
+// GetSecurityReport runs read-only checks of antivirus, firewall, encryption and update state
+func (a *App) GetSecurityReport() (*security.Report, error) {
+	return security.GetSecurityReport(a.ctx)
+}
+
+// ScanDevCaches sizes the caches of common package managers and build tools
+func (a *App) ScanDevCaches() []devcache.Item {
+	return devcache.ScanCaches(a.ctx)
+}
+
+// PickFolder opens the system folder picker and returns the chosen path ("" if cancelled)
+func (a *App) PickFolder(title string) (string, error) {
+	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+}
+
+// FindNodeModules searches a folder for node_modules directories; a new search cancels the previous one
+func (a *App) FindNodeModules(root string) ([]devcache.Item, error) {
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+
+	a.devScanMu.Lock()
+	if a.devScanCancel != nil {
+		a.devScanCancel()
+	}
+	a.devScanCancel = cancel
+	a.devScanMu.Unlock()
+
+	return devcache.FindNodeModules(ctx, root, func(current string) {
+		if ctx.Err() == nil {
+			runtime.EventsEmit(a.ctx, "devcache-progress", current)
+		}
+	})
+}
+
+// CancelNodeModulesSearch stops the running node_modules search, if any
+func (a *App) CancelNodeModulesSearch() {
+	a.devScanMu.Lock()
+	defer a.devScanMu.Unlock()
+	if a.devScanCancel != nil {
+		a.devScanCancel()
+		a.devScanCancel = nil
+	}
+}
+
+// DeleteDevCaches removes the given cache or node_modules folders; any other path is refused
+func (a *App) DeleteDevCaches(paths []string) *devcache.DeleteResult {
+	return devcache.Delete(a.ctx, paths)
+}
+
+// SaveSystemReport writes an HTML report to Downloads and returns its path
+func (a *App) SaveSystemReport(html string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		homeDir = "."
+	}
+
+	downloadsDir := filepath.Join(homeDir, "Downloads")
+	if _, err := os.Stat(downloadsDir); os.IsNotExist(err) {
+		downloadsDir = homeDir
+	}
+
+	filename := fmt.Sprintf("SysInfo_Report_%s.html", time.Now().Format("2006-01-02_150405"))
+	targetPath := filepath.Join(downloadsDir, filename)
+
+	if err := os.WriteFile(targetPath, []byte(html), 0644); err != nil {
+		return "", fmt.Errorf("failed to write report: %w", err)
+	}
+	return targetPath, nil
 }
 
 // --- Version 2.0 RPC Endpoints ---

@@ -4,7 +4,7 @@
 
 <button
 	aria-label="Refresh"
-	class="flex items-end gap-2 text-sm dark:text-slate-400 cursor-pointer"
+	class="flex items-end gap-2 text-sm cursor-pointer"
 	{onclick}
 >
 	<svg

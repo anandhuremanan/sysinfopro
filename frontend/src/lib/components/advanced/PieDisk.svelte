@@ -101,10 +101,10 @@
 
 {#if purgeSuccessMessage}
 	<div class="p-4 rounded-xl bg-green-500/20 border border-green-500/40 text-center space-y-2">
-		<div class="text-sm font-bold text-green-400">✨ Disk Cleanup Complete</div>
-		<div class="text-xs text-slate-200">{purgeSuccessMessage}</div>
+		<div class="text-sm font-bold text-green-700 dark:text-green-400">Disk Cleanup Complete</div>
+		<div class="text-xs text-ink">{purgeSuccessMessage}</div>
 		<button
-			class="mt-2 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-md cursor-pointer text-white font-medium transition-colors"
+			class="mt-2 text-xs bg-tile hover:bg-line border border-line px-3 py-1 rounded-md cursor-pointer text-ink font-medium transition-colors"
 			onclick={() => (purgeSuccessMessage = null)}
 		>
 			Close Summary
@@ -113,7 +113,7 @@
 {:else if isPurging}
 	<div class="flex flex-col items-center justify-center py-6 space-y-2">
 		<div class="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-		<div class="text-xs text-slate-300 font-semibold animate-pulse">Purging temporary files & browser caches...</div>
+		<div class="text-xs text-ink font-semibold animate-pulse">Purging temporary files & browser caches...</div>
 	</div>
 {:else}
 	<div class="grid grid-cols-2 gap-2">
@@ -130,10 +130,10 @@
 						<span class="ml-2 font-medium shrink-0">{bytesToGb(item.value)} GB</span>
 					</div>
 				{/each}
-				<div class="flex flex-col justify-between mt-2 border-gray-200 font-bold self-end">
+				<div class="flex flex-col justify-between mt-2 border-line font-bold self-end">
 					<span>Total {bytesToGb(files.TotalSize)} GB</span>
 					<button
-						class="bg-blue-500 hover:bg-blue-600 px-3 py-1.5 rounded-xl mt-2 text-white text-xs cursor-pointer font-medium transition-colors"
+						class="bg-accent hover:opacity-90 px-3 py-1.5 rounded-xl mt-2 text-on-accent text-xs cursor-pointer font-medium transition-colors"
 						onclick={() => (showConfirmation = true)}
 					>
 						Free Space
@@ -142,30 +142,20 @@
 			</div>
 		</div>
 
-		<Modal bind:showModal={showConfirmation} showClose={true}>
-			<div class="flex flex-col space-y-3 p-1">
-				<div class="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-					<span class="text-amber-500">⚠️</span>
-					<span>Confirm Disk Cleanup</span>
-				</div>
-				<p class="text-xs text-gray-400 leading-relaxed">
-					This will permanently delete temporary system files, log dumps, and browser cache files. This action cannot be reversed.
-				</p>
-				<div class="w-full flex justify-end gap-2 pt-2">
-					<button
-						class="px-3 py-1.5 text-xs bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600 rounded-lg cursor-pointer font-medium transition-colors"
-						onclick={() => (showConfirmation = false)}
-					>
-						Cancel
-					</button>
-					<button
-						class="px-3.5 py-1.5 text-xs bg-red-500 hover:bg-red-600 rounded-lg text-white font-medium cursor-pointer transition-colors shadow-xs"
-						onclick={handleExecutePurge}
-					>
-						Clear Space Now
-					</button>
-				</div>
-			</div>
+		<Modal
+			bind:showModal={showConfirmation}
+			width="max-w-sm"
+			title="Confirm Disk Cleanup"
+			description="This action cannot be reversed."
+		>
+			<p class="text-muted leading-relaxed">
+				This will permanently delete temporary system files, log dumps, and browser cache files.
+			</p>
+
+			{#snippet actions()}
+				<button class="btn btn-secondary" onclick={() => (showConfirmation = false)}>Cancel</button>
+				<button class="btn btn-danger" onclick={handleExecutePurge}>Clear Space Now</button>
+			{/snippet}
 		</Modal>
 	</div>
 {/if}

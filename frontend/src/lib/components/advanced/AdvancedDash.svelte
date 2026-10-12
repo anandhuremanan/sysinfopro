@@ -2,20 +2,39 @@
 	import { getSystemHealthScore } from '$lib';
 	import { GetBatteryDetails } from '$lib/wailsjs/go/main/App';
 	import BatteryDetails from './BatteryDetails.svelte';
+	import DevCacheCleaner from './DevCacheCleaner.svelte';
+	import DiskAnalyzer from './DiskAnalyzer.svelte';
 	import DiskCleaner from './DiskCleaner.svelte';
 	import EnvPathInspector from './EnvPathInspector.svelte';
+	import HardwareSpecs from './HardwareSpecs.svelte';
 	import PortInspector from './PortInspector.svelte';
+	import SecurityCheck from './SecurityCheck.svelte';
 	import SoftwareChecker from './SoftwareChecker.svelte';
 	import StartupManager from './StartupManager.svelte';
 	import StressBenchmark from './StressBenchmark.svelte';
 	import SystemStat from './SystemStat.svelte';
 
-	let { systemInfo } = $props();
+	let {
+		systemInfo,
+		tool = 'health'
+	}: {
+		systemInfo: any;
+		tool?:
+			| 'specs'
+			| 'security'
+			| 'devcache'
+			| 'health'
+			| 'space'
+			| 'ports'
+			| 'stress'
+			| 'startup'
+			| 'env'
+			| 'software';
+	} = $props();
 
 	let batteryDetails: any = $state(undefined);
 	let isLoadingBattery = $state(false);
 	let overallScore = $state(0);
-	let activeTab = $state<'health' | 'ports' | 'stress' | 'startup' | 'env' | 'software'>('health');
 
 	async function getBatteryDetials() {
 		try {
@@ -54,70 +73,10 @@
 	});
 </script>
 
-<div class="flex flex-col h-full min-h-0 space-y-2">
-	<!-- Tab Bar Navigation with Instant Active Scale Feedback -->
-	<div
-		class="flex gap-2 items-center pb-1 text-xs shrink-0 overflow-x-auto"
-	>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'health'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'health')}
-		>
-			Storage & Health
-		</button>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'ports'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'ports')}
-		>
-			Ports
-		</button>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'stress'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'stress')}
-		>
-			10s Stress Test
-		</button>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'startup'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'startup')}
-		>
-			Startup
-		</button>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'env'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'env')}
-		>
-			PATH Debug
-		</button>
-		<button
-			class="px-3 py-1 rounded-lg cursor-pointer transition-transform active:scale-95 font-medium shrink-0 {activeTab ===
-			'software'
-				? 'bg-blue-500 text-white shadow-xs'
-				: 'bg-slate-300/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-400 dark:hover:bg-slate-700'}"
-			onclick={() => (activeTab = 'software')}
-		>
-			Software Health
-		</button>
-	</div>
-
-	<!-- Tab Content Area -->
+<div class="flex flex-col h-full min-h-0">
+	<!-- Tool Content Area -->
 	<div class="flex-1 min-h-0">
-		{#if activeTab === 'health'}
+		{#if tool === 'health'}
 			<div class="grid grid-cols-2 gap-3 h-full py-0.5">
 				<div class="grid grid-rows-2 gap-3 h-full">
 					<BatteryDetails {batteryDetails} {isLoadingBattery} {getBatteryDetials} />
@@ -127,19 +86,24 @@
 					<DiskCleaner />
 				</div>
 			</div>
-		{:else if activeTab === 'ports'}
+		{:else if tool === 'specs'}
+			<HardwareSpecs {systemInfo} />
+		{:else if tool === 'security'}
+			<SecurityCheck />
+		{:else if tool === 'devcache'}
+			<DevCacheCleaner />
+		{:else if tool === 'space'}
+			<DiskAnalyzer />
+		{:else if tool === 'ports'}
 			<PortInspector />
-		{:else if activeTab === 'stress'}
+		{:else if tool === 'stress'}
 			<StressBenchmark />
-		{:else if activeTab === 'startup'}
+		{:else if tool === 'startup'}
 			<StartupManager />
-		{:else if activeTab === 'env'}
+		{:else if tool === 'env'}
 			<EnvPathInspector />
-		{:else if activeTab === 'software'}
+		{:else if tool === 'software'}
 			<SoftwareChecker />
 		{/if}
 	</div>
 </div>
-
-
-

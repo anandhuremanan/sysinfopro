@@ -10,13 +10,13 @@
 		<!-- Header Row with unified baseline height -->
 		<div class="h-6 flex justify-between items-center w-full">
 			<div class="flex items-center gap-2">
-				<span class="font-bold text-xs text-slate-800 dark:text-slate-100">Battery Details</span>
+				<span class="font-bold text-xs text-ink">Battery Details</span>
 				{#if batteryDetails?.health_status}
 					<span
 						class="text-[10px] px-1.5 py-0.5 rounded font-semibold {batteryDetails.health_status ===
 						'Excellent'
-							? 'bg-green-500/20 text-green-400 border border-green-500/30'
-							: 'bg-amber-500/20 text-amber-400 border border-amber-500/30'}"
+							? 'bg-green-500/20 text-green-700 dark:text-green-400 border border-green-500/30'
+							: 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-500/30'}"
 					>
 						{batteryDetails.health_status}
 					</span>
@@ -29,7 +29,7 @@
 
 		<!-- Main Content -->
 		{#if isLoadingBattery}
-			<div class="flex-1 flex items-center justify-center text-xs text-slate-400">Loading Battery Details...</div>
+			<div class="flex-1 flex items-center justify-center text-xs text-muted">Loading Battery Details...</div>
 		{:else}
 			<div class="flex justify-center items-center flex-1 w-full gap-3 py-1">
 				<img src="/battery.png" alt="battery" class="w-14 h-14 shrink-0 object-contain" />
@@ -41,15 +41,15 @@
 							<p>Design: <span class="font-bold">{batteryDetails.design_capacity} mWh</span></p>
 							<p>Current: <span class="font-bold">{batteryDetails.current_capacity} mWh</span></p>
 							{#if batteryDetails.degradation_pct !== undefined}
-								<p>Degradation: <span class="font-bold text-amber-400">{batteryDetails.degradation_pct}%</span></p>
+								<p>Degradation: <span class="font-bold text-amber-700 dark:text-amber-400">{batteryDetails.degradation_pct}%</span></p>
 							{/if}
 							{#if batteryDetails.cycle_estimate !== undefined}
 								<p>Est. Cycles: <span class="font-bold">{batteryDetails.cycle_estimate}</span></p>
 							{/if}
 						</div>
 					{:else}
-						<div class="font-semibold text-slate-300">No Battery Detected</div>
-						<p class="text-gray-400 text-[11px]">
+						<div class="font-semibold text-ink">No Battery Detected</div>
+						<p class="text-muted text-[11px]">
 							Battery details are only available for laptop hardware.
 						</p>
 					{/if}
