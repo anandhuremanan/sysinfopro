@@ -2,6 +2,9 @@ export type ToolId =
 	| 'specs'
 	| 'security'
 	| 'devcache'
+	| 'changes'
+	| 'locks'
+	| 'growth'
 	| 'health'
 	| 'space'
 	| 'ports'
@@ -39,6 +42,13 @@ export const tools: Tool[] = [
 		icon: 'M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3zM9 12l2 2 4-4'
 	},
 	{
+		id: 'changes',
+		name: 'What changed',
+		hint: 'Since last review',
+		group: 'System',
+		icon: 'M12 7v5l3 2M4.5 8.5A8.5 8.5 0 1 1 3.5 12M4 4v4.5h4.5'
+	},
+	{
 		id: 'health',
 		name: 'Disk & health',
 		hint: 'Clean up space',
@@ -51,6 +61,13 @@ export const tools: Tool[] = [
 		hint: 'Find big files',
 		group: 'Clean up',
 		icon: 'M12 3v9h9a9 9 0 1 1-9-9zM15 3.5A9 9 0 0 1 20.5 9H15V3.5z'
+	},
+	{
+		id: 'growth',
+		name: 'Disk growth',
+		hint: 'What is growing',
+		group: 'Clean up',
+		icon: 'M3 17l6-6 4 4 8-8M15 7h6v6'
 	},
 	{
 		id: 'startup',
@@ -86,6 +103,13 @@ export const tools: Tool[] = [
 		hint: 'Reclaim space',
 		group: 'Developer',
 		icon: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5'
+	},
+	{
+		id: 'locks',
+		name: 'File locks',
+		hint: 'Who has it open',
+		group: 'Developer',
+		icon: 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM12 15v2.5'
 	},
 	{
 		id: 'env',

@@ -2,6 +2,7 @@
 	import { GetDiagnosticReport } from '$lib/wailsjs/go/main/App';
 	import Card from '../ui/Card.svelte';
 	import Modal from '../ui/Modal.svelte';
+	import MonitorPulse from '../ui/MonitorPulse.svelte';
 
 	let { overallScore } = $props();
 
@@ -77,7 +78,7 @@
 					{/if}
 				</div>
 			</div>
-			<img src="/pc.png" alt="system health" class="w-14 h-14 shrink-0 object-contain" />
+			<span class={scoreColor}><MonitorPulse size={56} /></span>
 		</div>
 
 		<!-- Footer text -->

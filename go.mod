@@ -6,6 +6,7 @@ toolchain go1.23.0
 
 require (
 	github.com/distatus/battery v0.11.0
+	github.com/m-lab/ndt7-client-go v0.9.0
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shirou/gopsutil/v4 v4.25.3
 	github.com/wailsapp/wails/v2 v2.12.0
@@ -14,6 +15,7 @@ require (
 
 require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
+	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
@@ -28,6 +30,10 @@ require (
 	github.com/leaanthony/slicer v1.6.0 // indirect
 	github.com/leaanthony/u v1.1.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+	github.com/m-lab/go v0.1.66 // indirect
+	github.com/m-lab/locate v0.4.1 // indirect
+	github.com/m-lab/ndt-server v0.20.2 // indirect
+	github.com/m-lab/tcp-info v1.5.2 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect

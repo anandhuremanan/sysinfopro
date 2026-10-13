@@ -80,6 +80,16 @@ func GetSoftwareHealthDetails() ([]SoftwareItem, error) {
 	return results, nil
 }
 
+// InstalledApps returns installed application names with their versions, read from
+// the registry only (no network), so it is quick enough for before/after comparisons.
+func InstalledApps() map[string]string {
+	apps := map[string]string{}
+	for _, item := range scanRegistryInstalledApps() {
+		apps[item.Name] = item.CurrentVersion
+	}
+	return apps
+}
+
 func scanRegistryInstalledApps() []SoftwareItem {
 	appMap := make(map[string]SoftwareItem)
 

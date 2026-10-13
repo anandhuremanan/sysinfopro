@@ -205,7 +205,9 @@
 				{resultNote}
 			</div>
 		{:else}
-			<div class="text-[11px] text-muted">Measured against Cloudflare's nearest server</div>
+			<div class="text-[11px] text-muted">
+				Measured against {speedTestResult.provider || 'Cloudflare'}'s nearest server
+			</div>
 		{/if}
 
 		<button
@@ -287,10 +289,10 @@
 			<div class="text-xs text-justify">
 				Test your internet speed in less than 30 seconds. The test typically uses between 40 to 100
 				MB of data, though faster connections may use more. <br /> <br /> To perform the test, you'll
-				be connected to Cloudflare. Your IP address will be shared with and processed by them according
-				to their privacy policy. Cloudflare manages the test and makes all results publicly available
-				to support internet research. These results include your IP address and speed data, but no personal
-				information about you as a user is included.
+				be connected to Cloudflare, or to Measurement Lab (M-Lab) if Cloudflare is unavailable. Your
+				IP address is shared with and processed by them according to their privacy policies. M-Lab
+				publishes all test results, including your IP address and speed data, to support internet
+				research. No personal information about you as a user is included.
 			</div>
 
 			<div>

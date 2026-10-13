@@ -11,19 +11,54 @@
 		energy_impact_label?: string;
 	};
 
+	const REFRESH_MS = 5000;
+	const GROWTH_WINDOW_MS = 60000;
+	// a rate from less than this much history is noise
+	const MIN_GROWTH_SPAN_MS = 15000;
+
 	let processes = $state<ProcessItem[]>([]);
 	let isLoading = $state(false);
 	let statusMessage = $state<string | undefined>(undefined);
 	let searchTerm = $state('');
+	let sortBy = $state<'memory' | 'growth'>('memory');
 
-	async function loadProcesses() {
-		isLoading = true;
+	// recent memory readings per process, used to work out how fast each is growing
+	const samples = new Map<number, { at: number; mb: number }[]>();
+	// MB per minute by PID; absent until there is enough history
+	let growth = $state<Record<number, number>>({});
+
+	function recordSamples(list: ProcessItem[]) {
+		const now = Date.now();
+		const alive = new Set<number>();
+		const next: Record<number, number> = {};
+
+		for (const proc of list) {
+			alive.add(proc.pid);
+			const history = samples.get(proc.pid) ?? [];
+			history.push({ at: now, mb: proc.memory_mb });
+			while (history.length > 1 && now - history[0].at > GROWTH_WINDOW_MS) history.shift();
+			samples.set(proc.pid, history);
+
+			const span = now - history[0].at;
+			if (span >= MIN_GROWTH_SPAN_MS) {
+				next[proc.pid] = (proc.memory_mb - history[0].mb) / (span / 60000);
+			}
+		}
+		for (const pid of samples.keys()) {
+			if (!alive.has(pid)) samples.delete(pid);
+		}
+		growth = next;
+	}
+
+	async function loadProcesses(silent = false) {
+		if (!silent) isLoading = true;
 		try {
 			// Fetch top 25 resource consumers
 			// @ts-ignore
 			const result = await GetTopProcesses(25);
 			if (result) {
 				processes = result;
+				recordSamples(result);
 			}
 		} catch (err) {
 			console.error('Failed to get processes:', err);
@@ -49,11 +84,29 @@
 
 	$effect(() => {
 		loadProcesses();
+		const timer = setInterval(() => loadProcesses(true), REFRESH_MS);
+		return () => clearInterval(timer);
 	});
 
-	let filteredProcesses = $derived(
-		processes.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-	);
+	let filteredProcesses = $derived.by(() => {
+		const list = processes.filter((p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+		if (sortBy === 'growth') {
+			return [...list].sort((a, b) => (growth[b.pid] ?? -Infinity) - (growth[a.pid] ?? -Infinity));
+		}
+		return list;
+	});
+
+	function growthLabel(rate: number | undefined) {
+		if (rate === undefined) return '…';
+		if (Math.abs(rate) < 1) return 'steady';
+		return `${rate > 0 ? '+' : '−'}${Math.abs(rate).toFixed(0)} MB/min`;
+	}
+
+	function growthColor(rate: number | undefined) {
+		if (rate === undefined || Math.abs(rate) < 1) return 'text-muted';
+		if (rate >= 20) return 'text-amber-700 dark:text-amber-400 font-bold';
+		return rate > 0 ? 'text-ink' : 'text-green-700 dark:text-green-400';
+	}
 </script>
 
 <div class="flex flex-col justify-between h-full space-y-2 p-1">
@@ -62,7 +115,7 @@
 		<div>
 			<div class="font-bold text-base text-ink">Top Resource Consumers</div>
 			<div class="text-xs text-muted">
-				Monitor memory footprints, CPU load & energy impact in real time
+				Memory, memory growth, CPU load & energy impact, updated every 5 seconds
 			</div>
 		</div>
 
@@ -74,10 +127,11 @@
 				class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-48"
 			/>
 			<button
-				class="text-xs bg-ground px-3 py-1.5 rounded-lg cursor-pointer hover:bg-line font-medium transition-colors border border-line"
-				onclick={loadProcesses}
+				class="text-xs bg-ground px-3 py-1.5 rounded-lg cursor-pointer hover:bg-line font-medium transition-colors border border-line whitespace-nowrap shrink-0"
+				title="Growth finds a process that is leaking memory"
+				onclick={() => (sortBy = sortBy === 'memory' ? 'growth' : 'memory')}
 			>
-				Refresh List
+				Sort: {sortBy === 'memory' ? 'Memory' : 'Growth'}
 			</button>
 		</div>
 	</div>
@@ -103,6 +157,7 @@
 						<th class="py-2 pl-2">Process Name</th>
 						<th class="py-2 text-right">PID</th>
 						<th class="py-2 text-right pr-4">RAM Footprint</th>
+						<th class="py-2 text-right pr-4">Growth</th>
 						<th class="py-2 text-right pr-4">CPU %</th>
 						<th class="py-2 text-center">Energy Drain</th>
 						<th class="py-2 text-center">Action</th>
@@ -117,6 +172,9 @@
 							<td class="py-2 text-right text-muted font-mono">{proc.pid}</td>
 							<td class="py-2 text-right pr-4 font-mono font-bold text-ink">
 								{proc.memory_mb.toFixed(1)} MB
+							</td>
+							<td class="py-2 text-right pr-4 font-mono whitespace-nowrap {growthColor(growth[proc.pid])}">
+								{growthLabel(growth[proc.pid])}
 							</td>
 							<td class="py-2 text-right pr-4 font-mono {proc.cpu_percent > 10 ? 'text-amber-700 dark:text-amber-400 font-bold' : ''}">
 								{proc.cpu_percent.toFixed(1)}%

@@ -5,12 +5,14 @@
 	import ProcessView from '$lib/components/basic/ProcessView.svelte';
 	import SpeedAnimation from '$lib/components/basic/SpeedAnimation.svelte';
 	import ToolsView from '$lib/components/basic/ToolsView.svelte';
+	import WidgetView from '$lib/components/basic/WidgetView.svelte';
 	import Logo from '$lib/components/ui/Logo.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
 	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
 	import { exportSpecCardPNG } from '$lib/utils/cardExporter';
+	import { enterWidget, initWidget, widget } from '$lib/widget.svelte';
 	import {
 		GetActiveSockets,
 		GetEnvPathAnalysis,
@@ -21,6 +23,7 @@
 
 	type View = 'home' | 'processes' | 'tools' | ToolId;
 
+	const WIDGET_ICON = 'M3 5h18v14H3zM12 12h7v5h-7z';
 	const SETTINGS_ICON =
 		'M4 6h9M17 6h3M17 6a2 2 0 1 1-4 0a2 2 0 0 1 4 0zM4 12h3M11 12h9M11 12a2 2 0 1 1-4 0a2 2 0 0 1 4 0zM4 18h11M19 18h1M19 18a2 2 0 1 1-4 0a2 2 0 0 1 4 0z';
 
@@ -136,12 +139,16 @@
 		getSysInfo();
 		loadToolStatus();
 	});
+
+	$effect(() => initWidget());
 </script>
 
-{#if isLoading}
+{#if widget.active}
+	<WidgetView />
+{:else if isLoading}
 	<div class="min-h-screen flex flex-col items-center justify-center bg-ground text-ink">
 		<div class="flex flex-col items-center justify-center">
-			<div class="flex"><Logo />™</div>
+			<Logo size={36} />
 			<div class="text-xs">Loading...</div>
 		</div>
 	</div>
@@ -153,7 +160,7 @@
 		<header class="flex justify-between items-center gap-3 h-10 shrink-0">
 			<div class="flex items-center gap-2.5 min-w-0">
 				<div class="flex items-center shrink-0">
-					<Logo />™
+					<Logo />
 				</div>
 				{#if view === 'home'}
 					{#if systemInfo}
@@ -205,9 +212,17 @@
 					</button>
 				{/if}
 				<button
+					aria-label="Shrink to widget"
+					title="Shrink to a small always-visible widget"
+					class="w-7 h-7 ml-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
+					onclick={enterWidget}
+				>
+					<StrokeIcon d={WIDGET_ICON} />
+				</button>
+				<button
 					aria-label="Settings"
 					title="Settings"
-					class="w-7 h-7 ml-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
+					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
 					onclick={() => (showSettings = true)}
 				>
 					<StrokeIcon d={SETTINGS_ICON} />

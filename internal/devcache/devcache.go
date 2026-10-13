@@ -47,13 +47,16 @@ func knownCaches() []knownCache {
 		local = filepath.Join(home, "AppData", "Local")
 	}
 
-	goModCache := os.Getenv("GOMODCACHE")
+	goModCache, goBuildCache := goEnvDirs()
 	if goModCache == "" {
 		goPath := os.Getenv("GOPATH")
 		if goPath == "" {
 			goPath = filepath.Join(home, "go")
 		}
 		goModCache = filepath.Join(filepath.SplitList(goPath)[0], "pkg", "mod")
+	}
+	if goBuildCache == "" {
+		goBuildCache = filepath.Join(local, "go-build")
 	}
 
 	const redownload = "Packages are downloaded again when a project needs them"
@@ -67,7 +70,7 @@ func knownCaches() []knownCache {
 		{"gradle", "Gradle caches", filepath.Join(home, ".gradle", "caches"), "Rebuilt on the next Gradle build, which will be slower once", true},
 		{"maven", "Maven repository", filepath.Join(home, ".m2", "repository"), "Dependencies are downloaded again on the next build", true},
 		{"cargo", "Cargo registry", filepath.Join(home, ".cargo", "registry"), "Crates are downloaded again on the next build", true},
-		{"go-build", "Go build cache", filepath.Join(local, "go-build"), "Rebuilt on the next go build, which will be slower once", true},
+		{"go-build", "Go build cache", goBuildCache, "Rebuilt on the next go build, which will be slower once", true},
 		{"go-mod", "Go module cache", goModCache, "Modules are downloaded again when needed", true},
 		{"docker", "Docker Desktop data", filepath.Join(local, "Docker", "wsl"), "Images and containers. Clean these from Docker itself (docker system prune)", false},
 	}

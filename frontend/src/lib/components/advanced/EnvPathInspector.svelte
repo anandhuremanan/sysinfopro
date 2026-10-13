@@ -164,7 +164,7 @@
 		class="text-[11px] text-muted pt-1.5 border-t border-line flex justify-between items-center shrink-0"
 	>
 		<span>Environment & PATH Inspection</span>
-		<span class="text-[10px] text-muted">Cross-platform environment diagnostics</span>
+		<span class="text-[10px] text-muted">Environment diagnostics</span>
 	</div>
 </div>
 

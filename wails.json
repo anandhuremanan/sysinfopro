@@ -11,5 +11,8 @@
     "name": "anandhuremanan",
     "email": "ananduor@gmail.com"
   },
-  "wailsjsdir": "./frontend/src/lib"
+  "wailsjsdir": "./frontend/src/lib",
+  "info": {
+    "productVersion": "3.0.0"
+  }
 }

@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { usageBarColor } from '$lib';
+	import { formatBytes, isBatteryCharging, usageBarColor } from '$lib';
 	import { ALL_TOOLS_ICON, getTool, pinnedTools, tools, type ToolStatus } from '$lib/tools';
 	import {
 		GetBatteryDetails,
 		GetDiagnosticReport,
+		GetDrives,
 		GetTopProcesses
 	} from '$lib/wailsjs/go/main/App';
+	import BatteryGauge from '../ui/BatteryGauge.svelte';
 	import ToolTile from '../ui/ToolTile.svelte';
 	import CpuStats from './CpuStats.svelte';
 	import RamStats from './RamStats.svelte';
@@ -45,10 +47,24 @@
 					: 'text-red-500'
 	);
 
+	const GB = 1024 * 1024 * 1024;
+	const DISK_REFRESH_MS = 5000;
+
+	// Latest reading of the system drive; refreshed while the home screen is open
+	let liveDisk = $state<{ total_bytes: number; free_bytes: number } | undefined>(undefined);
+
+	// live reading first, then the exact bytes from startup, then whole gigabytes
+	let diskTotalBytes = $derived(
+		liveDisk?.total_bytes ?? systemInfo.total_disk_bytes ?? systemInfo.total_disk_gb * GB
+	);
+	let diskFreeBytes = $derived(
+		liveDisk?.free_bytes ?? systemInfo.free_disk_bytes ?? systemInfo.free_disk_gb * GB
+	);
+	// "250 MB" -> ["250", "MB"], so a nearly full drive never reads as "0 GB"
+	let diskFree = $derived(formatBytes(diskFreeBytes).split(' '));
+
 	let diskUsedPct = $derived(
-		systemInfo.total_disk_gb > 0
-			? Math.min(100, Math.max(0, 100 - (systemInfo.free_disk_gb / systemInfo.total_disk_gb) * 100))
-			: 0
+		diskTotalBytes > 0 ? Math.min(100, Math.max(0, 100 - (diskFreeBytes / diskTotalBytes) * 100)) : 0
 	);
 
 	async function loadReport() {
@@ -79,10 +95,26 @@
 		}
 	}
 
+	async function refreshDisk() {
+		try {
+			// the system drive is listed first, the same one the startup snapshot describes
+			const drives = await GetDrives();
+			if (drives?.[0]) liveDisk = drives[0];
+		} catch (err) {
+			console.error('Failed to refresh disk usage:', err);
+		}
+	}
+
 	$effect(() => {
 		loadReport();
 		loadBattery();
 		loadTopProcess();
+	});
+
+	$effect(() => {
+		refreshDisk();
+		const timer = setInterval(refreshDisk, DISK_REFRESH_MS);
+		return () => clearInterval(timer);
 	});
 </script>
 
@@ -144,16 +176,18 @@
 			<span>{systemInfo.disk_type}</span>
 		</span>
 		<span class="text-[28px] font-semibold tracking-tight leading-none tabular-nums">
-			{systemInfo.free_disk_gb}<span class="text-sm text-muted ml-1">GB free</span>
+			{diskFree[0]}<span class="text-sm text-muted ml-1">{diskFree[1]} free</span>
 		</span>
 		<span class="flex flex-col gap-[5px] w-full">
 			<span class="block h-[5px] rounded-full bg-track">
 				<span
-					class="block h-[5px] rounded-full {usageBarColor(diskUsedPct)}"
+					class="block h-[5px] rounded-full transition-all duration-700 ease-out {usageBarColor(
+						diskUsedPct
+					)}"
 					style="width: {diskUsedPct}%"
 				></span>
 			</span>
-			<span class="text-muted">of {systemInfo.total_disk_gb} GB</span>
+			<span class="text-muted">of {formatBytes(diskTotalBytes)}</span>
 		</span>
 	</button>
 
@@ -185,10 +219,17 @@
 	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={() => onOpen('health')}>
 		<span class="text-muted font-medium">Battery</span>
 		{#if battery}
-			<span class="text-xl font-semibold tracking-tight leading-none">
-				{battery.percentage.toFixed(0)}%<span
-					class="text-xs font-medium text-muted capitalize ml-1.5">{battery.state}</span
-				>
+			<span class="flex items-center justify-between gap-2 w-full">
+				<span class="text-xl font-semibold tracking-tight leading-none">
+					{battery.percentage.toFixed(0)}%<span
+						class="text-xs font-medium text-muted capitalize ml-1.5">{battery.state}</span
+					>
+				</span>
+				<BatteryGauge
+					width={40}
+					percent={battery.percentage}
+					charging={isBatteryCharging(battery.state)}
+				/>
 			</span>
 			<span class="text-muted truncate w-full">
 				{#if battery.health_status}

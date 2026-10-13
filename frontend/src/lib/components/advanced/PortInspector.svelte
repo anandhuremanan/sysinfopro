@@ -10,7 +10,34 @@
 		remote_ip: string;
 		remote_port: number;
 		status: string;
+		command_line: string;
+		working_dir: string;
+		project_name: string;
+		project_root: string;
+		git_branch: string;
+		started_at: number;
 	};
+
+	// "2h 10m", "35m", "just now"
+	function runningFor(startedAt: number) {
+		if (!startedAt) return '';
+		const minutes = Math.floor((Date.now() / 1000 - startedAt) / 60);
+		if (minutes < 1) return 'just now';
+		if (minutes < 60) return `${minutes}m`;
+		const hours = Math.floor(minutes / 60);
+		if (hours < 24) return `${hours}h ${minutes % 60}m`;
+		return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+	}
+
+	function originTitle(sock: SocketItem) {
+		return [
+			sock.command_line && `Command: ${sock.command_line}`,
+			sock.working_dir && `Started in: ${sock.working_dir}`,
+			sock.project_root && `Project: ${sock.project_root}`
+		]
+			.filter(Boolean)
+			.join('\n');
+	}
 
 	let sockets = $state<SocketItem[]>([]);
 	let isLoading = $state(false);
@@ -51,10 +78,25 @@
 		loadSockets();
 	});
 
+	// ports opened from a project come first: those are the ones a developer is looking for
+	// One row per port and process: a busy server otherwise repeats once per open connection
+	let uniqueSockets = $derived.by(() => {
+		const byKey = new Map<string, SocketItem>();
+		for (const sock of sockets) {
+			const key = `${sock.local_port}/${sock.pid}`;
+			const kept = byKey.get(key);
+			if (!kept || (kept.status !== 'LISTEN' && sock.status === 'LISTEN')) byKey.set(key, sock);
+		}
+		return [...byKey.values()];
+	});
+
 	let filteredSockets = $derived(
-		sockets.filter(
+		[...uniqueSockets]
+			.sort((a, b) => Number(!!b.project_name) - Number(!!a.project_name))
+			.filter(
 			s =>
 				s.process_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				(s.project_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
 				s.local_port.toString().includes(searchTerm)
 		)
 	);
@@ -108,9 +150,9 @@
 				<thead class="sticky top-0 z-10 bg-tile shadow-xs">
 					<tr class="border-b border-line text-muted uppercase tracking-wider text-[10px]">
 						<th class="py-2 pl-2">Local Port</th>
-						<th class="py-2">Protocol</th>
-						<th class="py-2">Process Name</th>
-						<th class="py-2 text-right pr-4">PID</th>
+						<th class="py-2">Process</th>
+						<th class="py-2">Project</th>
+						<th class="py-2">Running</th>
 						<th class="py-2">Status</th>
 						<th class="py-2 text-center">Action</th>
 					</tr>
@@ -121,11 +163,21 @@
 							<td class="py-2 pl-2 font-mono font-bold text-accent">
 								:{sock.local_port}
 							</td>
-							<td class="py-2 font-mono text-muted text-[10px]">{sock.protocol}</td>
-							<td class="py-2 font-semibold text-ink truncate max-w-[180px]" title={sock.process_name}>
-								{sock.process_name}
+							<td class="py-2 max-w-[150px]" title={originTitle(sock) || sock.process_name}>
+								<div class="font-semibold text-ink truncate">{sock.process_name}</div>
+								<div class="font-mono text-muted text-[10px]">{sock.protocol} · PID {sock.pid}</div>
 							</td>
-							<td class="py-2 text-right pr-4 font-mono text-muted">{sock.pid}</td>
+							<td class="py-2 max-w-[170px]" title={originTitle(sock)}>
+								{#if sock.project_name}
+									<div class="font-semibold text-ink truncate">{sock.project_name}</div>
+									{#if sock.git_branch}
+										<div class="font-mono text-muted text-[10px] truncate">{sock.git_branch}</div>
+									{/if}
+								{:else}
+									<span class="text-muted">&ndash;</span>
+								{/if}
+							</td>
+							<td class="py-2 text-muted whitespace-nowrap">{runningFor(sock.started_at)}</td>
 							<td class="py-2 font-mono text-[10px]">
 								<span class="px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400 font-semibold border border-green-500/30">
 									{sock.status}
@@ -150,7 +202,7 @@
 	<!-- Footer Note -->
 	<div class="text-[11px] text-muted pt-1.5 border-t border-line flex justify-between items-center shrink-0">
 		<span>Showing active listening ports ({filteredSockets.length})</span>
-		<span class="text-[10px] text-muted">Click Release Port to terminate socket owners</span>
+		<span class="text-[10px] text-muted">Hover a row for its command line and folder</span>
 	</div>
 </div>
 

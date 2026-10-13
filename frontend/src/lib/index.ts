@@ -33,6 +33,12 @@ export function shortCpuName(model: string): string {
 		.trim();
 }
 
+// "charging" but not "discharging" / "not charging"
+export function isBatteryCharging(state: string | undefined): boolean {
+	const s = (state || '').toLowerCase();
+	return s.includes('charging') && !s.includes('dis') && !s.includes('not');
+}
+
 export function formatBytes(bytes: number): string {
 	if (!bytes || bytes < 0) return '0 B';
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];

@@ -1,16 +1,19 @@
 package functions
 
 type SystemInfo struct {
-	CPUModel        string  `json:"cpu_model"`
-	Manufacturer    string  `json:"cpu_vendor"`
-	Cores           int     `json:"cpu_cores"`
-	CPUFreqGHz      float64 `json:"cpu_freq_ghz"`
-	LoggedInUser    string  `json:"logged_in_user"`
-	TotalRAMMB      uint64  `json:"total_ram_mb"`
-	FreeRAMMB       uint64  `json:"free_ram_mb"`
-	DiskType        string  `json:"disk_type"`
-	TotalDiskGB     uint64  `json:"total_disk_gb"`
-	FreeDiskGB      uint64  `json:"free_disk_gb"`
+	CPUModel     string  `json:"cpu_model"`
+	Manufacturer string  `json:"cpu_vendor"`
+	Cores        int     `json:"cpu_cores"`
+	CPUFreqGHz   float64 `json:"cpu_freq_ghz"`
+	LoggedInUser string  `json:"logged_in_user"`
+	TotalRAMMB   uint64  `json:"total_ram_mb"`
+	FreeRAMMB    uint64  `json:"free_ram_mb"`
+	DiskType     string  `json:"disk_type"`
+	TotalDiskGB  uint64  `json:"total_disk_gb"`
+	FreeDiskGB   uint64  `json:"free_disk_gb"`
+	// Exact sizes: whole gigabytes round a nearly full drive down to 0
+	TotalDiskBytes  uint64  `json:"total_disk_bytes"`
+	FreeDiskBytes   uint64  `json:"free_disk_bytes"`
 	DiskUsagePct    float64 `json:"disk_usage_percent"`
 	NetworkStatus   string  `json:"network_status"`
 	OS              string  `json:"host_os"`
@@ -27,6 +30,8 @@ type InternetSpeedStat struct {
 	// "rate_limited" or "failed" when a phase could not be measured
 	DownloadError string `json:"download_error,omitempty"`
 	UploadError   string `json:"upload_error,omitempty"`
+	// Service the speeds were measured against, e.g. "Cloudflare"
+	Provider string `json:"provider"`
 }
 
 type MemoryStats struct {

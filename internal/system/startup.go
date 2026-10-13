@@ -3,6 +3,7 @@ package system
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -30,18 +31,6 @@ func GetStartupItems() ([]StartupItem, error) {
 	// 3. Scan User Startup Folder
 	folderItems, _ := scanStartupFolder()
 	items = append(items, folderItems...)
-
-	if len(items) == 0 {
-		// Fallback sample items for demonstration if registry access is limited
-		items = append(items, StartupItem{
-			Name:        "Windows Terminal Helper",
-			Command:     "wt.exe -autostart",
-			Location:    "HKCU Registry",
-			Impact:      "Low",
-			ImpactScore: 12,
-			IsEnabled:   true,
-		})
-	}
 
 	return items, nil
 }
@@ -102,7 +91,8 @@ func scanStartupFolder() ([]StartupItem, error) {
 
 	results := []StartupItem{}
 	for _, e := range entries {
-		if e.IsDir() {
+		// desktop.ini is Explorer's folder settings file, not a program
+		if e.IsDir() || strings.EqualFold(e.Name(), "desktop.ini") {
 			continue
 		}
 		results = append(results, StartupItem{

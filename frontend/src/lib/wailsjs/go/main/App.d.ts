@@ -3,12 +3,15 @@
 import {storage} from '../models';
 import {functions} from '../models';
 import {devcache} from '../models';
+import {locks} from '../models';
 import {network} from '../models';
+import {history} from '../models';
 import {diagnostics} from '../models';
 import {hardware} from '../models';
 import {system} from '../models';
 import {security} from '../models';
 import {process} from '../models';
+import {main} from '../models';
 
 export function AnalyzeDiskUsage(arg1:string):Promise<storage.FolderUsage>;
 
@@ -26,6 +29,8 @@ export function CleanSelectedFiles(arg1:Array<functions.FileInfo>):Promise<Recor
 
 export function DeleteDevCaches(arg1:Array<string>):Promise<devcache.DeleteResult>;
 
+export function FindLockingProcesses(arg1:string):Promise<locks.Result>;
+
 export function FindNodeModules(arg1:string):Promise<Array<devcache.Item>>;
 
 export function GetActiveSockets():Promise<Array<network.SocketItem>>;
@@ -33,6 +38,8 @@ export function GetActiveSockets():Promise<Array<network.SocketItem>>;
 export function GetBatteryDetails():Promise<string>;
 
 export function GetCPUStats():Promise<functions.CPUStats>;
+
+export function GetChanges():Promise<history.Changes>;
 
 export function GetDiagnosticReport():Promise<diagnostics.DiagnosticReport>;
 
@@ -62,7 +69,11 @@ export function GetSysInfo():Promise<string>;
 
 export function GetTopProcesses(arg1:number):Promise<Array<process.ProcessItem>>;
 
+export function GetWatchFolders():Promise<Array<main.WatchFolder>>;
+
 export function Greet(arg1:string):Promise<string>;
+
+export function PickFile(arg1:string):Promise<string>;
 
 export function PickFolder(arg1:string):Promise<string>;
 
@@ -71,6 +82,8 @@ export function PurgeJunkFiles():Promise<Record<string, any>>;
 export function RevealInExplorer(arg1:string):Promise<void>;
 
 export function RunThermalStressTest():Promise<hardware.StressResult>;
+
+export function SaveChangesBaseline():Promise<void>;
 
 export function SaveSpecCardPNG(arg1:string):Promise<string>;
 

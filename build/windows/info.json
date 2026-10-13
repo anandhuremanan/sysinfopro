@@ -4,7 +4,7 @@
   },
   "info": {
     "0000": {
-      "ProductVersion": "0.0.1",
+      "ProductVersion": "{{.Info.ProductVersion}}",
       "CompanyName": "nada labs",
       "FileDescription": "SysInfo Pro",
       "LegalCopyright": "{{.Info.Copyright}}",

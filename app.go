@@ -16,6 +16,8 @@ import (
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/hardware"
+	"myproject/internal/history"
+	"myproject/internal/locks"
 	"myproject/internal/network"
 	"myproject/internal/process"
 	"myproject/internal/security"
@@ -355,6 +357,103 @@ func (a *App) SaveSystemReport(html string) (string, error) {
 		return "", fmt.Errorf("failed to write report: %w", err)
 	}
 	return targetPath, nil
+}
+
+// PickFile opens the system file picker and returns the chosen path ("" if cancelled)
+func (a *App) PickFile(title string) (string, error) {
+	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+}
+
+// FindLockingProcesses lists the processes that hold a file, or files in a folder, open
+func (a *App) FindLockingProcesses(path string) (*locks.Result, error) {
+	return locks.Find(path)
+}
+
+// WatchFolder is a suggested place to watch for disk growth
+type WatchFolder struct {
+	Label string `json:"label"`
+	Path  string `json:"path"`
+}
+
+// GetWatchFolders suggests the folders where disk space usually disappears
+func (a *App) GetWatchFolders() []WatchFolder {
+	home, _ := os.UserHomeDir()
+	candidates := []WatchFolder{
+		{"Local app data", os.Getenv("LOCALAPPDATA")},
+		{"Roaming app data", os.Getenv("APPDATA")},
+		{"Temp", os.TempDir()},
+		{"Downloads", filepath.Join(home, "Downloads")},
+		{"User folder", home},
+	}
+
+	folders := []WatchFolder{}
+	for _, c := range candidates {
+		if info, err := os.Stat(c.Path); c.Path != "" && err == nil && info.IsDir() {
+			folders = append(folders, c)
+		}
+	}
+	return folders
+}
+
+// currentSnapshot records startup programs, installed software, listening ports and PATH
+func currentSnapshot() history.Snapshot {
+	snapshot := history.Snapshot{
+		TakenAt: time.Now(),
+		Startup: []string{},
+		Ports:   []string{},
+		Path:    []string{},
+		Apps:    system.InstalledApps(),
+	}
+
+	if items, err := system.GetStartupItems(); err == nil {
+		for _, item := range items {
+			snapshot.Startup = append(snapshot.Startup, fmt.Sprintf("%s (%s)", item.Name, item.Location))
+		}
+	}
+	if ports, err := network.ListeningPorts(); err == nil {
+		snapshot.Ports = ports
+	}
+	if analysis, err := system.GetEnvPathAnalysis(); err == nil && analysis != nil {
+		for _, entry := range analysis.PathEntries {
+			snapshot.Path = append(snapshot.Path, entry.Path)
+		}
+	}
+	return snapshot
+}
+
+// GetChanges compares the machine with the saved baseline. The first run saves a
+// baseline and reports nothing to compare.
+func (a *App) GetChanges() (*history.Changes, error) {
+	store, err := history.DefaultStore()
+	if err != nil {
+		return nil, fmt.Errorf("cannot open snapshot storage: %w", err)
+	}
+
+	current := currentSnapshot()
+	baseline, err := store.Latest()
+	if err != nil {
+		return nil, err
+	}
+	if baseline == nil {
+		if err := store.Save(current); err != nil {
+			return nil, fmt.Errorf("cannot save the first snapshot: %w", err)
+		}
+		return &history.Changes{
+			HasBaseline: false,
+			Since:       current.TakenAt.Format(time.RFC3339),
+			Categories:  []history.CategoryDiff{},
+		}, nil
+	}
+	return history.Compare(*baseline, current), nil
+}
+
+// SaveChangesBaseline makes the current state the new baseline ("mark as reviewed")
+func (a *App) SaveChangesBaseline() error {
+	store, err := history.DefaultStore()
+	if err != nil {
+		return fmt.Errorf("cannot open snapshot storage: %w", err)
+	}
+	return store.Save(currentSnapshot())
 }
 
 // --- Version 2.0 RPC Endpoints ---

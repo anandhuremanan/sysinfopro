@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { isBatteryCharging } from '$lib';
+	import BatteryGauge from '../ui/BatteryGauge.svelte';
 	import Card from '../ui/Card.svelte';
 	import RefreshButton from '../ui/RefreshButton.svelte';
 
@@ -32,10 +34,14 @@
 			<div class="flex-1 flex items-center justify-center text-xs text-muted">Loading Battery Details...</div>
 		{:else}
 			<div class="flex justify-center items-center flex-1 w-full gap-3 py-1">
-				<img src="/battery.png" alt="battery" class="w-14 h-14 shrink-0 object-contain" />
+				<BatteryGauge
+					width={52}
+					percent={batteryDetails?.percentage ?? 0}
+					charging={isBatteryCharging(batteryDetails?.state)}
+				/>
 				<div class="flex-1 text-xs space-y-1">
 					{#if batteryDetails}
-						<div class="grid grid-cols-2 gap-x-3 gap-y-1">
+						<div class="grid grid-cols-2 gap-x-3 gap-y-1 whitespace-nowrap">
 							<p>Percentage: <span class="font-bold">{batteryDetails.percentage.toFixed(0)}%</span></p>
 							<p>State: <span class="font-bold capitalize">{batteryDetails.state}</span></p>
 							<p>Design: <span class="font-bold">{batteryDetails.design_capacity} mWh</span></p>

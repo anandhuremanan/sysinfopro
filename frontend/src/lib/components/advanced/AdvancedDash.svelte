@@ -6,6 +6,8 @@
 	import DiskAnalyzer from './DiskAnalyzer.svelte';
 	import DiskCleaner from './DiskCleaner.svelte';
 	import EnvPathInspector from './EnvPathInspector.svelte';
+	import FileLocks from './FileLocks.svelte';
+	import GrowthWatch from './GrowthWatch.svelte';
 	import HardwareSpecs from './HardwareSpecs.svelte';
 	import PortInspector from './PortInspector.svelte';
 	import SecurityCheck from './SecurityCheck.svelte';
@@ -13,6 +15,7 @@
 	import StartupManager from './StartupManager.svelte';
 	import StressBenchmark from './StressBenchmark.svelte';
 	import SystemStat from './SystemStat.svelte';
+	import WhatChanged from './WhatChanged.svelte';
 
 	let {
 		systemInfo,
@@ -23,6 +26,9 @@
 			| 'specs'
 			| 'security'
 			| 'devcache'
+			| 'changes'
+			| 'locks'
+			| 'growth'
 			| 'health'
 			| 'space'
 			| 'ports'
@@ -92,6 +98,12 @@
 			<SecurityCheck />
 		{:else if tool === 'devcache'}
 			<DevCacheCleaner />
+		{:else if tool === 'changes'}
+			<WhatChanged />
+		{:else if tool === 'locks'}
+			<FileLocks />
+		{:else if tool === 'growth'}
+			<GrowthWatch />
 		{:else if tool === 'space'}
 			<DiskAnalyzer />
 		{:else if tool === 'ports'}

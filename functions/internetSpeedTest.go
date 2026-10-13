@@ -87,8 +87,18 @@ func GetInterNetSpeedWithProgress(progress SpeedProgressFunc) (*InternetSpeedSta
 
 	// 2. Measure Download Speed (Multi-stream parallel HTTP GET)
 	download := &speedRun{}
+	downloadProvider := speedProviderCloudflare
 	speedStat.DownloadSpeed = measureThroughput("download", progress, download, downloadWorker)
 	speedStat.DownloadError = download.errorCode(speedStat.DownloadSpeed)
+	if speedStat.DownloadError != "" {
+		// Cloudflare refused or was unreachable: try Measurement Lab before giving up
+		downloadProvider = ""
+		if mbps, err := measureWithMLab("download", progress); err == nil {
+			speedStat.DownloadSpeed = mbps
+			speedStat.DownloadError = ""
+			downloadProvider = speedProviderMLab
+		}
+	}
 
 	// 3. Measure Upload Speed (Multi-stream parallel HTTP POST)
 	payload := make([]byte, uploadPayloadSize)
@@ -98,6 +108,16 @@ func GetInterNetSpeedWithProgress(progress SpeedProgressFunc) (*InternetSpeedSta
 		uploadWorker(ctx, client, payload, run)
 	})
 	speedStat.UploadError = upload.errorCode(speedStat.UploadSpeed)
+	uploadProvider := speedProviderCloudflare
+	if speedStat.UploadError != "" {
+		uploadProvider = ""
+		if mbps, err := measureWithMLab("upload", progress); err == nil {
+			speedStat.UploadSpeed = mbps
+			speedStat.UploadError = ""
+			uploadProvider = speedProviderMLab
+		}
+	}
+	speedStat.Provider = speedProviderLabel(downloadProvider, uploadProvider)
 
 	return speedStat, nil
 }

@@ -92,6 +92,9 @@
 			drives = (await GetDrives()) || [];
 			if (!selectedDrive && drives.length > 0) {
 				selectDrive(drives[0]);
+			} else if (selectedDrive) {
+				// keep the selected drive's figures current too
+				selectedDrive = drives.find((d) => d.path === selectedDrive?.path) ?? selectedDrive;
 			}
 		} catch (err) {
 			console.error('Failed to list drives:', err);
@@ -162,6 +165,9 @@
 
 	$effect(() => {
 		loadDrives();
+		// free space changes while the tool is open (downloads, builds, clean-ups)
+		const timer = setInterval(loadDrives, 5000);
+		return () => clearInterval(timer);
 	});
 
 	onDestroy(() => {

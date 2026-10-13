@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { CheckCleanerPermissions, GetDriveHealthDetails, ScanSafeCleanableFiles } from '$lib/wailsjs/go/main/App';
 	import Card from '../ui/Card.svelte';
+	import DriveScan from '../ui/DriveScan.svelte';
 	import PieDisk from './PieDisk.svelte';
 
 	let isScanningFiles = $state(false);
@@ -92,7 +93,7 @@
 		{#if isScanningFiles}
 			<!-- Scanning State -->
 			<div class="flex-1 flex flex-col items-center justify-center space-y-3 py-8">
-				<div class="w-10 h-10 border-3 border-accent border-t-transparent rounded-full animate-spin"></div>
+				<DriveScan size={72} active />
 				<div class="text-xs text-ink font-medium animate-pulse">
 					Scanning temporary & cleanable files...
 				</div>
@@ -108,7 +109,7 @@
 			<div class="flex-1 flex flex-col justify-between py-2 space-y-3">
 				<!-- Hero graphic & Storage Diagnostic summary with button directly below Drive Life -->
 				<div class="flex items-center gap-4 my-auto">
-					<img src="/server-cleaning.png" alt="disk-cleaner" class="w-24 h-24 shrink-0 object-contain" />
+					<DriveScan size={96} />
 					<div class="flex-1 text-xs space-y-2">
 						<div class="font-bold text-ink">Storage Optimization</div>
 						<div class="space-y-1 text-muted">

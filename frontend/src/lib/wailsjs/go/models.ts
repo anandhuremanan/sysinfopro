@@ -529,6 +529,145 @@ export namespace hardware {
 
 }
 
+export namespace history {
+	
+	export class CategoryDiff {
+	    id: string;
+	    title: string;
+	    added: string[];
+	    removed: string[];
+	    changed: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CategoryDiff(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.added = source["added"];
+	        this.removed = source["removed"];
+	        this.changed = source["changed"];
+	    }
+	}
+	export class Changes {
+	    has_baseline: boolean;
+	    since: string;
+	    total: number;
+	    categories: CategoryDiff[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Changes(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.has_baseline = source["has_baseline"];
+	        this.since = source["since"];
+	        this.total = source["total"];
+	        this.categories = this.convertValues(source["categories"], CategoryDiff);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace locks {
+	
+	export class LockingProcess {
+	    pid: number;
+	    name: string;
+	    kind: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LockingProcess(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pid = source["pid"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	    }
+	}
+	export class Result {
+	    path: string;
+	    is_dir: boolean;
+	    files_checked: number;
+	    truncated: boolean;
+	    processes: LockingProcess[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.is_dir = source["is_dir"];
+	        this.files_checked = source["files_checked"];
+	        this.truncated = source["truncated"];
+	        this.processes = this.convertValues(source["processes"], LockingProcess);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace main {
+	
+	export class WatchFolder {
+	    label: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WatchFolder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.label = source["label"];
+	        this.path = source["path"];
+	    }
+	}
+
+}
+
 export namespace network {
 	
 	export class SocketItem {
@@ -540,6 +679,12 @@ export namespace network {
 	    remote_ip: string;
 	    remote_port: number;
 	    status: string;
+	    command_line: string;
+	    working_dir: string;
+	    project_name: string;
+	    project_root: string;
+	    git_branch: string;
+	    started_at: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new SocketItem(source);
@@ -555,6 +700,12 @@ export namespace network {
 	        this.remote_ip = source["remote_ip"];
 	        this.remote_port = source["remote_port"];
 	        this.status = source["status"];
+	        this.command_line = source["command_line"];
+	        this.working_dir = source["working_dir"];
+	        this.project_name = source["project_name"];
+	        this.project_root = source["project_root"];
+	        this.git_branch = source["git_branch"];
+	        this.started_at = source["started_at"];
 	    }
 	}
 

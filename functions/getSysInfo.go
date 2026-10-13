@@ -3,7 +3,6 @@ package functions
 import (
 	"fmt"
 	"os/user"
-	"strings"
 
 	"myproject/internal/storage"
 
@@ -63,14 +62,12 @@ func GetSystemInfo() (*SystemInfo, error) {
 	}
 	info.TotalDiskGB = usageStat.Total / 1024 / 1024 / 1024
 	info.FreeDiskGB = usageStat.Free / 1024 / 1024 / 1024
+	info.TotalDiskBytes = usageStat.Total
+	info.FreeDiskBytes = usageStat.Free
 	info.DiskUsagePct = usageStat.UsedPercent
 
-	// Detect SSD vs HDD (simple check using "SSD" in device name)
-	diskType := "HDD"
-	if strings.Contains(strings.ToLower(partitions[0].Device), "ssd") {
-		diskType = "SSD"
-	}
-	info.DiskType = diskType
+	// SSD vs HDD as reported by the drive itself; empty when unknown
+	info.DiskType = storage.DiskType(partitions[0].Mountpoint)
 
 	// Network
 	netInterfaces, err := net.Interfaces()

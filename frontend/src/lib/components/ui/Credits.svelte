@@ -32,7 +32,7 @@
 	{#if modalTitle === 'About'}
 		<div class="flex flex-col gap-3 leading-relaxed">
 			<p>
-				SysInfo Pro is a lightweight, cross-platform system diagnostics tool designed to give you
+				SysInfo Pro is a lightweight system diagnostics tool for Windows, designed to give you
 				instant insights into your machine's performance and hardware configuration. Whether you're
 				a developer, IT professional, or just a curious user, SysInfo Pro provides real-time data in
 				a clean, readable format — with zero bloat.
@@ -53,9 +53,8 @@
 	{:else if modalTitle === 'Credits'}
 		<div class="flex justify-between items-center gap-4">
 			<div class="flex flex-col gap-1">
-				<p>SysInfo Pro version 0.1</p>
+				<p>SysInfo Pro version 3.0.0</p>
 				<p>Author: Nada Labs</p>
-				<p>Icon Credit: Flaticon</p>
 				<p>Made with Wails, Go, Svelte and Tailwind</p>
 				<p class="mt-3 text-muted">www.sysinfopro.in</p>
 			</div>

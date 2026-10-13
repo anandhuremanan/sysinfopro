@@ -1,4 +1,4 @@
-import { shortCpuName } from '$lib';
+import { formatBytes, shortCpuName } from '$lib';
 import { SaveSpecCardPNG } from '$lib/wailsjs/go/main/App';
 
 const WIDTH = 800;
@@ -111,15 +111,42 @@ export async function generateSpecCardPNG(systemInfo: any): Promise<string> {
 	ctx.fillStyle = p.ground;
 	ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-	// Header
+	// Header: Pulse mark (same geometry as Logo.svelte, on a 24-unit grid) and wordmark
+	const markSize = 30;
+	const markY = 28;
+	const unit = markSize / 24;
+	ctx.fillStyle = p.accent;
+	roundRect(ctx, margin + unit, markY + unit, 22 * unit, 22 * unit, 6 * unit);
+	ctx.fill();
+	ctx.strokeStyle = p.onAccent;
+	ctx.lineWidth = 2 * unit;
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	ctx.beginPath();
+	[
+		[4.5, 12.5],
+		[7.7, 12.5],
+		[9.8, 7.5],
+		[13.2, 17],
+		[15.4, 12.5],
+		[19.5, 12.5]
+	].forEach(([x, y], i) => {
+		const px = margin + x * unit;
+		const py = markY + y * unit;
+		if (i === 0) ctx.moveTo(px, py);
+		else ctx.lineTo(px, py);
+	});
+	ctx.stroke();
+
+	const brandX = margin + markSize + 10;
 	ctx.fillStyle = p.ink;
 	ctx.font = `700 22px ${FONT}`;
-	ctx.fillText('SysInfo Pro', margin, 50);
+	ctx.fillText('SysInfo Pro', brandX, 50);
 	const brandWidth = ctx.measureText('SysInfo Pro').width;
 
 	ctx.fillStyle = p.muted;
 	ctx.font = `400 14px ${FONT}`;
-	ctx.fillText('System specifications', margin + brandWidth + 12, 50);
+	ctx.fillText('System specifications', brandX + brandWidth + 12, 50);
 
 	const platform = (systemInfo.host_platform || 'Desktop System').replace(/^Microsoft /, '');
 	const chip = platform;
@@ -141,8 +168,9 @@ export async function generateSpecCardPNG(systemInfo: any): Promise<string> {
 	const row2H = 124;
 
 	const ramGB = systemInfo.total_ram_mb ? (systemInfo.total_ram_mb / 1024).toFixed(1) : '0';
-	const totalDisk = systemInfo.total_disk_gb || 0;
-	const freeDisk = systemInfo.free_disk_gb || 0;
+	const GB = 1024 * 1024 * 1024;
+	const totalDisk = systemInfo.total_disk_bytes ?? (systemInfo.total_disk_gb || 0) * GB;
+	const freeDisk = systemInfo.free_disk_bytes ?? (systemInfo.free_disk_gb || 0) * GB;
 	const diskUsedPct = totalDisk > 0 ? Math.min(100, Math.max(0, 100 - (freeDisk / totalDisk) * 100)) : 0;
 
 	const tiles: Tile[] = [
@@ -170,8 +198,8 @@ export async function generateSpecCardPNG(systemInfo: any): Promise<string> {
 			w: span(1),
 			h: row1H,
 			label: 'Storage',
-			value: `${totalDisk} GB`,
-			detail: `${freeDisk} GB free · ${systemInfo.disk_type || 'Disk'}`,
+			value: formatBytes(totalDisk),
+			detail: `${formatBytes(freeDisk)} free · ${systemInfo.disk_type || 'Disk'}`,
 			barPct: diskUsedPct
 		},
 		{

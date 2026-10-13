@@ -2,7 +2,7 @@
 
 ## About
 
-SysInfo Pro is a cross platform Utility Tool for system Information
+SysInfo Pro is a Windows Utility Tool for system Information
 
 ## Download
 

@@ -93,19 +93,25 @@
 
 <div class="flex-1 w-full flex flex-col justify-between" title={swapTitle}>
 	{#if memStats}
-		<div class="flex justify-between text-muted font-medium">
-			<span>Memory</span>
+		<div class="flex justify-between gap-2 text-muted font-medium">
+			<span class="shrink-0">Memory</span>
 			<!-- Live Velocity Indicator -->
 			{#if velocitySample}
-				{#if velocitySample.velocity_mbps > 50}
-					<span class="text-amber-600 dark:text-amber-400 animate-pulse">
-						+{velocitySample.velocity_mbps} MB/s
-						{#if velocitySample.estimated_oom_sec > 0}
-							<span class="text-red-500">(OOM: {velocitySample.estimated_oom_sec}s)</span>
-						{/if}
+				{#if velocitySample.velocity_mbps > 50 && velocitySample.estimated_oom_sec > 0}
+					<span
+						class="text-red-500 animate-pulse truncate"
+						title="Growing by {velocitySample.velocity_mbps} MB/s; memory runs out in about {velocitySample.estimated_oom_sec} seconds at this rate"
+					>
+						Full in {velocitySample.estimated_oom_sec}s
+					</span>
+				{:else if velocitySample.velocity_mbps > 50}
+					<span class="text-amber-600 dark:text-amber-400 animate-pulse truncate">
+						+{Math.round(velocitySample.velocity_mbps)} MB/s
 					</span>
 				{:else if velocitySample.velocity_mbps < -50}
-					<span class="text-accent">{velocitySample.velocity_mbps} MB/s</span>
+					<span class="text-accent truncate">
+						{Math.round(velocitySample.velocity_mbps)} MB/s
+					</span>
 				{:else}
 					<span>Stable</span>
 				{/if}

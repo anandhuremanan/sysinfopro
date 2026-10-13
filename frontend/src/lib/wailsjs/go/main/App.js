@@ -34,6 +34,10 @@ export function DeleteDevCaches(arg1) {
   return window['go']['main']['App']['DeleteDevCaches'](arg1);
 }
 
+export function FindLockingProcesses(arg1) {
+  return window['go']['main']['App']['FindLockingProcesses'](arg1);
+}
+
 export function FindNodeModules(arg1) {
   return window['go']['main']['App']['FindNodeModules'](arg1);
 }
@@ -48,6 +52,10 @@ export function GetBatteryDetails() {
 
 export function GetCPUStats() {
   return window['go']['main']['App']['GetCPUStats']();
+}
+
+export function GetChanges() {
+  return window['go']['main']['App']['GetChanges']();
 }
 
 export function GetDiagnosticReport() {
@@ -106,8 +114,16 @@ export function GetTopProcesses(arg1) {
   return window['go']['main']['App']['GetTopProcesses'](arg1);
 }
 
+export function GetWatchFolders() {
+  return window['go']['main']['App']['GetWatchFolders']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
+}
+
+export function PickFile(arg1) {
+  return window['go']['main']['App']['PickFile'](arg1);
 }
 
 export function PickFolder(arg1) {
@@ -124,6 +140,10 @@ export function RevealInExplorer(arg1) {
 
 export function RunThermalStressTest() {
   return window['go']['main']['App']['RunThermalStressTest']();
+}
+
+export function SaveChangesBaseline() {
+  return window['go']['main']['App']['SaveChangesBaseline']();
 }
 
 export function SaveSpecCardPNG(arg1) {
