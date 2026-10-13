@@ -140,7 +140,9 @@
 		loadToolStatus();
 	});
 
-	$effect(() => initWidget());
+	$effect(() => {
+		initWidget();
+	});
 </script>
 
 {#if widget.active}

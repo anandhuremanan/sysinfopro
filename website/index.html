@@ -1,244 +1,233 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SysInfo Pro™ — Modern Real-Time System Diagnostics for Windows</title>
-    <meta name="description" content="SysInfo Pro is a lightweight, information-dense system diagnostics utility for Windows. Real-time CPU, RAM velocity, network speed, disk purging, and hardware lifespan projections." />
-    
-    <!-- Google Fonts: Inter & Outfit -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
-    
+    <title>SysInfo Pro: the system tool for developers on Windows</title>
+    <meta
+      name="description"
+      content="SysInfo Pro shows your PC's health, storage, ports, PATH and developer caches in one small window. Free, portable and open source for Windows 10 and 11."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="img/favicon.png" />
+    <link rel="apple-touch-icon" href="img/icon-180.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <!-- Background Glow Effects -->
-    <div class="bg-glow bg-glow-1"></div>
-    <div class="bg-glow bg-glow-2"></div>
+    <header class="nav">
+      <a class="brand" href="#top" aria-label="SysInfo Pro home">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="6" />
+          <path d="M4.5 12.5h3.2l2.1-5 3.4 9.5 2.2-4.5h4.1" />
+        </svg>
+        <span>SysInfo <span class="brand-pro">Pro</span></span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="#tools">Tools</a>
+        <a href="#widget">Widget</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/ananduremanan/sysinfopro">Source</a>
+      </nav>
+    </header>
 
-    <div class="site-wrapper">
-      <!-- Header Navigation -->
-      <header class="navbar">
-        <div class="nav-brand">
-          <span class="logo-icon">💻</span>
-          <span class="logo-text">SysInfo Pro<span class="badge-v2">v2.0</span></span>
+    <main id="top">
+      <section class="hero">
+        <p class="eyebrow">Version 3.0 · Windows 10 and 11</p>
+        <h1>See what your PC is doing. Fix what is in the way.</h1>
+        <p class="lead">
+          Health, storage, ports, PATH and developer caches in one small window. Built for people
+          who write code on Windows.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="sysinfopro.exe" download>Download for Windows</a>
+          <a class="btn btn-secondary" href="https://github.com/ananduremanan/sysinfopro">View source</a>
         </div>
-        <div class="nav-links">
-          <a href="#features">Features</a>
-          <a href="#preview">Preview</a>
-          <a href="#guide">Security & Guide</a>
-          <a href="sysinfopro.exe" class="nav-btn-download" download>Download .exe</a>
-        </div>
-      </header>
+        <p class="fine">Free · one portable 12 MB file · no install, no account</p>
 
-      <!-- Hero Section -->
-      <section class="hero-section">
-        <div class="hero-badge">
-          <span class="pulse-dot"></span>
-          <span>Lightweight • Zero-Install • Windows 11 Ready</span>
-        </div>
-        
-        <h1 class="hero-title">
-          System Telemetry <br />
-          <span class="gradient-text">Redefined with Elegance</span>
-        </h1>
-        
-        <p class="hero-subtitle">
-          An ultra-clean, information-dense desktop utility built for developers, power users, and PC enthusiasts. Port socket auditing, 10s thermal stress benchmarking, RAM velocity forecasting, and PATH debugging.
+        <picture class="shot hero-shot">
+          <source srcset="img/home-dark.webp" media="(prefers-color-scheme: dark)" />
+          <img
+            src="img/home-light.webp"
+            width="1536"
+            height="920"
+            alt="SysInfo Pro home screen: health score, CPU, memory, storage, processes, network and battery tiles above a row of tools"
+          />
+        </picture>
+      </section>
+
+      <section id="tools" class="section">
+        <h2>Fourteen tools, one click away</h2>
+        <p class="section-lead">
+          Each one answers a question you would otherwise open three programs to answer.
         </p>
 
-        <div class="hero-actions">
-          <a href="sysinfopro.exe" class="primary-btn" download>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-            Download Free for Windows
-          </a>
-          <span class="sys-req">Windows 10/11 • 64-bit • Single Portable Executable</span>
+        <div class="bento">
+          <article class="tile tile-wide">
+            <h3>Ports that know their project</h3>
+            <p>
+              See which project and git branch opened each port, how long it has been running, and
+              release it in one click.
+            </p>
+            <picture class="shot tile-shot">
+              <img
+                src="img/ports-dark.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Ports screen listing port 5173 as the project my-app on branch main"
+              />
+            </picture>
+          </article>
+
+          <article class="tile">
+            <h3>Dev cache cleaner</h3>
+            <p>
+              Sizes your npm, pnpm, pip, NuGet, Gradle, Maven, Cargo and Go caches, finds old
+              node_modules folders, and frees what you pick.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>File locks</h3>
+            <p>
+              Pick the file or folder that will not delete. See every program holding it open, and
+              end the one in the way.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>Disk usage and growth</h3>
+            <p>
+              Find the largest folders and files on any drive, then watch a folder to see what is
+              growing right now and how fast.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>What changed</h3>
+            <p>
+              Startup programs, installed software, listening ports and PATH, compared with the last
+              time you looked.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>Security check</h3>
+            <p>
+              Antivirus, firewall, updates, BitLocker, Secure Boot and more in one read-only pass.
+              Nothing is changed.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>Hardware specs and report</h3>
+            <p>
+              Full inventory down to each memory module, with a one-click report to attach to a
+              support ticket.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>Processes and memory growth</h3>
+            <p>
+              Sort running programs by how fast their memory is growing to catch a leak before the
+              machine slows down.
+            </p>
+          </article>
+
+          <article class="tile">
+            <h3>And the rest</h3>
+            <p>
+              PATH inspector, startup programs, software versions, internet speed test, battery
+              health, disk cleaner and a ten-second stress test.
+            </p>
+          </article>
         </div>
       </section>
 
-      <!-- App Screenshot Preview -->
-      <section id="preview" class="preview-section">
-        <div class="glass-frame">
-          <div class="frame-header">
-            <div class="frame-dots">
-              <span class="dot dot-red"></span>
-              <span class="dot dot-yellow"></span>
-              <span class="dot dot-green"></span>
-            </div>
-            <div class="frame-title">SysInfo Pro 2.0 — Live Interface</div>
-          </div>
-          <img src="sysinfopro.webp" alt="SysInfo Pro Interface Preview" class="app-screenshot" />
-        </div>
-      </section>
-
-      <!-- Feature Grid Section -->
-      <section id="features" class="features-section">
-        <div class="section-header">
-          <h2 class="section-title">Engineered for Peak Clarity</h2>
-          <p class="section-subtitle">No bloatware. No registration. Just instant, authoritative hardware metrics.</p>
-        </div>
-
-        <div class="features-grid">
-          <!-- Feature 1 -->
-          <div class="feature-card">
-            <div class="feature-icon">⚡</div>
-            <h3 class="feature-title">Resource Velocity Forecast</h3>
-            <p class="feature-desc">Continuously tracks RAM consumption velocity (MB/s) and predicts Out-Of-Memory slowdowns before your OS freezes.</p>
-          </div>
-
-          <!-- Feature 2 -->
-          <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <h3 class="feature-title">Multi-Stream Speed Test</h3>
-            <p class="feature-desc">Parallel 4-stream CDN speed engine measuring download/upload Mbps, ping latency, jitter, and packet loss with M-Lab precision.</p>
-          </div>
-
-          <!-- Feature 3 -->
-          <div class="feature-card">
-            <div class="feature-icon">🖼️</div>
-            <h3 class="feature-title">1-Click Spec Card Exporter</h3>
-            <p class="feature-desc">Generates a high-res PNG hardware specification badge saved directly to your Downloads folder for sharing on GitHub & social media.</p>
-          </div>
-
-          <!-- Feature 4 -->
-          <div class="feature-card">
-            <div class="feature-icon">🧹</div>
-            <h3 class="feature-title">Safe One-Click Disk Purge</h3>
-            <p class="feature-desc">Scans and safely eliminates temporary system files, log dumps, and browser caches with real-time freed storage feedback.</p>
-          </div>
-
-          <!-- Feature 5 -->
-          <div class="feature-card">
-            <div class="feature-icon">🔋</div>
-            <h3 class="feature-title">Battery Longevity Analytics</h3>
-            <p class="feature-desc">Deep battery degradation %, design vs current mWh capacity, cycle count estimates, and operational health badges for laptops.</p>
-          </div>
-
-          <!-- Feature 6 -->
-          <div class="feature-card">
-            <div class="feature-icon">📊</div>
-            <h3 class="feature-title">Per-Process Energy Rating</h3>
-            <p class="feature-desc">Calculates an Energy Impact score (1-100) per running process to immediately spot background tasks draining your battery.</p>
-          </div>
-
-          <!-- Feature 7 -->
-          <div class="feature-card">
-            <div class="feature-icon">🔌</div>
-            <h3 class="feature-title">Port & Socket Inspector</h3>
-            <p class="feature-desc">Audit active listening TCP/UDP sockets (e.g. :3000, :8080), inspect owner process PIDs, and release port-blocking processes with 1 click.</p>
-          </div>
-
-          <!-- Feature 8 -->
-          <div class="feature-card">
-            <div class="feature-icon">🔥</div>
-            <h3 class="feature-title">10s Thermal Stress Benchmark</h3>
-            <p class="feature-desc">Lightweight multi-threaded CPU stress burn measuring thermal headroom rating (1-100), fan lag, and clock speed throttling delta under load.</p>
-          </div>
-
-          <!-- Feature 9 -->
-          <div class="feature-card">
-            <div class="feature-icon">🚀</div>
-            <h3 class="feature-title">Startup Impact Manager</h3>
-            <p class="feature-desc">Scans Windows Registry Run keys and startup folder triggers, calculating boot delay impact scores (High, Med, Low) to eliminate boot lag.</p>
-          </div>
-
-          <!-- Feature 10 -->
-          <div class="feature-card">
-            <div class="feature-icon">🛠️</div>
-            <h3 class="feature-title">Environment & PATH Debugger</h3>
-            <p class="feature-desc">Parses system %PATH% entries, flags broken or non-existent directories, highlights duplicates, and audits developer variables (JAVA_HOME, CUDA).</p>
-          </div>
-
-          <!-- Feature 11 -->
-          <div class="feature-card">
-            <div class="feature-icon">📦</div>
-            <h3 class="feature-title">Software Health & Version Auditor</h3>
-            <p class="feature-desc">Audits installed software & developer runtimes, comparing current vs official latest releases with 1-click official vendor download links.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- Download & Security Guide Section -->
-      <section id="guide" class="guide-section">
-        <div class="section-header">
-          <span class="guide-pill-badge">🛡️ Transparency & Safety</span>
-          <h2 class="section-title">Download & Security Guide</h2>
-          <p class="section-subtitle">
-            Why Windows SmartScreen or Chrome may display a warning, and how to safely run SysInfo Pro.
+      <section id="widget" class="section split">
+        <div>
+          <h2>A widget that stays on top</h2>
+          <p class="section-lead">
+            Shrink the app to a small floating window and keep an eye on CPU, memory, battery and
+            the space left on each drive while you work. An arrow appears the moment a drive starts
+            filling up.
           </p>
         </div>
-
-        <!-- Trust Notice Box -->
-        <div class="trust-notice-box">
-          <div class="trust-header">
-            <div class="trust-icon">🛡️</div>
-            <div>
-              <h3 class="trust-title">Why does Chrome or Windows flag unsigned executables?</h3>
-              <p class="trust-subtitle">Understanding Code Signing Certificates for Independent Open-Source Software</p>
-            </div>
-          </div>
-          <div class="trust-content">
-            <p>
-              Operating systems like Windows Defender SmartScreen and browsers like Google Chrome require software binaries to be signed with an <strong>EV (Extended Validation) Code Signing Certificate</strong>. These corporate certificates cost <strong>$400 to $600+ every year</strong> from Certificate Authorities (DigiCert / Sectigo).
-            </p>
-            <p>
-              As a <strong>free, independent open-source utility</strong> without commercial funding, subscription fees, or venture backing, we invest our resources directly into building clean code rather than paying annual certificate authority fees. Because SysInfo Pro is unsigned, browsers and Windows issue automated <em>"Unknown Publisher"</em> or <em>"Uncommon Download"</em> prompts.
-            </p>
-            <div class="trust-highlights">
-              <div class="highlight-item">
-                <span class="check-icon">✓</span>
-                <span><strong>100% Clean & Safe:</strong> Zero telemetry, zero adware, and fully open-source logic.</span>
-              </div>
-              <div class="highlight-item">
-                <span class="check-icon">✓</span>
-                <span><strong>Zero-Install Portability:</strong> Runs instantly as a standalone <code>.exe</code> without modifying system registry.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 3-Step Launch Steps -->
-        <div class="guide-steps-grid">
-          <!-- Step 1 -->
-          <div class="step-card">
-            <div class="step-number">01</div>
-            <h3 class="step-title">Download Executable</h3>
-            <p class="step-desc">Click <strong>Download Free for Windows</strong> to save the official <code>sysinfopro.exe</code> binary to your Downloads folder.</p>
-          </div>
-
-          <!-- Step 2 -->
-          <div class="step-card">
-            <div class="step-number">02</div>
-            <h3 class="step-title">Chrome / Edge Download Prompt</h3>
-            <p class="step-desc">If Chrome flags <em>"not commonly downloaded"</em>, click the <strong>three dots (...)</strong> next to the download → Select <strong>Keep</strong> → <strong>Keep anyway</strong>.</p>
-          </div>
-
-          <!-- Step 3 -->
-          <div class="step-card">
-            <div class="step-number">03</div>
-            <h3 class="step-title">Windows SmartScreen Prompt</h3>
-            <p class="step-desc">If Windows shows <em>"Windows protected your PC"</em>, click <strong class="link-highlight">More info</strong> → Click <strong class="link-highlight">Run anyway</strong> to launch.</p>
-          </div>
-        </div>
+        <picture class="shot widget-shot">
+          <source srcset="img/widget-dark.webp" media="(prefers-color-scheme: dark)" />
+          <img
+            src="img/widget-light.webp"
+            width="636"
+            height="414"
+            loading="lazy"
+            alt="The SysInfo Pro widget showing CPU, memory, free space on drive C and battery as four compact bars"
+          />
+        </picture>
       </section>
 
-      <!-- CTA Footer Section -->
-      <footer class="footer-cta">
-        <div class="cta-box">
-          <h2>Ready to Upgrade Your Diagnostics?</h2>
-          <p>Get SysInfo Pro 2.0 now. Portable, fast, and completely free.</p>
-          <a href="sysinfopro.exe" class="primary-btn" download>Download SysInfo Pro v2.0</a>
+      <section class="section">
+        <ul class="facts">
+          <li>
+            <strong>Portable</strong>
+            <span>One file. Run it from anywhere; delete it to remove it.</span>
+          </li>
+          <li>
+            <strong>Private</strong>
+            <span>No account and no telemetry. Speed tests contact a test server; nothing else leaves your PC.</span>
+          </li>
+          <li>
+            <strong>Open source</strong>
+            <span>Built with Go, Wails and Svelte. Read the code on GitHub.</span>
+          </li>
+          <li>
+            <strong>Light and dark</strong>
+            <span>Follows your Windows theme, or pick one in Settings.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section id="download" class="section download">
+        <h2>Download SysInfo Pro 3.0</h2>
+        <p class="section-lead">Windows 10 or 11, 64-bit. Free.</p>
+        <div class="actions">
+          <a class="btn btn-primary" href="sysinfopro.exe" download>Download sysinfopro.exe</a>
         </div>
-        <div class="footer-bottom">
-          <p>© 2026 SysInfo Pro. Built with Wails, Go & Svelte.</p>
-        </div>
-      </footer>
-    </div>
+
+        <details class="notice">
+          <summary>Windows or your browser may warn about this file</summary>
+          <p>
+            SysInfo Pro is free and independent, so the file is not signed with a paid code-signing
+            certificate. Windows and browsers warn about unsigned programs they have not seen often.
+          </p>
+          <ol>
+            <li>
+              If your browser says the file is not commonly downloaded, open the download's menu and
+              choose <strong>Keep</strong>.
+            </li>
+            <li>
+              If Windows shows "Windows protected your PC", choose <strong>More info</strong>, then
+              <strong>Run anyway</strong>.
+            </li>
+          </ol>
+          <p>
+            You can also read the source and build it yourself from
+            <a href="https://github.com/ananduremanan/sysinfopro">GitHub</a>.
+          </p>
+        </details>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 SysInfo Pro</span>
+      <a href="https://github.com/ananduremanan/sysinfopro/issues">Report a bug</a>
+    </footer>
   </body>
 </html>

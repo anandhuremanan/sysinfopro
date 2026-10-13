@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { setTheme, theme, type ThemeMode } from '$lib/theme.svelte';
-	import { enterWidget, toggleWidgetMetric, widget, WIDGET_METRICS } from '$lib/widget.svelte';
+	import { enterWidget, toggleWidgetMetric, widget, widgetOptions } from '$lib/widget.svelte';
 	import Credits from './Credits.svelte';
 	import Modal from './Modal.svelte';
 
@@ -55,8 +55,8 @@
 			</div>
 			<div class="flex items-center gap-3">
 				<span class="text-muted">Show</span>
-				<div class="flex gap-1.5" role="group" aria-label="Readings shown in the widget">
-					{#each WIDGET_METRICS as metric (metric.id)}
+				<div class="flex flex-wrap gap-1.5" role="group" aria-label="Readings shown in the widget">
+					{#each widgetOptions() as metric (metric.id)}
 						<button
 							aria-pressed={widget.metrics.includes(metric.id)}
 							class="h-7 px-2.5 rounded-lg border cursor-pointer font-medium transition-colors {widget.metrics.includes(

@@ -7,25 +7,51 @@
 		GetMemoryStats
 	} from '$lib/wailsjs/go/main/App';
 	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
-	import { exitWidget, widget, type WidgetMetric } from '$lib/widget.svelte';
+	import {
+		drivePath,
+		exitWidget,
+		isDriveMetric,
+		widget,
+		type WidgetMetric
+	} from '$lib/widget.svelte';
 	import { onDestroy } from 'svelte';
 	import Logo from '../ui/Logo.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	const DISK_REFRESH_MS = 5000;
+	const DISK_REFRESH_MS = 2000;
 	const BATTERY_REFRESH_MS = 30000;
+	// free space is compared with its value this long ago to show which way it is moving
+	const TREND_WINDOW_MS = 60000;
+	// smaller movements than this are normal background noise
+	const TREND_MIN_BYTES = 20 * 1024 * 1024;
+
+	type Drive = { path: string; free_bytes: number; total_bytes: number; used_pct: number };
 
 	let cpu = $state<number | undefined>(undefined);
 	let memory = $state<{ usagePercent: number; usedRAMMB: number; totalRAMMB: number } | undefined>(
 		undefined
 	);
-	let disk = $state<{ free_bytes: number; used_pct: number } | undefined>(undefined);
+	let drives = $state<Record<string, Drive>>({});
+	// change in free bytes over the trend window, by drive letter
+	let trends = $state<Record<string, number>>({});
 	let battery: any = $state(undefined);
 	let batteryLoaded = $state(false);
 
-	type Row = { id: WidgetMetric; label: string; value: string; detail: string; pct: number; color: string };
+	// recent free-space readings per drive
+	const history = new Map<string, { at: number; free: number }[]>();
 
-	// one row per metric the user chose, in a fixed order
+	type Row = {
+		id: WidgetMetric;
+		label: string;
+		value: string;
+		detail: string;
+		pct: number;
+		color: string;
+		// -1 free space falling, 1 rising, 0 steady or not a drive
+		trend: number;
+	};
+
+	// one row per reading the user chose, in a fixed order
 	let rows = $derived(
 		widget.metrics.map((id): Row => {
 			if (id === 'cpu') {
@@ -36,7 +62,8 @@
 					value: cpu === undefined ? '…' : `${pct.toFixed(0)}%`,
 					detail: '',
 					pct,
-					color: pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-amber-500' : 'bg-accent'
+					color: pct > 80 ? 'bg-red-500' : pct > 60 ? 'bg-amber-500' : 'bg-accent',
+					trend: 0
 				};
 			}
 			if (id === 'memory') {
@@ -45,20 +72,33 @@
 					id,
 					label: 'Memory',
 					value: memory ? `${pct.toFixed(0)}%` : '…',
-					detail: memory ? `${(memory.usedRAMMB / 1024).toFixed(1)} of ${(memory.totalRAMMB / 1024).toFixed(1)} GB` : '',
+					detail: memory
+						? `${(memory.usedRAMMB / 1024).toFixed(1)} of ${(memory.totalRAMMB / 1024).toFixed(1)} GB in use`
+						: '',
 					pct,
-					color: usageBarColor(pct)
+					color: usageBarColor(pct),
+					trend: 0
 				};
 			}
-			if (id === 'disk') {
-				const pct = disk?.used_pct ?? 0;
+			if (isDriveMetric(id)) {
+				const path = drivePath(id);
+				const drive = drives[path];
+				const change = trends[path] ?? 0;
+				const moving = Math.abs(change) >= TREND_MIN_BYTES;
 				return {
 					id,
-					label: 'Disk',
-					value: disk ? `${pct.toFixed(0)}%` : '…',
-					detail: disk ? `${formatBytes(disk.free_bytes)} free` : '',
-					pct,
-					color: usageBarColor(pct)
+					label: path,
+					// remaining space, the number that matters when a drive is filling up
+					value: drive ? formatBytes(drive.free_bytes) : '…',
+					detail: drive
+						? `${formatBytes(drive.free_bytes)} free of ${formatBytes(drive.total_bytes)}` +
+							(moving
+								? ` · ${change < 0 ? 'down' : 'up'} ${formatBytes(Math.abs(change))} in the last minute`
+								: ' · steady')
+						: 'Drive not found',
+					pct: drive?.used_pct ?? 0,
+					color: usageBarColor(drive?.used_pct ?? 0),
+					trend: moving ? Math.sign(change) : 0
 				};
 			}
 			const pct = battery?.percentage ?? 0;
@@ -68,16 +108,31 @@
 				value: battery ? `${pct.toFixed(0)}%` : batteryLoaded ? 'None' : '…',
 				detail: battery ? (isBatteryCharging(battery.state) ? 'Charging' : battery.state || '') : '',
 				pct,
-				color: !battery ? 'bg-track' : pct <= 20 ? 'bg-red-500' : pct <= 40 ? 'bg-amber-500' : 'bg-accent'
+				color: !battery ? 'bg-track' : pct <= 20 ? 'bg-red-500' : pct <= 40 ? 'bg-amber-500' : 'bg-accent',
+				trend: 0
 			};
 		})
 	);
 
-	async function refreshDisk() {
+	async function refreshDrives() {
 		try {
-			// the system drive is listed first
-			const drives = await GetDrives();
-			if (drives?.[0]) disk = drives[0];
+			const list = ((await GetDrives()) || []) as Drive[];
+			const now = Date.now();
+			const next: Record<string, Drive> = {};
+			const nextTrends: Record<string, number> = {};
+
+			for (const drive of list) {
+				const path = drive.path.replace(/[\\/]$/, '');
+				next[path] = drive;
+
+				const readings = history.get(path) ?? [];
+				readings.push({ at: now, free: drive.free_bytes });
+				while (readings.length > 1 && now - readings[0].at > TREND_WINDOW_MS) readings.shift();
+				history.set(path, readings);
+				nextTrends[path] = drive.free_bytes - readings[0].free;
+			}
+			drives = next;
+			trends = nextTrends;
 		} catch (err) {
 			console.error('Failed to refresh disk usage:', err);
 		}
@@ -109,12 +164,12 @@
 	});
 
 	$effect(() => {
-		refreshDisk();
+		refreshDrives();
 		refreshBattery();
-		const diskTimer = setInterval(refreshDisk, DISK_REFRESH_MS);
+		const driveTimer = setInterval(refreshDrives, DISK_REFRESH_MS);
 		const batteryTimer = setInterval(refreshBattery, BATTERY_REFRESH_MS);
 		return () => {
-			clearInterval(diskTimer);
+			clearInterval(driveTimer);
 			clearInterval(batteryTimer);
 		};
 	});
@@ -143,14 +198,25 @@
 	<!-- one compact line per reading: name, bar, value -->
 	{#each rows as row (row.id)}
 		<div class="flex-1 min-h-0 flex items-center gap-2" title={row.detail || undefined}>
-			<span class="w-[50px] shrink-0 text-muted font-medium">{row.label}</span>
+			<span class="w-[50px] shrink-0 text-muted font-medium truncate">{row.label}</span>
 			<span class="flex-1 h-1 rounded-full bg-track">
 				<span
 					class="block h-1 rounded-full transition-all duration-700 ease-out {row.color}"
 					style="width: {Math.min(100, Math.max(0, row.pct))}%"
 				></span>
 			</span>
-			<span class="w-9 shrink-0 text-right font-semibold tabular-nums">{row.value}</span>
+			<span class="w-[66px] shrink-0 flex items-center justify-end gap-1 font-semibold tabular-nums">
+				{#if row.trend < 0}
+					<span class="text-red-500" aria-label="free space falling">
+						<StrokeIcon d="M6 9l6 6 6-6" size={11} />
+					</span>
+				{:else if row.trend > 0}
+					<span class="text-green-600 dark:text-green-400" aria-label="free space rising">
+						<StrokeIcon d="M6 15l6-6 6 6" size={11} />
+					</span>
+				{/if}
+				<span class="whitespace-nowrap">{row.value}</span>
+			</span>
 		</div>
 	{/each}
 </section>
