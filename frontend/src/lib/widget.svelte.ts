@@ -1,4 +1,4 @@
-import { GetDrives } from '$lib/wailsjs/go/main/App';
+import { GetDrives, SetWidgetMode } from '$lib/wailsjs/go/main/App';
 import {
 	WindowCenter,
 	WindowSetAlwaysOnTop,
@@ -105,10 +105,13 @@ export function enterWidget() {
 	WindowSetSize(WIDGET_WIDTH, widgetHeight());
 	// the widget always floats above other windows
 	WindowSetAlwaysOnTop(true);
+	// and stays visible through "Show desktop" (Win+D)
+	SetWidgetMode(true);
 }
 
 export function exitWidget() {
 	widget.active = false;
+	SetWidgetMode(false);
 	WindowSetAlwaysOnTop(false);
 	WindowSetSize(FULL_SIZE.width, FULL_SIZE.height);
 	// The widget may sit at a screen edge where the full window would not fit, so re-centre.

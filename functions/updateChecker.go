@@ -32,6 +32,12 @@ func CheckUpdate() (*UpdateStatus, error) {
 		NewTag:            "",
 	}
 
+	// The Microsoft Store updates its own installs; sending those users to a download page
+	// would be wrong (and is against Store policy).
+	if IsStorePackage() {
+		return updateStatus, nil
+	}
+
 	url := "https://api.github.com/repos/ananduremanan/sysinfopro/tags"
 	resp, err := http.Get(url)
 	if err != nil {

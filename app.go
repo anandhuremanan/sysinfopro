@@ -23,6 +23,7 @@ import (
 	"myproject/internal/security"
 	"myproject/internal/storage"
 	"myproject/internal/system"
+	"myproject/internal/winwidget"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -454,6 +455,12 @@ func (a *App) SaveChangesBaseline() error {
 		return fmt.Errorf("cannot open snapshot storage: %w", err)
 	}
 	return store.Save(currentSnapshot())
+}
+
+// SetWidgetMode keeps the window visible through "Show desktop" (Win+D) while it is a widget
+func (a *App) SetWidgetMode(active bool) {
+	// must match Title in main.go
+	winwidget.SetActive("SysInfo Pro", active)
 }
 
 // --- Version 2.0 RPC Endpoints ---

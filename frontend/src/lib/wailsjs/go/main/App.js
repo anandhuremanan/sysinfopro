@@ -166,6 +166,10 @@ export function ScanSafeCleanableFiles() {
   return window['go']['main']['App']['ScanSafeCleanableFiles']();
 }
 
+export function SetWidgetMode(arg1) {
+  return window['go']['main']['App']['SetWidgetMode'](arg1);
+}
+
 export function TerminateProcess(arg1) {
   return window['go']['main']['App']['TerminateProcess'](arg1);
 }

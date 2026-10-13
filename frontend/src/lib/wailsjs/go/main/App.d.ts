@@ -95,4 +95,6 @@ export function ScanDevCaches():Promise<Array<devcache.Item>>;
 
 export function ScanSafeCleanableFiles():Promise<functions.CleanerResult>;
 
+export function SetWidgetMode(arg1:boolean):Promise<void>;
+
 export function TerminateProcess(arg1:number):Promise<void>;
