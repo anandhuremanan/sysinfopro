@@ -189,10 +189,22 @@ func FindNodeModules(ctx context.Context, root string, progress func(current str
 	return items, nil
 }
 
-// projectLastUsed is the most recent change to the project's manifest or lock file
+// Files whose last change shows when a project was last worked on: its manifest
+// and lock files, the markers npm, pnpm and yarn write into node_modules on every
+// install, and git's index, which changes on commits, checkouts and status.
+var lastUsedMarkers = []string{
+	"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "bun.lock",
+	filepath.Join(nodeModules, ".package-lock.json"),
+	filepath.Join(nodeModules, ".modules.yaml"),
+	filepath.Join(nodeModules, ".yarn-state.yml"),
+	filepath.Join(nodeModules, ".yarn-integrity"),
+	filepath.Join(".git", "index"),
+}
+
+// projectLastUsed is the most recent change to any of the project's lastUsedMarkers
 func projectLastUsed(project string) string {
 	latest := time.Time{}
-	for _, name := range []string{"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"} {
+	for _, name := range lastUsedMarkers {
 		if info, err := os.Stat(filepath.Join(project, name)); err == nil && info.ModTime().After(latest) {
 			latest = info.ModTime()
 		}

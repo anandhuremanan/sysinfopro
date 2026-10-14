@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeFile(t *testing.T, path string, size int) {
@@ -49,6 +50,28 @@ func TestFindNodeModules(t *testing.T) {
 	}
 	if items[1].Name != "app-b" || items[1].SizeBytes != 300 || items[1].LastUsed != "" {
 		t.Errorf("second = %+v, want app-b with 300 bytes and no LastUsed", items[1])
+	}
+}
+
+func TestProjectLastUsedTakesNewestMarker(t *testing.T) {
+	project := t.TempDir()
+	old := time.Date(2024, 3, 1, 12, 0, 0, 0, time.Local)
+	recent := time.Date(2026, 9, 20, 12, 0, 0, 0, time.Local)
+
+	manifest := filepath.Join(project, "package.json")
+	installMarker := filepath.Join(project, "node_modules", ".package-lock.json")
+	writeFile(t, manifest, 10)
+	writeFile(t, installMarker, 10)
+	// an untouched package.json must not hide a recent install
+	if err := os.Chtimes(manifest, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(installMarker, recent, recent); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := projectLastUsed(project); got != "2026-09-20" {
+		t.Errorf("projectLastUsed = %q, want 2026-09-20", got)
 	}
 }
 

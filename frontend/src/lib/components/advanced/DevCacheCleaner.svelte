@@ -25,6 +25,14 @@
 		last_used: string;
 	};
 
+	// "Unused for" choices, in months
+	const AGE_OPTIONS = [
+		{ months: 1, label: '1 mo' },
+		{ months: 3, label: '3 mo' },
+		{ months: 6, label: '6 mo' },
+		{ months: 12, label: '1 yr' }
+	];
+
 	const REVEAL_ICON =
 		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
@@ -38,6 +46,7 @@
 	let showConfirm = $state(false);
 	let statusMessage = $state<string | undefined>(undefined);
 	let selected = $state<Record<string, boolean>>({});
+	let unusedMonths = $state(3);
 
 	// Bumped on every search/cancel so a superseded search's result is ignored
 	let searchId = 0;
@@ -46,6 +55,43 @@
 	let selectedItems = $derived(allItems.filter((item) => item.deletable && selected[item.path]));
 	let selectedBytes = $derived(selectedItems.reduce((sum, item) => sum + item.size_bytes, 0));
 	let totalBytes = $derived(allItems.reduce((sum, item) => sum + item.size_bytes, 0));
+
+	// node_modules whose project has not been touched since the cutoff; folders with
+	// no known date are never included
+	let staleModules = $derived.by(() => {
+		const cutoff = new Date();
+		cutoff.setMonth(cutoff.getMonth() - unusedMonths);
+		return modules.filter((item) => {
+			const used = parseDay(item.last_used);
+			return used !== null && used < cutoff;
+		});
+	});
+	let staleBytes = $derived(staleModules.reduce((sum, item) => sum + item.size_bytes, 0));
+
+	// "YYYY-MM-DD" as a local date
+	function parseDay(day: string): Date | null {
+		const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
+		return match ? new Date(+match[1], +match[2] - 1, +match[3]) : null;
+	}
+
+	function usedAgo(day: string): string {
+		const used = parseDay(day);
+		if (!used) return '';
+		const days = Math.floor((Date.now() - used.getTime()) / 86_400_000);
+		if (days < 1) return 'Used today';
+		if (days < 2) return 'Used yesterday';
+		if (days < 31) return `Used ${days} days ago`;
+		const months = Math.floor(days / 30.44);
+		if (months < 12) return `Used ${months} ${months === 1 ? 'month' : 'months'} ago`;
+		const years = Math.floor(days / 365.25);
+		return `Used ${years} ${years === 1 ? 'year' : 'years'} ago`;
+	}
+
+	// select exactly the stale folders and ask to delete them
+	function freeStale() {
+		selected = Object.fromEntries(staleModules.map((item) => [item.path, true]));
+		showConfirm = true;
+	}
 
 	function showStatus(message: string) {
 		statusMessage = message;
@@ -151,7 +197,7 @@
 	});
 </script>
 
-{#snippet row(item: Item, title: string, subtitle: string)}
+{#snippet row(item: Item, title: string, subtitle: string, isStale = false)}
 	<label
 		class="flex items-center gap-2.5 h-10 border-b border-line {item.deletable
 			? 'cursor-pointer'
@@ -160,13 +206,19 @@
 	>
 		<input
 			type="checkbox"
-			class="rounded border-line text-accent focus:ring-accent disabled:opacity-30"
+			class="rounded border-line bg-tile text-accent focus:ring-accent disabled:opacity-30"
 			disabled={!item.deletable || isDeleting}
 			bind:checked={selected[item.path]}
 		/>
 		<span class="flex-1 min-w-0 flex flex-col leading-tight">
 			<span class="font-semibold text-ink truncate">{title}</span>
-			<span class="text-[11px] text-muted truncate" title={item.path}>{subtitle}</span>
+			<span
+				class="text-[11px] truncate {isStale
+					? 'text-amber-700 dark:text-amber-400 font-medium'
+					: 'text-muted'}"
+				title={item.last_used ? `${item.path}\nProject last changed ${item.last_used}` : item.path}
+				>{subtitle}</span
+			>
 		</span>
 		<span class="shrink-0 font-mono font-bold text-ink">{formatBytes(item.size_bytes)}</span>
 		<button
@@ -277,6 +329,42 @@
 					</button>
 				{/if}
 			</div>
+			{#if !isSearching && modules.length > 0}
+				<div class="flex items-center gap-2 pb-1.5 shrink-0">
+					<span class="text-[11px] text-muted shrink-0">Unused for</span>
+					<div
+						class="flex rounded-lg bg-ground border border-line p-0.5"
+						role="radiogroup"
+						aria-label="Unused for"
+					>
+						{#each AGE_OPTIONS as option (option.months)}
+							<button
+								role="radio"
+								aria-checked={unusedMonths === option.months}
+								class="h-5 px-1.5 rounded-md text-[11px] font-medium cursor-pointer transition-colors {unusedMonths ===
+								option.months
+									? 'bg-tile text-ink shadow-sm'
+									: 'text-muted hover:text-ink'}"
+								onclick={() => (unusedMonths = option.months)}
+							>
+								{option.label}
+							</button>
+						{/each}
+					</div>
+					<button
+						class="btn btn-danger ml-auto h-6 px-2"
+						disabled={staleModules.length === 0 || isDeleting}
+						title={staleModules.length > 0
+							? `Delete ${staleModules.length} node_modules not used in ${unusedMonths} ${unusedMonths === 1 ? 'month' : 'months'}`
+							: 'No node_modules older than this'}
+						onclick={freeStale}
+					>
+						{staleModules.length > 0
+							? `Free ${formatBytes(staleBytes)} (${staleModules.length})`
+							: 'None older'}
+					</button>
+				</div>
+			{/if}
 			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
 				{#if isSearching}
 					<div class="h-full flex flex-col items-center justify-center gap-2 text-center">
@@ -299,7 +387,8 @@
 						{@render row(
 							item,
 							item.name,
-							item.last_used ? `Project last changed ${item.last_used}` : item.path
+							item.last_used ? usedAgo(item.last_used) : item.path,
+							staleModules.includes(item)
 						)}
 					{:else}
 						<div class="h-full flex items-center justify-center text-muted text-center px-4">
