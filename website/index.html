@@ -65,89 +65,180 @@
       <section id="tools" class="section">
         <h2>Fourteen tools, one click away</h2>
         <p class="section-lead">
-          Each one answers a question you would otherwise open three programs to answer.
+          Each one answers a question you would otherwise open three programs to answer. Pick a card
+          to see it.
         </p>
 
-        <div class="bento">
-          <article class="tile tile-wide">
-            <h3>Ports that know their project</h3>
-            <p>
-              See which project and git branch opened each port, how long it has been running, and
-              release it in one click.
-            </p>
-            <picture class="shot tile-shot">
+        <div class="bento" data-bento>
+          <article class="tile is-open" data-tile>
+            <h3>
+              <button type="button" aria-expanded="true" aria-controls="shot-ports">
+                Ports that know their project
+              </button>
+            </h3>
+            <p>See which project and git branch opened each port, how long it has been running, and release it in one click.</p>
+            <picture class="shot tile-shot" id="shot-ports">
+              <source srcset="img/tile-ports-dark.webp" media="(prefers-color-scheme: dark)" />
               <img
-                src="img/ports-dark.webp"
+                src="img/tile-ports-light.webp"
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="Ports screen listing port 5173 as the project my-app on branch main"
+                alt="Ports screen listing each listening port with its process, project and git branch"
               />
             </picture>
           </article>
 
-          <article class="tile">
-            <h3>Dev cache cleaner</h3>
-            <p>
-              Sizes your npm, pnpm, pip, NuGet, Gradle, Maven, Cargo and Go caches, finds old
-              node_modules folders, and frees what you pick.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-devcache">
+                Dev cache cleaner
+              </button>
+            </h3>
+            <p>Sizes your npm, pnpm, pip, NuGet, Gradle, Maven, Cargo and Go caches, finds old node_modules folders, and frees what you pick.</p>
+            <picture class="shot tile-shot" id="shot-devcache" hidden>
+              <source srcset="img/tile-devcache-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-devcache-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Dev Cache Cleaner listing the Go module, Go build, pnpm, pip and npm caches with their sizes"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>File locks</h3>
-            <p>
-              Pick the file or folder that will not delete. See every program holding it open, and
-              end the one in the way.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-locks">
+                File locks
+              </button>
+            </h3>
+            <p>Pick the file or folder that will not delete. See every program holding it open, and end the one in the way.</p>
+            <picture class="shot tile-shot" id="shot-locks" hidden>
+              <source srcset="img/tile-locks-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-locks-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="File Locks showing the one program that has a log file open, with an End process button"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>Disk usage and growth</h3>
-            <p>
-              Find the largest folders and files on any drive, then watch a folder to see what is
-              growing right now and how fast.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-growth">
+                Disk usage and growth
+              </button>
+            </h3>
+            <p>Find the largest folders and files on any drive, then watch a folder to see what is growing right now and how fast.</p>
+            <picture class="shot tile-shot" id="shot-growth" hidden>
+              <source srcset="img/tile-growth-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-growth-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Disk Growth Watch showing a folder that grew by 85 MB in half a minute"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>What changed</h3>
-            <p>
-              Startup programs, installed software, listening ports and PATH, compared with the last
-              time you looked.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-changes">
+                What changed
+              </button>
+            </h3>
+            <p>Startup programs, installed software, listening ports and PATH, compared with the last time you looked.</p>
+            <picture class="shot tile-shot" id="shot-changes" hidden>
+              <source srcset="img/tile-changes-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-changes-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="What Changed listing a software update and new listening ports since the last review"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>Security check</h3>
-            <p>
-              Antivirus, firewall, updates, BitLocker, Secure Boot and more in one read-only pass.
-              Nothing is changed.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-security">
+                Security check
+              </button>
+            </h3>
+            <p>Antivirus, firewall, updates, BitLocker, Secure Boot and more in one read-only pass. Nothing is changed.</p>
+            <picture class="shot tile-shot" id="shot-security" hidden>
+              <source srcset="img/tile-security-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-security-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Security Check with seven of eight checks passed and Windows updates flagged for review"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>Hardware specs and report</h3>
-            <p>
-              Full inventory down to each memory module, with a one-click report to attach to a
-              support ticket.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-specs">
+                Hardware specs and report
+              </button>
+            </h3>
+            <p>Full inventory down to each memory module, with a one-click report to attach to a support ticket.</p>
+            <picture class="shot tile-shot" id="shot-specs" hidden>
+              <source srcset="img/tile-specs-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-specs-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Hardware Specs showing system, processor, graphics and memory details"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>Processes and memory growth</h3>
-            <p>
-              Sort running programs by how fast their memory is growing to catch a leak before the
-              machine slows down.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-processes">
+                Processes and memory growth
+              </button>
+            </h3>
+            <p>Sort running programs by how fast their memory is growing to catch a leak before the machine slows down.</p>
+            <picture class="shot tile-shot" id="shot-processes" hidden>
+              <source srcset="img/tile-processes-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-processes-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Processes sorted by memory growth, with the fastest-growing process highlighted"
+              />
+            </picture>
           </article>
 
-          <article class="tile">
-            <h3>And the rest</h3>
-            <p>
-              PATH inspector, startup programs, software versions, internet speed test, battery
-              health, disk cleaner and a ten-second stress test.
-            </p>
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-rest">
+                And the rest
+              </button>
+            </h3>
+            <p>PATH inspector, startup programs, software versions, internet speed test, battery health, disk cleaner and a ten-second stress test.</p>
+            <picture class="shot tile-shot" id="shot-rest" hidden>
+              <source srcset="img/tile-rest-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-rest-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="All tools page listing the fourteen tools in groups"
+              />
+            </picture>
           </article>
         </div>
       </section>
@@ -229,5 +320,32 @@
       <span>© 2026 SysInfo Pro</span>
       <a href="https://github.com/ananduremanan/sysinfopro/issues">Report a bug</a>
     </footer>
+    <script>
+      // One card open at a time: opening a card closes the one that was open.
+      document.querySelectorAll('[data-bento]').forEach((bento) => {
+        const tiles = [...bento.querySelectorAll('[data-tile]')];
+
+        function open(tile) {
+          for (const t of tiles) {
+            const isTarget = t === tile;
+            t.classList.toggle('is-open', isTarget);
+            t.querySelector('button').setAttribute('aria-expanded', String(isTarget));
+            t.querySelector('.tile-shot').hidden = !isTarget;
+          }
+        }
+
+        for (const tile of tiles) {
+          tile.querySelector('button').addEventListener('click', () => {
+            if (tile.classList.contains('is-open')) return;
+            open(tile);
+            // the opened card can move to a new row; keep it on screen
+            tile.scrollIntoView({
+              block: 'nearest',
+              behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+            });
+          });
+        }
+      });
+    </script>
   </body>
 </html>

@@ -275,16 +275,75 @@ h2 {
   color: var(--muted);
 }
 
-.tile-wide {
-  grid-column: span 2;
-  grid-row: span 2;
+/* the open card spans two columns and two rows and shows its screenshot */
+.bento {
+  grid-auto-flow: dense;
+}
+
+.tile {
+  position: relative;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.15s;
+}
+
+.tile:not(.is-open):hover {
+  background: color-mix(in srgb, var(--tile) 93%, var(--accent));
+}
+
+.tile h3 button {
+  all: unset;
+  cursor: pointer;
+}
+
+/* the whole card is the button's click target */
+.tile h3 button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.tile h3 button:focus-visible {
+  outline: none;
+}
+
+.tile:has(button:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.tile.is-open {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.tile.is-open h3 button {
+  cursor: default;
 }
 
 .tile-shot {
   display: block;
   margin-top: 22px;
+}
+
+.tile-shot[hidden] {
+  display: none;
+}
+
+.tile.is-open .tile-shot {
+  animation: shot-in 0.35s ease-out;
+}
+
+@keyframes shot-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---------- widget ---------- */
@@ -428,7 +487,7 @@ h2 {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .tile-wide {
+  .tile.is-open {
     grid-column: auto;
     grid-row: auto;
   }
@@ -445,5 +504,9 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+
+  .tile.is-open .tile-shot {
+    animation: none;
   }
 }
