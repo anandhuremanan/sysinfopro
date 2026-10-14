@@ -54,7 +54,7 @@
 			<button
 				class="btn btn-primary"
 				onclick={() => {
-					BrowserOpenURL('https://sysinfopro.netlify.app');
+					BrowserOpenURL('https://sysinfopro.imanandhu.in');
 				}}
 			>
 				Download

@@ -5,8 +5,8 @@ Copy each section into the matching field in Partner Center. Limits are Partner 
 ## Properties
 
 - **Category:** Utilities & tools
-- **Privacy policy URL:** https://sysinfopro.netlify.app/privacy.html
-- **Website:** https://sysinfopro.netlify.app
+- **Privacy policy URL:** https://sysinfopro.imanandhu.in/privacy.html
+- **Website:** https://sysinfopro.imanandhu.in
 - **Support contact:** https://github.com/ananduremanan/sysinfopro/issues
 
 ## Product name

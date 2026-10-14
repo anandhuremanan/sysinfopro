@@ -47,7 +47,7 @@
 				>
 			</div>
 			<div class="text-muted pt-3 border-t border-line">
-				Sysinfo Pro © {year} - Present · sysinfopro.netlify.app
+				Sysinfo Pro © {year} - Present · sysinfopro.imanandhu.in
 			</div>
 		</div>
 	{:else if modalTitle === 'Credits'}
@@ -56,7 +56,7 @@
 				<p>SysInfo Pro version 3.0.0</p>
 				<p>Author: Probably Fine Labs</p>
 				<p>Made with Wails, Go, Svelte and Tailwind</p>
-				<p class="mt-3 text-muted">www.sysinfopro.in</p>
+				<p class="mt-3 text-muted">sysinfopro.imanandhu.in</p>
 			</div>
 			<div class="flex flex-col gap-2 items-center justify-center shrink-0">
 				<img src="/Open_Source_Initiative.svg" alt="oss" class="w-20 h-20" />
