@@ -456,6 +456,60 @@ h2 {
   color: var(--ink);
 }
 
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
+/* ---------- privacy policy ---------- */
+
+.policy {
+  max-width: 720px;
+  padding: 40px 0 0;
+}
+
+.policy h1 {
+  max-width: none;
+  font-size: clamp(32px, 5vw, 44px);
+}
+
+.policy-meta {
+  margin: 12px 0 32px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.policy h2 {
+  margin: 36px 0 10px;
+  font-size: 21px;
+}
+
+.policy p,
+.policy li {
+  color: var(--muted);
+}
+
+.policy strong {
+  color: var(--ink);
+}
+
+.policy ul {
+  padding-left: 20px;
+}
+
+.policy li + li {
+  margin-top: 8px;
+}
+
+.policy a {
+  color: var(--accent);
+}
+
+.policy code {
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- small screens ---------- */
 
 @media (max-width: 860px) {

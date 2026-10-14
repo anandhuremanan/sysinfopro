@@ -54,7 +54,7 @@
 		<div class="flex justify-between items-center gap-4">
 			<div class="flex flex-col gap-1">
 				<p>SysInfo Pro version 3.0.0</p>
-				<p>Author: Nada Labs</p>
+				<p>Author: Probably Fine Labs</p>
 				<p>Made with Wails, Go, Svelte and Tailwind</p>
 				<p class="mt-3 text-muted">www.sysinfopro.in</p>
 			</div>

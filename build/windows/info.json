@@ -5,7 +5,7 @@
   "info": {
     "0000": {
       "ProductVersion": "{{.Info.ProductVersion}}",
-      "CompanyName": "nada labs",
+      "CompanyName": "Probably Fine Labs",
       "FileDescription": "SysInfo Pro",
       "LegalCopyright": "{{.Info.Copyright}}",
       "ProductName": "SysInfo Pro",

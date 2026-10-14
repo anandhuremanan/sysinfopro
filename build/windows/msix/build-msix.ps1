@@ -13,14 +13,16 @@
 .EXAMPLE
   .\build-msix.ps1 -IdentityName "12345Publisher.SysInfoPro" `
                    -Publisher "CN=ABCD1234-0000-0000-0000-000000000000" `
-                   -PublisherDisplayName "Nada Labs"
+                   -PublisherDisplayName "Probably Fine Labs"
 #>
 param(
     [Parameter(Mandatory = $true)][string]$IdentityName,
     [Parameter(Mandatory = $true)][string]$Publisher,
     [Parameter(Mandatory = $true)][string]$PublisherDisplayName,
     # three-part app version; defaults to productVersion in wails.json
-    [string]$Version
+    [string]$Version,
+    # where to write the package; defaults to build\bin\SysInfoPro_<version>_x64.msix
+    [string]$OutFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +69,7 @@ if ($LASTEXITCODE -ne 0) { throw 'makepri createconfig failed' }
 & $makepri new /pr $stage /cf $priConfig /mn (Join-Path $stage 'AppxManifest.xml') /of (Join-Path $stage 'resources.pri') /o | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'makepri new failed' }
 
-$output = Join-Path $root "build\bin\SysInfoPro_${packageVersion}_x64.msix"
+$output = if ($OutFile) { [System.IO.Path]::GetFullPath($OutFile) } else { Join-Path $root "build\bin\SysInfoPro_${packageVersion}_x64.msix" }
 & $makeappx pack /d $stage /p $output /o | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'makeappx pack failed' }
 

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy policy · SysInfo Pro</title>
+    <meta name="description" content="How SysInfo Pro handles your data: what stays on your PC and which services it contacts." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="img/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="index.html" aria-label="SysInfo Pro home">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="6" />
+          <path d="M4.5 12.5h3.2l2.1-5 3.4 9.5 2.2-4.5h4.1" />
+        </svg>
+        <span>SysInfo <span class="brand-pro">Pro</span></span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="index.html">Home</a>
+        <a href="index.html#download">Download</a>
+      </nav>
+    </header>
+
+    <main class="policy">
+      <h1>Privacy policy</h1>
+      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 14 October 2026</p>
+
+      <p>
+        SysInfo Pro is a system information and maintenance tool for Windows. It runs entirely on
+        your PC. Probably Fine Labs does not collect, receive or store any information about you or
+        your computer. There is no account, no analytics, no advertising and no telemetry.
+      </p>
+
+      <h2>What the app reads on your PC</h2>
+      <p>
+        To show its information, the app reads details about your computer: hardware, drives and
+        free space, running programs, network ports, startup programs, installed software, PATH
+        entries, battery and security settings. This information is shown to you and is not sent
+        anywhere.
+      </p>
+
+      <h2>What the app saves on your PC</h2>
+      <ul>
+        <li>
+          <strong>Settings</strong> such as your theme and which readings the widget shows.
+        </li>
+        <li>
+          <strong>Snapshots for "What changed"</strong>: lists of startup programs, installed
+          software, listening ports and PATH entries, kept so the app can show you what changed.
+          They are stored in your user folder under <code>AppData\Roaming\SysInfoPro</code>, and
+          the app keeps at most the last 20.
+        </li>
+        <li>
+          <strong>Files you choose to export</strong>, such as the spec card image and the system
+          report, are saved to your Downloads folder. The system report includes your device's
+          serial number; check it before sharing it.
+        </li>
+      </ul>
+      <p>Uninstalling the app, or deleting those folders, removes this data.</p>
+
+      <h2>Services the app contacts</h2>
+      <p>
+        Some features need the internet. When they run, your PC connects directly to the services
+        below, which receive your IP address as part of any internet connection. Each service's own
+        privacy policy applies.
+      </p>
+      <ul>
+        <li>
+          <strong>Speed test</strong> (only when you start one): Cloudflare
+          (speed.cloudflare.com and 1.1.1.1). If Cloudflare is unavailable, Measurement Lab
+          (M-Lab) is used instead. <strong>M-Lab publishes all test results</strong>, including the
+          IP address and the measured speeds, as open data for internet research.
+        </li>
+        <li>
+          <strong>Internet connection check</strong>: a brief connection to Google's public DNS
+          server (8.8.8.8) to see whether you are online. No data is sent.
+        </li>
+        <li>
+          <strong>Software version check</strong> (only when you open the Software tool): the
+          app asks the publishers of common developer tools for their latest version numbers, from
+          nodejs.org, go.dev, endoflife.date and GitHub. It does not send them your list of
+          installed software.
+        </li>
+        <li>
+          <strong>Update check</strong> (versions downloaded from our website only): the app reads
+          the list of released versions from GitHub. Versions installed from the Microsoft Store do
+          not do this; the Store handles their updates.
+        </li>
+      </ul>
+      <p>
+        Links you choose to open, such as a program's download page, open in your web browser.
+      </p>
+
+      <h2>Children</h2>
+      <p>The app does not knowingly collect information from anyone, including children.</p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If the app's handling of data changes, this page will be updated and the date at the top
+        changed.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about privacy can be raised on the project's
+        <a href="https://github.com/ananduremanan/sysinfopro/issues">GitHub issues page</a>.
+      </p>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 Probably Fine Labs</span>
+      <a href="index.html">SysInfo Pro</a>
+    </footer>
+  </body>
+</html>
