@@ -34,6 +34,15 @@ type DeleteResult struct {
 	Failed     []string `json:"failed"` // "path: reason"
 }
 
+// DeleteProgress is reported while Delete works through its folders
+type DeleteProgress struct {
+	Current      string `json:"current"` // folder being deleted
+	Folder       int    `json:"folder"`  // 1-based position of Current
+	Folders      int    `json:"folders"`
+	FreedBytes   int64  `json:"freed_bytes"` // across all folders so far
+	FilesDeleted int64  `json:"files_deleted"`
+}
+
 type knownCache struct {
 	id, name, path, note string
 	deletable            bool
@@ -217,11 +226,12 @@ func projectLastUsed(project string) string {
 
 // Delete removes the given folders. Only known deletable caches and folders named
 // node_modules are accepted; anything else is refused without touching the disk.
-func Delete(ctx context.Context, paths []string) *DeleteResult {
-	return deletePaths(ctx, paths, knownCaches())
+// progress, if set, is called a few times a second while files are removed.
+func Delete(ctx context.Context, paths []string, progress func(DeleteProgress)) *DeleteResult {
+	return deletePaths(ctx, paths, knownCaches(), progress)
 }
 
-func deletePaths(ctx context.Context, paths []string, caches []knownCache) *DeleteResult {
+func deletePaths(ctx context.Context, paths []string, caches []knownCache, progress func(DeleteProgress)) *DeleteResult {
 	allowed := map[string]bool{}
 	for _, cache := range caches {
 		if cache.deletable {
@@ -230,7 +240,16 @@ func deletePaths(ctx context.Context, paths []string, caches []knownCache) *Dele
 	}
 
 	result := &DeleteResult{Deleted: []string{}, Failed: []string{}}
-	for _, raw := range paths {
+	state := DeleteProgress{Folders: len(paths)}
+	lastReport := time.Time{}
+	report := func(force bool) {
+		if progress != nil && (force || time.Since(lastReport) > 100*time.Millisecond) {
+			lastReport = time.Now()
+			progress(state)
+		}
+	}
+
+	for i, raw := range paths {
 		if ctx.Err() != nil {
 			result.Failed = append(result.Failed, raw+": cancelled")
 			continue
@@ -249,31 +268,99 @@ func deletePaths(ctx context.Context, paths []string, caches []knownCache) *Dele
 			continue
 		}
 
-		size, _ := dirSize(ctx, path)
-		if err := removeAll(path); err != nil {
-			// report what actually went, a partial delete still frees space
-			remaining, _ := dirSize(ctx, path)
-			result.FreedBytes += size - remaining
+		state.Current, state.Folder = path, i+1
+		report(true)
+		err := removeTree(ctx, path, func(size int64) {
+			state.FreedBytes += size
+			state.FilesDeleted++
+			report(false)
+		})
+		if err != nil {
 			result.Failed = append(result.Failed, fmt.Sprintf("%s: %v", raw, err))
 			continue
 		}
-		result.FreedBytes += size
 		result.Deleted = append(result.Deleted, path)
 	}
+
+	// a partial delete still frees space, so count every file that went
+	result.FreedBytes = state.FreedBytes
+	report(true)
 	return result
 }
 
-// removeAll deletes a tree, clearing read-only flags first when needed
-// (the Go module cache is written read-only on purpose).
-func removeAll(path string) error {
-	if err := os.RemoveAll(path); err == nil {
-		return nil
-	}
-	filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
-		if err == nil {
-			os.Chmod(p, 0o777)
+// removeTree deletes a folder file by file so progress can be shown, calling
+// onFile with the size of each removed file. Links and junctions are removed
+// themselves, never followed. Read-only files (the Go module cache is written
+// read-only on purpose) are made writable first.
+func removeTree(ctx context.Context, root string, onFile func(size int64)) error {
+	var dirs []string
+	var firstErr error
+	remember := func(err error) {
+		if firstErr == nil {
+			firstErr = err
 		}
+	}
+
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return filepath.SkipAll
+		}
+		if err != nil {
+			remember(err)
+			if d != nil && d.IsDir() {
+				dirs = append(dirs, path)
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			dirs = append(dirs, path)
+			return nil
+		}
+
+		var size int64
+		if info, err := d.Info(); err == nil && info.Mode().IsRegular() {
+			size = info.Size()
+		}
+		if err := removeOne(path); err != nil {
+			remember(err)
+			return nil
+		}
+		onFile(size)
 		return nil
 	})
-	return os.RemoveAll(path)
+
+	// deepest folders first, so each is empty by the time it is removed
+	for i := len(dirs) - 1; i >= 0; i-- {
+		if ctx.Err() != nil {
+			break
+		}
+		if err := removeOne(dirs[i]); err != nil {
+			remember(err)
+		}
+	}
+
+	if ctx.Err() != nil {
+		return fmt.Errorf("stopped")
+	}
+	if _, err := os.Lstat(root); err == nil {
+		if firstErr == nil {
+			firstErr = fmt.Errorf("some files could not be removed")
+		}
+		return firstErr
+	}
+	return nil
+}
+
+func removeOne(path string) error {
+	err := os.Remove(path)
+	if err == nil || os.IsNotExist(err) {
+		return nil
+	}
+	if os.Chmod(path, 0o666) == nil {
+		if err2 := os.Remove(path); err2 == nil || os.IsNotExist(err2) {
+			return nil
+		}
+	}
+	return err
 }

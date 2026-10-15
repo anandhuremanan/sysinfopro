@@ -6,6 +6,10 @@ export function AnalyzeDiskUsage(arg1) {
   return window['go']['main']['App']['AnalyzeDiskUsage'](arg1);
 }
 
+export function CancelDevCacheDelete() {
+  return window['go']['main']['App']['CancelDevCacheDelete']();
+}
+
 export function CancelDiskScan() {
   return window['go']['main']['App']['CancelDiskScan']();
 }

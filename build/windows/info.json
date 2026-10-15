@@ -1,14 +1,17 @@
 {
   "fixed": {
-    "file_version": "{{.Info.ProductVersion}}"
+    "file_version": "{{.Info.ProductVersion}}",
+    "product_version": "{{.Info.ProductVersion}}"
   },
   "info": {
-    "0000": {
+    "0409": {
       "ProductVersion": "{{.Info.ProductVersion}}",
+      "FileVersion": "{{.Info.ProductVersion}}",
       "CompanyName": "Probably Fine Labs",
       "FileDescription": "SysInfo Pro",
-      "LegalCopyright": "{{.Info.Copyright}}",
+      "LegalCopyright": "© 2026 Probably Fine Labs",
       "ProductName": "SysInfo Pro",
+      "OriginalFilename": "sysinfopro.exe",
       "Comments": "SysInfo Pro is a system information tool for Windows."
     }
   }

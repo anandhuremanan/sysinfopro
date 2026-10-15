@@ -15,6 +15,8 @@ import {main} from '../models';
 
 export function AnalyzeDiskUsage(arg1:string):Promise<storage.FolderUsage>;
 
+export function CancelDevCacheDelete():Promise<void>;
+
 export function CancelDiskScan():Promise<void>;
 
 export function CancelNodeModulesSearch():Promise<void>;

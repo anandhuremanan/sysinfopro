@@ -3,7 +3,9 @@ package devcache
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -114,7 +116,7 @@ func TestDeleteOnlyAllowedFolders(t *testing.T) {
 		root,           // parent of everything
 		"node_modules", // relative path
 		filepath.Join(root, "proj", "node_modules", "..", "src"), // traversal back out of node_modules
-	}, caches)
+	}, caches, nil)
 
 	if result.FreedBytes != 1200 || len(result.Deleted) != 2 {
 		t.Errorf("freed %d bytes from %v, want 1200 from the cache and node_modules", result.FreedBytes, result.Deleted)
@@ -141,15 +143,91 @@ func TestDeleteReadOnlyFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result := deletePaths(context.Background(), []string{modules}, nil)
+	result := deletePaths(context.Background(), []string{modules}, nil, nil)
 	if len(result.Failed) != 0 || exists(modules) {
 		t.Fatalf("read-only files should still be removed, failed = %v", result.Failed)
 	}
 }
 
 func TestDeleteMissingFolderReported(t *testing.T) {
-	result := deletePaths(context.Background(), []string{filepath.Join(t.TempDir(), "node_modules")}, nil)
+	result := deletePaths(context.Background(), []string{filepath.Join(t.TempDir(), "node_modules")}, nil, nil)
 	if len(result.Failed) != 1 || !strings.Contains(result.Failed[0], "not found") {
 		t.Errorf("failed = %v, want one 'folder not found'", result.Failed)
+	}
+}
+
+func TestDeleteReportsProgress(t *testing.T) {
+	root := t.TempDir()
+	first := filepath.Join(root, "a", "node_modules")
+	second := filepath.Join(root, "b", "node_modules")
+	writeFile(t, filepath.Join(first, "x", "one.js"), 300)
+	writeFile(t, filepath.Join(first, "x", "two.js"), 200)
+	writeFile(t, filepath.Join(second, "three.js"), 100)
+
+	var reports []DeleteProgress
+	result := deletePaths(context.Background(), []string{first, second}, nil, func(p DeleteProgress) {
+		reports = append(reports, p)
+	})
+
+	if result.FreedBytes != 600 || len(result.Deleted) != 2 || exists(first) || exists(second) {
+		t.Fatalf("result = %+v, want both folders gone and 600 bytes freed", result)
+	}
+	if len(reports) == 0 {
+		t.Fatal("no progress reported")
+	}
+	if reports[0].Current != first || reports[0].Folder != 1 || reports[0].Folders != 2 {
+		t.Errorf("first report = %+v, want folder 1 of 2 at %s", reports[0], first)
+	}
+	last := reports[len(reports)-1]
+	if last.FreedBytes != 600 || last.FilesDeleted != 3 || last.Folder != 2 {
+		t.Errorf("last report = %+v, want 600 bytes in 3 files at folder 2", last)
+	}
+}
+
+func TestRemoveTreeStopsWhenCancelled(t *testing.T) {
+	root := t.TempDir()
+	modules := filepath.Join(root, "node_modules")
+	for i := 0; i < 20; i++ {
+		writeFile(t, filepath.Join(modules, "pkg", string(rune('a'+i))+".js"), 10)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	removed := 0
+	err := removeTree(ctx, modules, func(int64) {
+		removed++
+		cancel()
+	})
+	if err == nil || !strings.Contains(err.Error(), "stopped") {
+		t.Fatalf("err = %v, want stopped", err)
+	}
+	if removed != 1 || !exists(modules) {
+		t.Errorf("removed %d files, want 1 and the rest of the folder left in place", removed)
+	}
+}
+
+func TestDeleteDoesNotFollowLinks(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(root, "my-project", "src")
+	keep := filepath.Join(outside, "main.js")
+	writeFile(t, keep, 50)
+	modules := filepath.Join(root, "node_modules")
+	writeFile(t, filepath.Join(modules, "real.js"), 10)
+	// pnpm links packages with junctions on Windows, which need no special privilege
+	link := filepath.Join(modules, "linked")
+	if err := os.Symlink(outside, link); err != nil {
+		if runtime.GOOS != "windows" {
+			t.Skipf("cannot create symlinks here: %v", err)
+		}
+		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, outside).CombinedOutput(); err != nil {
+			t.Skipf("cannot create a junction here: %v %s", err, out)
+		}
+	}
+
+	result := deletePaths(context.Background(), []string{modules}, nil, nil)
+	if len(result.Failed) != 0 || exists(modules) {
+		t.Fatalf("failed = %v, want node_modules removed", result.Failed)
+	}
+	if !exists(keep) {
+		t.Fatal("a file outside node_modules was deleted through a link")
 	}
 }

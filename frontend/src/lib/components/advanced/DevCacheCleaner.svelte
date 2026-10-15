@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatBytes } from '$lib';
 	import {
+		CancelDevCacheDelete,
 		CancelNodeModulesSearch,
 		DeleteDevCaches,
 		FindNodeModules,
@@ -33,6 +34,14 @@
 		{ months: 12, label: '1 yr' }
 	];
 
+	type DeleteProgress = {
+		current: string;
+		folder: number;
+		folders: number;
+		freed_bytes: number;
+		files_deleted: number;
+	};
+
 	const REVEAL_ICON =
 		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
@@ -43,6 +52,11 @@
 	let isScanningCaches = $state(false);
 	let isSearching = $state(false);
 	let isDeleting = $state(false);
+	let isStopping = $state(false);
+	// live state of a running delete, from "devcache-delete-progress" events
+	let deleteProgress = $state<DeleteProgress | null>(null);
+	// bytes expected to be freed, fixed when the delete starts
+	let deleteTotal = $state(0);
 	let showConfirm = $state(false);
 	let statusMessage = $state<string | undefined>(undefined);
 	let selected = $state<Record<string, boolean>>({});
@@ -55,6 +69,12 @@
 	let selectedItems = $derived(allItems.filter((item) => item.deletable && selected[item.path]));
 	let selectedBytes = $derived(selectedItems.reduce((sum, item) => sum + item.size_bytes, 0));
 	let totalBytes = $derived(allItems.reduce((sum, item) => sum + item.size_bytes, 0));
+	let deletePercent = $derived(
+		deleteProgress && deleteTotal > 0
+			? Math.min(100, Math.round((deleteProgress.freed_bytes / deleteTotal) * 100))
+			: 0
+	);
+	let deletingItem = $derived(allItems.find((item) => item.path === deleteProgress?.current));
 
 	// node_modules whose project has not been touched since the cutoff; folders with
 	// no known date are never included
@@ -150,29 +170,62 @@
 		CancelNodeModulesSearch();
 	}
 
+	function itemLabel(item: Item) {
+		return item.kind === 'node_modules' ? `${item.name} / node_modules` : item.name;
+	}
+
+	// the dialog stays open and shows progress until the delete finishes or is stopped
 	async function deleteSelected() {
-		showConfirm = false;
 		isDeleting = true;
+		isStopping = false;
+		deleteTotal = selectedBytes;
+		deleteProgress = {
+			current: '',
+			folder: 0,
+			folders: selectedItems.length,
+			freed_bytes: 0,
+			files_deleted: 0
+		};
 		const paths = selectedItems.map((item) => item.path);
 
 		try {
 			const result = await DeleteDevCaches(paths);
-			const failed = result.failed?.length ?? 0;
+			finishDelete();
+			const failed = result.failed ?? [];
+			const stopped = failed.some((line) => /: (stopped|cancelled)$/.test(line));
+			const broken = failed.filter((line) => !/: (stopped|cancelled)$/.test(line));
 			showStatus(
-				`Freed ${formatBytes(result.freed_bytes)}` +
-					(failed > 0 ? ` · ${failed} could not be fully removed (files in use?)` : '')
+				(stopped ? 'Stopped. ' : '') +
+					`Freed ${formatBytes(result.freed_bytes)}` +
+					(broken.length > 0
+						? ` · ${broken.length} could not be fully removed (files in use?)`
+						: '')
 			);
-			if (failed > 0) console.error('Could not remove:', result.failed);
+			if (broken.length > 0) console.error('Could not remove:', broken);
 
 			selected = {};
 			const gone = new Set(result.deleted ?? []);
 			modules = modules.filter((item) => !gone.has(item.path));
+			// folders that were only partly deleted are smaller now
+			if (failed.length > 0 && searchRoot) searchModules(searchRoot);
 			await loadCaches();
 		} catch (err) {
+			finishDelete();
 			showStatus(`Failed to delete: ${err}`);
-		} finally {
-			isDeleting = false;
 		}
+	}
+
+	// close the dialog before the selection is cleared, so it never shows an empty list
+	function finishDelete() {
+		showConfirm = false;
+		isDeleting = false;
+		isStopping = false;
+		deleteProgress = null;
+	}
+
+	function stopDelete() {
+		isStopping = true;
+		CancelDevCacheDelete();
 	}
 
 	async function reveal(path: string) {
@@ -186,6 +239,9 @@
 	const unsubscribe = EventsOn('devcache-progress', (current: string) => {
 		if (isSearching && current) searchCurrent = current;
 	});
+	const unsubscribeDelete = EventsOn('devcache-delete-progress', (progress: DeleteProgress) => {
+		if (isDeleting) deleteProgress = progress;
+	});
 
 	$effect(() => {
 		loadCaches();
@@ -194,6 +250,7 @@
 	onDestroy(() => {
 		cancelSearch();
 		unsubscribe();
+		unsubscribeDelete();
 	});
 </script>
 
@@ -255,7 +312,7 @@
 				onclick={() => (showConfirm = true)}
 			>
 				{isDeleting
-					? 'Deleting...'
+					? `Deleting ${deletePercent}%`
 					: selectedItems.length > 0
 						? `Free ${formatBytes(selectedBytes)}`
 						: 'Free selected'}
@@ -404,28 +461,94 @@
 <Modal
 	bind:showModal={showConfirm}
 	width="max-w-sm"
-	title="Delete {selectedItems.length} {selectedItems.length === 1 ? 'folder' : 'folders'}?"
-	description="{formatBytes(selectedBytes)} will be freed. This cannot be undone."
+	showClose={!isDeleting}
+	title={isDeleting
+		? `Deleting ${selectedItems.length} ${selectedItems.length === 1 ? 'folder' : 'folders'}`
+		: `Delete ${selectedItems.length} ${selectedItems.length === 1 ? 'folder' : 'folders'}?`}
+	description={isDeleting
+		? isStopping
+			? 'Stopping after the current file...'
+			: 'Keep the app open until this finishes.'
+		: `${formatBytes(selectedBytes)} will be freed. This cannot be undone.`}
 >
-	<div class="flex flex-col gap-2">
+	<div class="flex flex-col gap-2.5">
+		{#if isDeleting && deleteProgress}
+			<div class="flex flex-col gap-1.5">
+				<div class="flex items-baseline justify-between gap-3">
+					<span class="font-semibold text-ink">
+						{formatBytes(deleteProgress.freed_bytes)}
+						<span class="font-normal text-muted">of {formatBytes(deleteTotal)} freed</span>
+					</span>
+					<span class="font-mono font-bold text-ink">{deletePercent}%</span>
+				</div>
+				<div
+					class="h-2 rounded-full bg-track overflow-hidden"
+					role="progressbar"
+					aria-label="Delete progress"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={deletePercent}
+				>
+					<div
+						class="h-full rounded-full bg-accent transition-[width] duration-200 ease-out"
+						style="width: {deletePercent}%"
+					></div>
+				</div>
+				<div class="text-[11px] text-muted truncate" title={deleteProgress.current}>
+					{deleteProgress.files_deleted.toLocaleString()} files removed{deletingItem
+						? ` · now ${itemLabel(deletingItem)}`
+						: ''}
+				</div>
+			</div>
+		{/if}
+
 		<div class="max-h-28 overflow-y-auto rounded-lg bg-ground border border-line px-2.5 py-1.5">
-			{#each selectedItems as item (item.path)}
-				<div class="flex justify-between gap-3 py-0.5">
-					<span class="truncate" title={item.path}>
-						{item.kind === 'node_modules' ? `${item.name} / node_modules` : item.name}
+			{#each selectedItems as item, index (item.path)}
+				{@const position = index + 1}
+				{@const isDone = isDeleting && deleteProgress && position < deleteProgress.folder}
+				{@const isCurrent = isDeleting && deleteProgress && position === deleteProgress.folder}
+				<div class="flex items-center justify-between gap-3 py-0.5">
+					<span
+						class="flex items-center gap-1.5 min-w-0 {isDone
+							? 'text-muted'
+							: isCurrent
+								? 'text-ink font-semibold'
+								: ''} {isDeleting && !isDone && !isCurrent ? 'opacity-60' : ''}"
+						title={item.path}
+					>
+						{#if isDone}
+							<span class="shrink-0 text-accent" aria-label="Deleted">
+								<StrokeIcon d="M5 12.5l4.5 4.5L19 7.5" size={12} />
+							</span>
+						{:else if isCurrent}
+							<span
+								class="shrink-0 w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin"
+								aria-label="Deleting"
+							></span>
+						{/if}
+						<span class="truncate">{itemLabel(item)}</span>
 					</span>
 					<span class="shrink-0 font-mono text-muted">{formatBytes(item.size_bytes)}</span>
 				</div>
 			{/each}
 		</div>
-		<p class="text-muted leading-relaxed">
-			Nothing here is your own work: caches are downloaded again when needed, and node_modules
-			comes back when you run install in that project. Close editors and dev servers first.
-		</p>
+
+		{#if !isDeleting}
+			<p class="text-muted leading-relaxed">
+				Nothing here is your own work: caches are downloaded again when needed, and node_modules
+				comes back when you run install in that project. Close editors and dev servers first.
+			</p>
+		{/if}
 	</div>
 
 	{#snippet actions()}
-		<button class="btn btn-secondary" onclick={() => (showConfirm = false)}>Cancel</button>
-		<button class="btn btn-danger" onclick={deleteSelected}>Delete</button>
+		{#if isDeleting}
+			<button class="btn btn-secondary" disabled={isStopping} onclick={stopDelete}>
+				{isStopping ? 'Stopping...' : 'Stop'}
+			</button>
+		{:else}
+			<button class="btn btn-secondary" onclick={() => (showConfirm = false)}>Cancel</button>
+			<button class="btn btn-danger" onclick={deleteSelected}>Delete</button>
+		{/if}
 	{/snippet}
 </Modal>

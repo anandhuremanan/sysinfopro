@@ -36,8 +36,9 @@ type App struct {
 	diskScanMu     sync.Mutex
 	diskScanCancel context.CancelFunc
 
-	devScanMu     sync.Mutex
-	devScanCancel context.CancelFunc
+	devScanMu       sync.Mutex
+	devScanCancel   context.CancelFunc
+	devDeleteCancel context.CancelFunc
 }
 
 // NewApp creates a new App application struct
@@ -334,9 +335,33 @@ func (a *App) CancelNodeModulesSearch() {
 	}
 }
 
-// DeleteDevCaches removes the given cache or node_modules folders; any other path is refused
+// DeleteDevCaches removes the given cache or node_modules folders; any other path is refused.
+// Progress is sent as "devcache-delete-progress" events.
 func (a *App) DeleteDevCaches(paths []string) *devcache.DeleteResult {
-	return devcache.Delete(a.ctx, paths)
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+
+	a.devScanMu.Lock()
+	if a.devDeleteCancel != nil {
+		a.devDeleteCancel()
+	}
+	a.devDeleteCancel = cancel
+	a.devScanMu.Unlock()
+
+	return devcache.Delete(ctx, paths, func(p devcache.DeleteProgress) {
+		runtime.EventsEmit(a.ctx, "devcache-delete-progress", p)
+	})
+}
+
+// CancelDevCacheDelete stops a running DeleteDevCaches after the file it is on;
+// whatever was already removed stays removed
+func (a *App) CancelDevCacheDelete() {
+	a.devScanMu.Lock()
+	defer a.devScanMu.Unlock()
+	if a.devDeleteCancel != nil {
+		a.devDeleteCancel()
+		a.devDeleteCancel = nil
+	}
 }
 
 // SaveSystemReport writes an HTML report to Downloads and returns its path
