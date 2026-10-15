@@ -166,6 +166,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   min-height: 48px;
   padding: 0 22px;
   border-radius: 12px;
@@ -175,6 +176,13 @@ h1 {
   transition:
     opacity 0.15s,
     background-color 0.15s;
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: currentColor;
 }
 
 .btn-primary {
@@ -196,8 +204,7 @@ h1 {
 }
 
 .btn:focus-visible,
-a:focus-visible,
-summary:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
@@ -398,44 +405,6 @@ h2 {
 
 .download .section-lead {
   margin-inline: auto;
-}
-
-.notice {
-  margin: 36px auto 0;
-  max-width: 640px;
-  padding: 0 22px;
-  background: var(--tile);
-  border-radius: 16px;
-  text-align: left;
-  font-size: 15.5px;
-}
-
-.notice summary {
-  padding: 16px 0;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.notice p,
-.notice ol {
-  margin: 0 0 14px;
-  color: var(--muted);
-}
-
-.notice ol {
-  padding-left: 20px;
-}
-
-.notice li + li {
-  margin-top: 6px;
-}
-
-.notice strong {
-  color: var(--ink);
-}
-
-.notice a {
-  color: var(--accent);
 }
 
 /* ---------- footer ---------- */
