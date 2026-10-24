@@ -46,6 +46,9 @@
 	const REVEAL_ICON =
 		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
+	// open on this drive ("C:") when given, for example from a low-space alert
+	let { drive: initialDrive }: { drive?: string } = $props();
+
 	let drives = $state<Drive[]>([]);
 	let selectedDrive = $state<Drive | undefined>(undefined);
 	let currentPath = $state('');
@@ -91,7 +94,8 @@
 		try {
 			drives = (await GetDrives()) || [];
 			if (!selectedDrive && drives.length > 0) {
-				selectDrive(drives[0]);
+				const wanted = initialDrive?.toUpperCase();
+				selectDrive(drives.find((d) => d.path.toUpperCase().startsWith(wanted ?? '-')) ?? drives[0]);
 			} else if (selectedDrive) {
 				// keep the selected drive's figures current too
 				selectedDrive = drives.find((d) => d.path === selectedDrive?.path) ?? selectedDrive;

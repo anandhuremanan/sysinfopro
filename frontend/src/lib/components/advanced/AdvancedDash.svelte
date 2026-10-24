@@ -14,14 +14,18 @@
 	import SoftwareChecker from './SoftwareChecker.svelte';
 	import StartupManager from './StartupManager.svelte';
 	import StressBenchmark from './StressBenchmark.svelte';
+	import VirtualDisks from './VirtualDisks.svelte';
 	import SystemStat from './SystemStat.svelte';
 	import WhatChanged from './WhatChanged.svelte';
 
 	let {
 		systemInfo,
-		tool = 'health'
+		tool = 'health',
+		drive
 	}: {
 		systemInfo: any;
+		// drive for Disk usage to open on
+		drive?: string;
 		tool?:
 			| 'specs'
 			| 'security'
@@ -35,7 +39,8 @@
 			| 'stress'
 			| 'startup'
 			| 'env'
-			| 'software';
+			| 'software'
+			| 'wsl';
 	} = $props();
 
 	let batteryDetails: any = $state(undefined);
@@ -54,9 +59,7 @@
 		} catch (error) {
 			console.error('Failed to get battery details:', error);
 		} finally {
-			setTimeout(() => {
-				isLoadingBattery = false;
-			}, 500);
+			isLoadingBattery = false;
 		}
 	}
 
@@ -88,7 +91,7 @@
 					<BatteryDetails {batteryDetails} {isLoadingBattery} {getBatteryDetials} />
 					<SystemStat {overallScore} />
 				</div>
-				<div class="h-full">
+				<div class="h-full min-h-0">
 					<DiskCleaner />
 				</div>
 			</div>
@@ -105,7 +108,7 @@
 		{:else if tool === 'growth'}
 			<GrowthWatch />
 		{:else if tool === 'space'}
-			<DiskAnalyzer />
+			<DiskAnalyzer {drive} />
 		{:else if tool === 'ports'}
 			<PortInspector />
 		{:else if tool === 'stress'}
@@ -116,6 +119,8 @@
 			<EnvPathInspector />
 		{:else if tool === 'software'}
 			<SoftwareChecker />
+		{:else if tool === 'wsl'}
+			<VirtualDisks />
 		{/if}
 	</div>
 </div>

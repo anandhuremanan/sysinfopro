@@ -32,7 +32,7 @@
 
     <main class="policy">
       <h1>Privacy policy</h1>
-      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 14 October 2026</p>
+      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 24 October 2026</p>
 
       <p>
         SysInfo Pro is a system information and maintenance tool for Windows. It runs entirely on
@@ -43,15 +43,26 @@
       <h2>What the app reads on your PC</h2>
       <p>
         To show its information, the app reads details about your computer: hardware, drives and
-        free space, running programs, network ports, startup programs, installed software, PATH
-        entries, battery and security settings. This information is shown to you and is not sent
-        anywhere.
+        free space, drive health (wear, temperature and running hours, as the drive reports them),
+        running programs, network ports, startup programs, installed software, PATH entries, the
+        disks of WSL and Docker, battery and security settings. This information is shown to you and
+        is not sent anywhere.
       </p>
 
       <h2>What the app saves on your PC</h2>
       <ul>
         <li>
-          <strong>Settings</strong> such as your theme and which readings the widget shows.
+          <strong>Settings</strong> such as your theme, which readings the widget shows, your alert
+          limits, the widget's keyboard shortcut, and the folder you last searched in Dev caches
+          (used by the monthly cleanup reminder, if you turn it on).
+        </li>
+        <li>
+          <strong>Your previous PATH</strong>, saved when you remove entries from it, so the change
+          can be undone. It is replaced the next time you change PATH and removed when you undo.
+        </li>
+        <li>
+          <strong>A cache for the app's window</strong> (Microsoft WebView2), which draws the app's
+          screens.
         </li>
         <li>
           <strong>Snapshots for "What changed"</strong>: lists of startup programs, installed
@@ -65,7 +76,17 @@
           serial number; check it before sharing it.
         </li>
       </ul>
-      <p>Uninstalling the app, or deleting those folders, removes this data.</p>
+      <p>
+        All of this is kept in your user folder under <code>AppData\Roaming\SysInfoPro</code>.
+        Uninstalling the app, or deleting that folder, removes it.
+      </p>
+
+      <h2>What the app changes on your PC</h2>
+      <p>
+        Only what you ask for, after you confirm: ending a program, deleting caches, temporary files
+        and project folders you select, removing entries from your own PATH, removing Docker data
+        Docker no longer uses, and updating apps through Windows Package Manager (winget).
+      </p>
 
       <h2>Services the app contacts</h2>
       <p>
@@ -91,9 +112,18 @@
           installed software.
         </li>
         <li>
-          <strong>Update check</strong> (older versions downloaded from our website only): the app reads
-          the list of released versions from GitHub. Versions installed from the Microsoft Store do
-          not do this; the Store handles their updates.
+          <strong>App updates</strong> (only when you open the All apps list in the Software tool):
+          Windows Package Manager (winget), part of Windows, checks Microsoft's winget catalogue for
+          newer versions of your apps, and downloads an update from its publisher when you choose to
+          install it.
+        </li>
+        <li>
+          <strong>Docker</strong> (only when you open WSL &amp; Docker and Docker is installed): the
+          app asks Docker on your PC how much space it uses. This stays on your PC.
+        </li>
+        <li>
+          <strong>Rating</strong>: if you choose to rate the app, the Microsoft Store opens. Nothing
+          is sent before you choose.
         </li>
       </ul>
       <p>
@@ -112,7 +142,7 @@
       <h2>Contact</h2>
       <p>
         Questions about privacy can be raised on the project's
-        <a href="https://github.com/ananduremanan/sysinfopro/issues">GitHub issues page</a>.
+        <a href="https://github.com/anandhuremanan/sysinfopro/issues">GitHub issues page</a>.
       </p>
     </main>
 

@@ -8,18 +8,26 @@
 	import WidgetView from '$lib/components/basic/WidgetView.svelte';
 	import Logo from '$lib/components/ui/Logo.svelte';
 	import Modal from '$lib/components/ui/Modal.svelte';
+	import AlertBanner from '$lib/components/ui/AlertBanner.svelte';
+	import QuickSearch from '$lib/components/ui/QuickSearch.svelte';
+	import RatingPrompt from '$lib/components/ui/RatingPrompt.svelte';
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
+	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
 	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
 	import { exportSpecCardPNG } from '$lib/utils/cardExporter';
-	import { enterWidget, initWidget, widget } from '$lib/widget.svelte';
+	import { enterWidget, initWidget, toggleWidget, widget } from '$lib/widget.svelte';
 	import {
 		GetActiveSockets,
+		GetDriveHealth,
 		GetEnvPathAnalysis,
+		GetHardwareSpecs,
+		GetSecurityReport,
 		GetStartupItems,
 		GetSysInfo
 	} from '$lib/wailsjs/go/main/App';
-	import { Quit } from '$lib/wailsjs/runtime/runtime';
+	import { prefetch } from '$lib/cache';
+	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
 
 	type View = 'home' | 'processes' | 'tools' | ToolId;
 
@@ -37,6 +45,24 @@
 	let isLoading = $state(false);
 	let logMessage = $state<string | undefined>(undefined);
 	let toolStatus = $state<Record<string, ToolStatus>>({});
+	// the drive Disk usage opens on when reached from an alert
+	let usageDrive = $state<string | undefined>(undefined);
+	let showQuickSearch = $state(false);
+
+	// Ctrl+K opens quick search from anywhere in the full window
+	function onWindowKeydown(event: KeyboardEvent) {
+		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !widget.active) {
+			event.preventDefault();
+			showQuickSearch = !showQuickSearch;
+		}
+	}
+
+	function quickAction(id: 'settings' | 'widget' | 'processes' | 'home') {
+		if (id === 'settings') showSettings = true;
+		else if (id === 'widget') enterWidget();
+		else if (id === 'home') view = 'home';
+		else openView('processes');
+	}
 
 	let viewTitle = $derived(
 		view === 'processes'
@@ -104,9 +130,7 @@
 		} catch (err) {
 			error = `Failed to get system information: ${err}`;
 		} finally {
-			setTimeout(() => {
-				isLoading = false;
-			}, 500);
+			isLoading = false;
 		}
 	}
 
@@ -138,16 +162,36 @@
 	$effect(() => {
 		getSysInfo();
 		loadToolStatus();
+		// fetch the slower screens' data once the window has settled, so they open at once
+		const timer = setTimeout(() => {
+			prefetch('specs', GetHardwareSpecs);
+			prefetch('security', GetSecurityReport);
+			prefetch('drive-health', GetDriveHealth);
+		}, 3000);
+		return () => clearTimeout(timer);
 	});
 
 	$effect(() => {
 		initWidget();
+		listenForAlerts();
+		return EventsOn('widget-hotkey', toggleWidget);
 	});
+
+	function openForAlert(alert: DriveAlert) {
+		if (alert.kind === 'reminder') {
+			openView('devcache');
+			return;
+		}
+		usageDrive = alert.drive;
+		openView('space');
+	}
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 {#if widget.active}
 	<WidgetView />
-{:else if isLoading}
+{:else if isLoading && !systemInfo}
 	<div class="min-h-screen flex flex-col items-center justify-center bg-ground text-ink">
 		<div class="flex flex-col items-center justify-center">
 			<Logo size={36} />
@@ -258,7 +302,7 @@
 						{:else if view === 'processes'}
 							<ProcessView />
 						{:else}
-							<AdvancedDash {systemInfo} tool={view} />
+							<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
 						{/if}
 					</div>
 				{/if}
@@ -275,6 +319,12 @@
 				<span class="truncate">{logMessage}</span>
 			</div>
 		{/if}
+
+		<AlertBanner onOpen={openForAlert} />
+
+		<QuickSearch bind:open={showQuickSearch} onOpen={openView} onAction={quickAction} />
+
+		<RatingPrompt />
 
 		<SettingsModal bind:showModal={showSettings} />
 

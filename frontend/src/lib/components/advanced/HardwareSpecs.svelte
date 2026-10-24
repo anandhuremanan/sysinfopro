@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { buildSpecSections, exportSystemReport, specsToText } from '$lib/utils/reportExporter';
+	import { load, recall } from '$lib/cache';
 	import { GetDrives, GetHardwareSpecs, GetSecurityReport } from '$lib/wailsjs/go/main/App';
 
 	let { systemInfo } = $props();
 
-	let specs: any = $state(undefined);
+	// hardware does not change while the app is open, so one read serves the session
+	let specs: any = $state(recall('specs'));
 	let isLoading = $state(false);
 	let isExporting = $state(false);
 	let loadError = $state<string | undefined>(undefined);
@@ -20,10 +23,10 @@
 	}
 
 	async function loadSpecs() {
-		isLoading = true;
+		isLoading = !specs;
 		loadError = undefined;
 		try {
-			specs = await GetHardwareSpecs();
+			specs = await load('specs', GetHardwareSpecs);
 		} catch (err) {
 			console.error('Failed to get hardware specs:', err);
 			loadError = `${err}`;
@@ -47,7 +50,7 @@
 			// the report also carries drives and the security check; either may be unavailable
 			const [drives, security] = await Promise.all([
 				GetDrives().catch(() => []),
-				GetSecurityReport().catch(() => undefined)
+				load('security', GetSecurityReport, 5 * 60_000).catch(() => undefined)
 			]);
 			const savedPath = await exportSystemReport({ systemInfo, specs, security, drives });
 			showStatus(savedPath ? `Report saved: ${savedPath}` : 'Failed to save the report.');
@@ -56,7 +59,8 @@
 		}
 	}
 
-	$effect(() => {
+	// load once when the screen opens
+	onMount(() => {
 		loadSpecs();
 	});
 </script>

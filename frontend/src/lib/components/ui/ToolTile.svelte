@@ -31,7 +31,7 @@
 {#if compact}
 	<!-- Stacked tile for the six-across home row -->
 	<button
-		class="bg-tile text-ink rounded-[14px] px-3 py-[9px] text-left flex flex-col justify-between cursor-pointer min-w-0 transition-transform active:scale-[0.98] hover:ring-1 hover:ring-line"
+		class="bg-tile text-ink rounded-[14px] px-3 py-[9px] text-left flex flex-col justify-between cursor-pointer min-w-0 transition-transform active:scale-[0.98] hover:ring-1 hover:ring-inset hover:ring-line"
 		{onclick}
 	>
 		<span class="flex items-start justify-between">
@@ -49,7 +49,7 @@
 	</button>
 {:else}
 	<button
-		class="h-[52px] bg-tile text-ink rounded-xl px-3 text-left flex items-center gap-2.5 cursor-pointer min-w-0 transition-transform active:scale-[0.98] hover:ring-1 hover:ring-line"
+		class="h-[52px] bg-tile text-ink rounded-xl px-3 text-left flex items-center gap-2.5 cursor-pointer min-w-0 transition-transform active:scale-[0.98] hover:ring-1 hover:ring-inset hover:ring-line"
 		{onclick}
 	>
 		<span

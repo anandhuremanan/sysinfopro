@@ -6,6 +6,10 @@ export function AnalyzeDiskUsage(arg1) {
   return window['go']['main']['App']['AnalyzeDiskUsage'](arg1);
 }
 
+export function CancelCleanJunk() {
+  return window['go']['main']['App']['CancelCleanJunk']();
+}
+
 export function CancelDevCacheDelete() {
   return window['go']['main']['App']['CancelDevCacheDelete']();
 }
@@ -14,40 +18,36 @@ export function CancelDiskScan() {
   return window['go']['main']['App']['CancelDiskScan']();
 }
 
-export function CancelNodeModulesSearch() {
-  return window['go']['main']['App']['CancelNodeModulesSearch']();
-}
-
-export function CheckCleanerPermissions() {
-  return window['go']['main']['App']['CheckCleanerPermissions']();
+export function CancelLeftoverSearch() {
+  return window['go']['main']['App']['CancelLeftoverSearch']();
 }
 
 export function CheckInternetConnection() {
   return window['go']['main']['App']['CheckInternetConnection']();
 }
 
-export function CheckUpdate() {
-  return window['go']['main']['App']['CheckUpdate']();
-}
-
-export function CleanSelectedFiles(arg1) {
-  return window['go']['main']['App']['CleanSelectedFiles'](arg1);
+export function CleanJunk() {
+  return window['go']['main']['App']['CleanJunk']();
 }
 
 export function DeleteDevCaches(arg1) {
   return window['go']['main']['App']['DeleteDevCaches'](arg1);
 }
 
+export function FindLeftovers(arg1) {
+  return window['go']['main']['App']['FindLeftovers'](arg1);
+}
+
 export function FindLockingProcesses(arg1) {
   return window['go']['main']['App']['FindLockingProcesses'](arg1);
 }
 
-export function FindNodeModules(arg1) {
-  return window['go']['main']['App']['FindNodeModules'](arg1);
-}
-
 export function GetActiveSockets() {
   return window['go']['main']['App']['GetActiveSockets']();
+}
+
+export function GetAlertSettings() {
+  return window['go']['main']['App']['GetAlertSettings']();
 }
 
 export function GetBatteryDetails() {
@@ -66,8 +66,12 @@ export function GetDiagnosticReport() {
   return window['go']['main']['App']['GetDiagnosticReport']();
 }
 
-export function GetDriveHealthDetails() {
-  return window['go']['main']['App']['GetDriveHealthDetails']();
+export function GetDockerUsage() {
+  return window['go']['main']['App']['GetDockerUsage']();
+}
+
+export function GetDriveHealth() {
+  return window['go']['main']['App']['GetDriveHealth']();
 }
 
 export function GetDrives() {
@@ -78,12 +82,16 @@ export function GetEnvPathAnalysis() {
   return window['go']['main']['App']['GetEnvPathAnalysis']();
 }
 
-export function GetFormattedSize(arg1) {
-  return window['go']['main']['App']['GetFormattedSize'](arg1);
-}
-
 export function GetHardwareSpecs() {
   return window['go']['main']['App']['GetHardwareSpecs']();
+}
+
+export function GetHotkeyCombos() {
+  return window['go']['main']['App']['GetHotkeyCombos']();
+}
+
+export function GetHotkeySettings() {
+  return window['go']['main']['App']['GetHotkeySettings']();
 }
 
 export function GetInterNetSpeed() {
@@ -96,6 +104,14 @@ export function GetMemoryStats() {
 
 export function GetMemoryVelocity() {
   return window['go']['main']['App']['GetMemoryVelocity']();
+}
+
+export function GetNotificationStatus() {
+  return window['go']['main']['App']['GetNotificationStatus']();
+}
+
+export function GetReminderSettings() {
+  return window['go']['main']['App']['GetReminderSettings']();
 }
 
 export function GetSecurityReport() {
@@ -122,8 +138,20 @@ export function GetWatchFolders() {
   return window['go']['main']['App']['GetWatchFolders']();
 }
 
+export function GetWingetUpgrades() {
+  return window['go']['main']['App']['GetWingetUpgrades']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
+}
+
+export function IsStoreApp() {
+  return window['go']['main']['App']['IsStoreApp']();
+}
+
+export function ListVirtualDisks() {
+  return window['go']['main']['App']['ListVirtualDisks']();
 }
 
 export function PickFile(arg1) {
@@ -134,8 +162,12 @@ export function PickFolder(arg1) {
   return window['go']['main']['App']['PickFolder'](arg1);
 }
 
-export function PurgeJunkFiles() {
-  return window['go']['main']['App']['PurgeJunkFiles']();
+export function PruneDocker() {
+  return window['go']['main']['App']['PruneDocker']();
+}
+
+export function RemoveUserPathEntries(arg1, arg2) {
+  return window['go']['main']['App']['RemoveUserPathEntries'](arg1, arg2);
 }
 
 export function RevealInExplorer(arg1) {
@@ -158,16 +190,28 @@ export function SaveSystemReport(arg1) {
   return window['go']['main']['App']['SaveSystemReport'](arg1);
 }
 
-export function ScanCleanableFiles() {
-  return window['go']['main']['App']['ScanCleanableFiles']();
-}
-
 export function ScanDevCaches() {
   return window['go']['main']['App']['ScanDevCaches']();
 }
 
-export function ScanSafeCleanableFiles() {
-  return window['go']['main']['App']['ScanSafeCleanableFiles']();
+export function ScanJunk() {
+  return window['go']['main']['App']['ScanJunk']();
+}
+
+export function SendTestAlert() {
+  return window['go']['main']['App']['SendTestAlert']();
+}
+
+export function SetAlertSettings(arg1) {
+  return window['go']['main']['App']['SetAlertSettings'](arg1);
+}
+
+export function SetHotkeySettings(arg1, arg2) {
+  return window['go']['main']['App']['SetHotkeySettings'](arg1, arg2);
+}
+
+export function SetReminderEnabled(arg1) {
+  return window['go']['main']['App']['SetReminderEnabled'](arg1);
 }
 
 export function SetWidgetMode(arg1) {
@@ -176,4 +220,12 @@ export function SetWidgetMode(arg1) {
 
 export function TerminateProcess(arg1) {
   return window['go']['main']['App']['TerminateProcess'](arg1);
+}
+
+export function UndoPathChange() {
+  return window['go']['main']['App']['UndoPathChange']();
+}
+
+export function UpgradeWithWinget(arg1) {
+  return window['go']['main']['App']['UpgradeWithWinget'](arg1);
 }

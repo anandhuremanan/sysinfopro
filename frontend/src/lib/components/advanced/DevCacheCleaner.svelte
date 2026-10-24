@@ -1,23 +1,28 @@
 <script lang="ts">
 	import { formatBytes } from '$lib';
+	import { load, recall, remember } from '$lib/cache';
+	import { recordFreed } from '$lib/rating.svelte';
 	import {
 		CancelDevCacheDelete,
-		CancelNodeModulesSearch,
+		CancelLeftoverSearch,
 		DeleteDevCaches,
-		FindNodeModules,
+		FindLeftovers,
 		PickFolder,
 		RevealInExplorer,
 		ScanDevCaches
 	} from '$lib/wailsjs/go/main/App';
 	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import Modal from '../ui/Modal.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
 	type Item = {
 		id: string;
 		name: string;
-		kind: 'cache' | 'node_modules';
+		kind: 'cache' | 'leftover';
+		// leftovers only: what kind of folder ('Rust build') and its name ('target')
+		label: string;
+		folder: string;
 		path: string;
 		size_bytes: number;
 		files: number;
@@ -45,9 +50,13 @@
 	const REVEAL_ICON =
 		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
-	let caches = $state<Item[]>([]);
-	let modules = $state<Item[]>([]);
-	let searchRoot = $state('');
+	type Search = { root: string; items: Item[] };
+	const lastSearch = recall<Search>('leftovers');
+
+	let caches = $state<Item[]>(recall('devcaches') ?? []);
+	// the last search stays on screen when you come back to this tool
+	let leftovers = $state<Item[]>(lastSearch?.items ?? []);
+	let searchRoot = $state(lastSearch?.root ?? '');
 	let searchCurrent = $state('');
 	let isScanningCaches = $state(false);
 	let isSearching = $state(false);
@@ -65,7 +74,7 @@
 	// Bumped on every search/cancel so a superseded search's result is ignored
 	let searchId = 0;
 
-	let allItems = $derived([...caches, ...modules]);
+	let allItems = $derived([...caches, ...leftovers]);
 	let selectedItems = $derived(allItems.filter((item) => item.deletable && selected[item.path]));
 	let selectedBytes = $derived(selectedItems.reduce((sum, item) => sum + item.size_bytes, 0));
 	let totalBytes = $derived(allItems.reduce((sum, item) => sum + item.size_bytes, 0));
@@ -76,17 +85,17 @@
 	);
 	let deletingItem = $derived(allItems.find((item) => item.path === deleteProgress?.current));
 
-	// node_modules whose project has not been touched since the cutoff; folders with
+	// leftovers whose project has not been touched since the cutoff; folders with
 	// no known date are never included
-	let staleModules = $derived.by(() => {
+	let staleLeftovers = $derived.by(() => {
 		const cutoff = new Date();
 		cutoff.setMonth(cutoff.getMonth() - unusedMonths);
-		return modules.filter((item) => {
+		return leftovers.filter((item) => {
 			const used = parseDay(item.last_used);
 			return used !== null && used < cutoff;
 		});
 	});
-	let staleBytes = $derived(staleModules.reduce((sum, item) => sum + item.size_bytes, 0));
+	let staleBytes = $derived(staleLeftovers.reduce((sum, item) => sum + item.size_bytes, 0));
 
 	// "YYYY-MM-DD" as a local date
 	function parseDay(day: string): Date | null {
@@ -109,7 +118,7 @@
 
 	// select exactly the stale folders and ask to delete them
 	function freeStale() {
-		selected = Object.fromEntries(staleModules.map((item) => [item.path, true]));
+		selected = Object.fromEntries(staleLeftovers.map((item) => [item.path, true]));
 		showConfirm = true;
 	}
 
@@ -120,10 +129,11 @@
 		}, 6000);
 	}
 
-	async function loadCaches() {
-		isScanningCaches = true;
+	// measuring caches reads many files, so sizes are reused for five minutes; Rescan measures again
+	async function loadCaches(force = false) {
+		isScanningCaches = force || caches.length === 0;
 		try {
-			caches = ((await ScanDevCaches()) || []) as Item[];
+			caches = ((await load('devcaches', ScanDevCaches, 5 * 60_000, force)) || []) as Item[];
 		} catch (err) {
 			console.error('Failed to scan caches:', err);
 			showStatus(`Failed to scan caches: ${err}`);
@@ -135,7 +145,7 @@
 	async function chooseFolderAndSearch() {
 		let folder = '';
 		try {
-			folder = await PickFolder('Choose a folder to search for node_modules');
+			folder = await PickFolder('Choose a folder to search for project leftovers');
 		} catch (err) {
 			showStatus(`${err}`);
 			return;
@@ -149,12 +159,13 @@
 		searchRoot = folder;
 		searchCurrent = folder;
 		isSearching = true;
-		modules = [];
+		leftovers = [];
 
 		try {
-			const found = ((await FindNodeModules(folder)) || []) as Item[];
+			const found = ((await FindLeftovers(folder)) || []) as Item[];
 			if (id !== searchId) return;
-			modules = found;
+			leftovers = found;
+			remember('leftovers', { root: folder, items: found });
 		} catch (err) {
 			if (id !== searchId) return;
 			showStatus(`${err}`);
@@ -167,11 +178,11 @@
 		if (!isSearching) return;
 		searchId++;
 		isSearching = false;
-		CancelNodeModulesSearch();
+		CancelLeftoverSearch();
 	}
 
 	function itemLabel(item: Item) {
-		return item.kind === 'node_modules' ? `${item.name} / node_modules` : item.name;
+		return item.kind === 'leftover' ? `${item.name} / ${item.folder}` : item.name;
 	}
 
 	// the dialog stays open and shows progress until the delete finishes or is stopped
@@ -202,13 +213,15 @@
 						: '')
 			);
 			if (broken.length > 0) console.error('Could not remove:', broken);
+			recordFreed(result.freed_bytes);
 
 			selected = {};
 			const gone = new Set(result.deleted ?? []);
-			modules = modules.filter((item) => !gone.has(item.path));
+			leftovers = leftovers.filter((item) => !gone.has(item.path));
+			remember('leftovers', { root: searchRoot, items: leftovers });
 			// folders that were only partly deleted are smaller now
 			if (failed.length > 0 && searchRoot) searchModules(searchRoot);
-			await loadCaches();
+			await loadCaches(true);
 		} catch (err) {
 			finishDelete();
 			showStatus(`Failed to delete: ${err}`);
@@ -243,7 +256,8 @@
 		if (isDeleting) deleteProgress = progress;
 	});
 
-	$effect(() => {
+	// load once when the screen opens
+	onMount(() => {
 		loadCaches();
 	});
 
@@ -263,7 +277,7 @@
 	>
 		<input
 			type="checkbox"
-			class="rounded border-line bg-tile text-accent focus:ring-accent disabled:opacity-30"
+			class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent disabled:opacity-30"
 			disabled={!item.deletable || isDeleting}
 			bind:checked={selected[item.path]}
 		/>
@@ -298,7 +312,7 @@
 		<div class="min-w-0">
 			<div class="font-bold text-base text-ink">Dev Cache Cleaner</div>
 			<div class="text-xs text-muted truncate">
-				Reclaim space from package caches and old node_modules folders
+				Reclaim space from package caches and old project folders
 			</div>
 		</div>
 
@@ -338,7 +352,7 @@
 				</span>
 				<button
 					class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink"
-					onclick={loadCaches}
+					onclick={() => loadCaches(true)}
 					disabled={isScanningCaches}
 				>
 					Rescan
@@ -361,14 +375,14 @@
 			</div>
 		</div>
 
-		<!-- node_modules folders -->
+		<!-- project leftovers: node_modules, build output, virtual environments -->
 		<div class="min-h-0 flex flex-col">
 			<div class="flex items-center justify-between gap-2 pb-1 shrink-0">
 				<span
 					class="text-[10px] uppercase tracking-wider font-semibold text-muted truncate"
 					title={searchRoot}
 				>
-					node_modules{searchRoot ? ` in ${searchRoot}` : ''}
+					Project leftovers{searchRoot ? ` in ${searchRoot}` : ''}
 				</span>
 				{#if isSearching}
 					<button
@@ -386,7 +400,7 @@
 					</button>
 				{/if}
 			</div>
-			{#if !isSearching && modules.length > 0}
+			{#if !isSearching && leftovers.length > 0}
 				<div class="flex items-center gap-2 pb-1.5 shrink-0">
 					<span class="text-[11px] text-muted shrink-0">Unused for</span>
 					<div
@@ -410,14 +424,14 @@
 					</div>
 					<button
 						class="btn btn-danger ml-auto h-6 px-2"
-						disabled={staleModules.length === 0 || isDeleting}
-						title={staleModules.length > 0
-							? `Delete ${staleModules.length} node_modules not used in ${unusedMonths} ${unusedMonths === 1 ? 'month' : 'months'}`
-							: 'No node_modules older than this'}
+						disabled={staleLeftovers.length === 0 || isDeleting}
+						title={staleLeftovers.length > 0
+							? `Delete ${staleLeftovers.length} ${staleLeftovers.length === 1 ? 'folder' : 'folders'} not used in ${unusedMonths} ${unusedMonths === 1 ? 'month' : 'months'}`
+							: 'Nothing older than this'}
 						onclick={freeStale}
 					>
-						{staleModules.length > 0
-							? `Free ${formatBytes(staleBytes)} (${staleModules.length})`
+						{staleLeftovers.length > 0
+							? `Free ${formatBytes(staleBytes)} (${staleLeftovers.length})`
 							: 'None older'}
 					</button>
 				</div>
@@ -435,21 +449,21 @@
 				{:else if !searchRoot}
 					<div class="h-full flex flex-col items-center justify-center gap-2 text-center px-4">
 						<p class="text-muted leading-relaxed">
-							Pick the folder that holds your projects to find every node_modules inside it.
+							Pick the folder that holds your projects to find node_modules, build output and Python environments inside it.
 						</p>
 						<button class="btn btn-primary" onclick={chooseFolderAndSearch}>Choose folder</button>
 					</div>
 				{:else}
-					{#each modules as item (item.path)}
+					{#each leftovers as item (item.path)}
 						{@render row(
 							item,
 							item.name,
-							item.last_used ? usedAgo(item.last_used) : item.path,
-							staleModules.includes(item)
+							item.last_used ? `${item.label} · ${usedAgo(item.last_used)}` : item.label,
+							staleLeftovers.includes(item)
 						)}
 					{:else}
 						<div class="h-full flex items-center justify-center text-muted text-center px-4">
-							No node_modules folders found here.
+							No project leftovers found here.
 						</div>
 					{/each}
 				{/if}
@@ -535,8 +549,9 @@
 
 		{#if !isDeleting}
 			<p class="text-muted leading-relaxed">
-				Nothing here is your own work: caches are downloaded again when needed, and node_modules
-				comes back when you run install in that project. Close editors and dev servers first.
+				Nothing here is your own work: caches are downloaded again when needed, and project
+				folders come back when you install or build that project. Close editors and dev servers
+				first.
 			</p>
 		{/if}
 	</div>

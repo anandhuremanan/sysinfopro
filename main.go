@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -11,6 +13,17 @@ import (
 
 //go:embed all:frontend/build
 var assets embed.FS
+
+// webviewDataPath keeps the embedded browser's cache in the app's own folder.
+// Left unset, Wails names the folder after the exe, so every renamed copy of
+// the exe would start a new cache of 30 MB or more.
+func webviewDataPath() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "SysInfoPro", "WebView2")
+}
 
 func main() {
 	// Create an instance of the app structure
@@ -26,6 +39,10 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId:               singleInstanceID,
+			OnSecondInstanceLaunch: app.onSecondInstance,
+		},
 		Bind: []interface{}{
 			app,
 		},
@@ -36,6 +53,7 @@ func main() {
 		DisableResize:   true,
 		Windows: &windows.Options{
 			EnableSwipeGestures: false,
+			WebviewUserDataPath: webviewDataPath(),
 		},
 	})
 

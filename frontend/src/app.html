@@ -8,11 +8,20 @@
 			// Apply the saved theme before first paint (kept in sync with src/lib/theme.svelte.ts)
 			(function () {
 				try {
+					var root = document.documentElement;
 					var mode = localStorage.getItem('sysinfopro-theme') || 'system';
 					var dark =
 						mode === 'dark' ||
+						mode === 'amoled' ||
 						(mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-					document.documentElement.classList.toggle('dark', dark);
+					root.classList.toggle('dark', dark);
+					root.classList.toggle('amoled', mode === 'amoled');
+					var vars = JSON.parse(localStorage.getItem('sysinfopro-accent-vars') || 'null');
+					if (vars) {
+						var v = dark ? vars.dark : vars.light;
+						root.style.setProperty('--accent', v.accent);
+						root.style.setProperty('--on-accent', v.on);
+					}
 				} catch (e) {}
 			})();
 		</script>

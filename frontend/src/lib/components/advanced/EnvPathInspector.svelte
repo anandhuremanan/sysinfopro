@@ -1,170 +1,228 @@
 <script lang="ts">
-	import { GetEnvPathAnalysis } from '$lib/wailsjs/go/main/App';
+	import {
+		GetEnvPathAnalysis,
+		RemoveUserPathEntries,
+		UndoPathChange
+	} from '$lib/wailsjs/go/main/App';
+	import Modal from '../ui/Modal.svelte';
 
 	type PathEntry = {
 		path: string;
+		raw: string;
+		scope: 'system' | 'user' | 'process';
+		index: number;
 		is_valid: boolean;
 		is_duplicate: boolean;
 		status_text: string;
+		fixable: boolean;
 	};
-
-	type EnvVar = {
-		key: string;
-		value: string;
-	};
-
 	type Analysis = {
 		total_entries: number;
 		valid_entries: number;
 		invalid_entries: number;
 		duplicates_count: number;
 		path_entries: PathEntry[];
-		key_variables: EnvVar[];
+		key_variables: { key: string; value: string }[];
+		user_path_raw: string;
+		can_undo: boolean;
+		editable: boolean;
 	};
+
+	const SCOPES = [
+		{ id: 'user', label: 'Your PATH', note: 'Yours to change' },
+		{ id: 'system', label: 'System PATH', note: 'Needs administrator rights to change' },
+		{ id: 'process', label: 'PATH', note: '' }
+	] as const;
 
 	let analysis = $state<Analysis | null>(null);
 	let isLoading = $state(false);
+	let isSaving = $state(false);
+	let showConfirm = $state(false);
+	let statusMessage = $state<string | undefined>(undefined);
+	let selected = $state<Record<number, boolean>>({});
 
-	async function loadAnalysis() {
+	let fixable = $derived(analysis?.path_entries.filter((e) => e.fixable) ?? []);
+	let chosen = $derived(fixable.filter((e) => selected[e.index]));
+	let problems = $derived((analysis?.invalid_entries ?? 0) + (analysis?.duplicates_count ?? 0));
+
+	function showStatus(message: string) {
+		statusMessage = message;
+		setTimeout(() => (statusMessage = undefined), 6000);
+	}
+
+	// every fixable entry starts ticked, so one click fixes everything that can be fixed
+	function useAnalysis(next: Analysis) {
+		analysis = next;
+		selected = Object.fromEntries(next.path_entries.filter((e) => e.fixable).map((e) => [e.index, true]));
+	}
+
+	async function load() {
 		isLoading = true;
 		try {
-			// @ts-ignore
-			const res = await GetEnvPathAnalysis();
-			if (res) {
-				analysis = res;
-			}
+			useAnalysis((await GetEnvPathAnalysis()) as Analysis);
 		} catch (err) {
-			console.error('Failed to get PATH analysis:', err);
+			showStatus(`Failed to read PATH: ${err}`);
 		} finally {
 			isLoading = false;
 		}
 	}
 
+	async function removeChosen() {
+		if (!analysis) return;
+		isSaving = true;
+		const count = chosen.length;
+		try {
+			const next = (await RemoveUserPathEntries(
+				analysis.user_path_raw,
+				chosen.map((e) => e.index)
+			)) as Analysis;
+			useAnalysis(next);
+			showStatus(
+				`Removed ${count} ${count === 1 ? 'entry' : 'entries'}. Terminals opened from now on use the new PATH.`
+			);
+		} catch (err) {
+			showStatus(`${err}`);
+			await load();
+		} finally {
+			isSaving = false;
+			showConfirm = false;
+		}
+	}
+
+	async function undo() {
+		isSaving = true;
+		try {
+			useAnalysis((await UndoPathChange()) as Analysis);
+			showStatus('Your PATH is back as it was.');
+		} catch (err) {
+			showStatus(`${err}`);
+		} finally {
+			isSaving = false;
+		}
+	}
+
 	$effect(() => {
-		loadAnalysis();
+		load();
 	});
 </script>
 
-<div class="flex flex-col h-full min-h-0 space-y-2 p-1">
-	<!-- Header Bar -->
-	<div
-		class="flex justify-between items-center pb-2 border-b border-line shrink-0"
-	>
-		<div>
-			<div class="font-bold text-base text-ink flex items-center gap-2">
-				<span>Environment & PATH Debugger</span>
-			</div>
-			<div class="text-xs text-muted">
-				Detect invalid directory paths, duplicate entries & audit developer environment variables
+<div class="flex flex-col h-full min-h-0 gap-2 p-1">
+	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
+		<div class="min-w-0">
+			<div class="font-bold text-base text-ink">PATH</div>
+			<div class="text-xs text-muted truncate">
+				Folders Windows searches for programs, checked for missing folders and repeats
 			</div>
 		</div>
-
-		<button
-			class="text-xs bg-ground px-3 py-1.5 rounded-lg cursor-pointer hover:bg-line font-medium transition-transform active:scale-95 border border-line"
-			onclick={loadAnalysis}
-			disabled={isLoading}
-		>
-			{isLoading ? 'Scanning...' : 'Refresh'}
-		</button>
+		<div class="flex items-center gap-2 shrink-0">
+			{#if analysis?.can_undo}
+				<button class="btn btn-secondary" disabled={isSaving} onclick={undo}>Undo last fix</button>
+			{/if}
+			{#if fixable.length > 0}
+				<button
+					class="btn btn-danger"
+					disabled={chosen.length === 0 || isSaving}
+					onclick={() => (showConfirm = true)}
+				>
+					Remove {chosen.length}
+					{chosen.length === 1 ? 'entry' : 'entries'}
+				</button>
+			{/if}
+			<button class="btn btn-secondary" disabled={isLoading || isSaving} onclick={load}>Refresh</button>
+		</div>
 	</div>
 
-	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Parsing %PATH% directory entries...
-		</div>
-	{:else if analysis}
-		<div class="flex-1 flex flex-col min-h-0 space-y-2">
-			<!-- Stats Summary Bar -->
-			<div
-				class="grid grid-cols-4 gap-3 bg-ground p-2.5 rounded-xl text-xs border border-line shrink-0"
-			>
-				<div>
-					<div class="text-[10px] text-muted">Total PATH Entries</div>
-					<div class="font-bold font-mono text-ink">
-						{analysis.total_entries}
-					</div>
-				</div>
-				<div>
-					<div class="text-[10px] text-muted">Valid Directories</div>
-					<div class="font-bold font-mono text-green-700 dark:text-green-400">{analysis.valid_entries}</div>
-				</div>
-				<div>
-					<div class="text-[10px] text-muted">Invalid / Broken</div>
-					<div
-						class="font-bold font-mono {analysis.invalid_entries > 0
-							? 'text-red-600 dark:text-red-400'
-							: 'text-muted'}"
-					>
-						{analysis.invalid_entries}
-					</div>
-				</div>
-				<div>
-					<div class="text-[10px] text-muted">Duplicates</div>
-					<div
-						class="font-bold font-mono {analysis.duplicates_count > 0
-							? 'text-amber-700 dark:text-amber-400'
-							: 'text-muted'}"
-					>
-						{analysis.duplicates_count}
-					</div>
-				</div>
-			</div>
-
-			<!-- Path Table -->
-			<div class="flex-1 basis-0 min-h-0 overflow-y-auto overscroll-contain pr-2 rounded-lg">
-				<table class="w-full text-xs text-left border-collapse">
-					<thead class="sticky top-0 z-10 bg-tile shadow-xs">
-						<tr
-							class="border-b border-line text-muted uppercase tracking-wider text-[10px]"
-						>
-							<th class="py-2 pl-2">System PATH Entry</th>
-							<th class="py-2 text-center">Directory Health</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-line">
-						{#each analysis.path_entries as entry}
-							<tr class="hover:bg-ground transition-colors">
-								<td
-									class="py-2 pl-2 font-mono text-[10px] text-ink truncate max-w-[420px]"
-									title={entry.path}
-								>
-									{entry.path}
-								</td>
-								<td class="py-2 text-center">
-									{#if entry.is_duplicate}
-										<span
-											class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/30 text-[10px]"
-										>
-											Duplicate
-										</span>
-									{:else if !entry.is_valid}
-										<span
-											class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 font-semibold border border-red-500/30 text-[10px]"
-										>
-											Missing / Broken
-										</span>
-									{:else}
-										<span
-											class="px-2 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400 font-medium text-[10px]"
-										>
-											Valid
-										</span>
-									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+	{#if statusMessage}
+		<div class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate" title={statusMessage}>
+			{statusMessage}
 		</div>
 	{/if}
 
-	<!-- Footer Note -->
-	<div
-		class="text-[11px] text-muted pt-1.5 border-t border-line flex justify-between items-center shrink-0"
-	>
-		<span>Environment & PATH Inspection</span>
-		<span class="text-[10px] text-muted">Environment diagnostics</span>
-	</div>
+	{#if isLoading && !analysis}
+		<div class="flex-1 flex items-center justify-center text-muted animate-pulse">Reading PATH...</div>
+	{:else if analysis}
+		<div class="text-muted shrink-0">
+			{analysis.total_entries} entries ·
+			{#if problems === 0}
+				<span class="text-green-700 dark:text-green-400 font-semibold">all good</span>
+			{:else}
+				<span class="text-amber-700 dark:text-amber-400 font-semibold">
+					{analysis.invalid_entries} missing, {analysis.duplicates_count} repeated
+				</span>
+				{#if fixable.length < problems && analysis.editable}
+					· {problems - fixable.length} in the system PATH need administrator rights
+				{/if}
+			{/if}
+		</div>
+
+		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+			{#each SCOPES as scope (scope.id)}
+				{@const entries = analysis.path_entries.filter((e) => e.scope === scope.id)}
+				{#if entries.length > 0}
+					<div class="flex items-baseline justify-between gap-2 pt-2 pb-1 sticky top-0 bg-tile z-10">
+						<span class="text-[10px] uppercase tracking-wider font-semibold text-muted">{scope.label}</span>
+						<span class="text-[10px] text-muted">{scope.note}</span>
+					</div>
+					{#each entries as entry (entry.scope + entry.index)}
+						<label
+							class="flex items-center gap-2.5 h-8 border-b border-line {entry.fixable ? 'cursor-pointer' : ''}"
+						>
+							<input
+								type="checkbox"
+								class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent disabled:opacity-0"
+								disabled={!entry.fixable || isSaving}
+								bind:checked={selected[entry.index]}
+							/>
+							<span
+								class="flex-1 min-w-0 font-mono text-[11px] truncate {entry.is_valid && !entry.is_duplicate
+									? 'text-ink'
+									: 'text-muted line-through decoration-muted/50'}"
+								title={entry.raw === entry.path ? entry.path : `${entry.raw}\n${entry.path}`}
+							>
+								{entry.raw}
+							</span>
+							{#if entry.is_duplicate}
+								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+									Repeated
+								</span>
+							{:else if !entry.is_valid}
+								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-700 dark:text-red-400 font-semibold">
+									Missing folder
+								</span>
+							{/if}
+						</label>
+					{/each}
+				{/if}
+			{/each}
+		</div>
+	{/if}
 </div>
 
+<Modal
+	bind:showModal={showConfirm}
+	width="max-w-md"
+	showClose={!isSaving}
+	title="Remove {chosen.length} {chosen.length === 1 ? 'entry' : 'entries'} from your PATH?"
+	description="Only your own PATH changes. You can undo this afterwards."
+>
+	<div class="flex flex-col gap-2">
+		<div class="max-h-32 overflow-y-auto rounded-lg bg-ground border border-line px-2.5 py-1.5">
+			{#each chosen as entry (entry.index)}
+				<div class="flex justify-between gap-3 py-0.5">
+					<span class="font-mono text-[11px] truncate" title={entry.raw}>{entry.raw}</span>
+					<span class="shrink-0 text-muted">{entry.is_duplicate ? 'repeated' : 'missing'}</span>
+				</div>
+			{/each}
+		</div>
+		<p class="text-muted leading-relaxed">
+			Programs already running keep the PATH they started with. Open a new terminal to see the
+			change.
+		</p>
+	</div>
+	{#snippet actions()}
+		<button class="btn btn-secondary" disabled={isSaving} onclick={() => (showConfirm = false)}>Cancel</button>
+		<button class="btn btn-danger" disabled={isSaving} onclick={removeChosen}>
+			{isSaving ? 'Removing...' : 'Remove'}
+		</button>
+	{/snippet}
+</Modal>

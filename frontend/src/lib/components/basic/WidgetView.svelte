@@ -16,6 +16,7 @@
 	} from '$lib/widget.svelte';
 	import { onDestroy } from 'svelte';
 	import Logo from '../ui/Logo.svelte';
+	import { driveAlerts, isDriveAlerted } from '$lib/alerts.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
 	const DISK_REFRESH_MS = 2000;
@@ -49,6 +50,8 @@
 		color: string;
 		// -1 free space falling, 1 rising, 0 steady or not a drive
 		trend: number;
+		// a low-space or fast-drop alert was raised for this drive recently
+		alerted?: boolean;
 	};
 
 	// one row per reading the user chose, in a fixed order
@@ -94,10 +97,12 @@
 						? `${formatBytes(drive.free_bytes)} free of ${formatBytes(drive.total_bytes)}` +
 							(moving
 								? ` · ${change < 0 ? 'down' : 'up'} ${formatBytes(Math.abs(change))} in the last minute`
-								: ' · steady')
+								: ' · steady') +
+							(isDriveAlerted(path) ? ` · ${driveAlerts.byDrive[path].title}` : '')
 						: 'Drive not found',
 					pct: drive?.used_pct ?? 0,
 					color: usageBarColor(drive?.used_pct ?? 0),
+					alerted: isDriveAlerted(path),
 					trend: moving ? Math.sign(change) : 0
 				};
 			}
@@ -198,7 +203,12 @@
 	<!-- one compact line per reading: name, bar, value -->
 	{#each rows as row (row.id)}
 		<div class="flex-1 min-h-0 flex items-center gap-2" title={row.detail || undefined}>
-			<span class="w-[50px] shrink-0 text-muted font-medium truncate">{row.label}</span>
+			<span
+				class="w-[50px] shrink-0 font-medium truncate {row.alerted
+					? 'text-red-600 dark:text-red-400'
+					: 'text-muted'}"
+				>{row.label}</span
+			>
 			<span class="flex-1 h-1 rounded-full bg-track">
 				<span
 					class="block h-1 rounded-full transition-all duration-700 ease-out {row.color}"
@@ -215,7 +225,9 @@
 						<StrokeIcon d="M6 15l6-6 6 6" size={11} />
 					</span>
 				{/if}
-				<span class="whitespace-nowrap">{row.value}</span>
+				<span class="whitespace-nowrap {row.alerted ? 'text-red-600 dark:text-red-400' : ''}"
+					>{row.value}</span
+				>
 			</span>
 		</div>
 	{/each}

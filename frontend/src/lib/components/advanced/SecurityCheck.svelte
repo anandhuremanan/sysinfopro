@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { load, recall } from '$lib/cache';
 	import { GetSecurityReport } from '$lib/wailsjs/go/main/App';
 
 	type Check = {
@@ -39,7 +41,7 @@
 	// Problems first, then things to review
 	const ORDER: Check['status'][] = ['fail', 'warn', 'unknown', 'pass'];
 
-	let report = $state<Report | undefined>(undefined);
+	let report = $state<Report | undefined>(recall('security'));
 	let isLoading = $state(false);
 	let loadError = $state<string | undefined>(undefined);
 
@@ -49,11 +51,12 @@
 			: []
 	);
 
-	async function loadReport() {
-		isLoading = true;
+	// opening the screen reuses a result up to five minutes old; Check again always runs anew
+	async function loadReport(force = false) {
+		isLoading = force || !report;
 		loadError = undefined;
 		try {
-			report = (await GetSecurityReport()) as Report;
+			report = (await load('security', GetSecurityReport, 5 * 60_000, force)) as Report;
 		} catch (err) {
 			console.error('Failed to run security check:', err);
 			loadError = `${err}`;
@@ -62,7 +65,8 @@
 		}
 	}
 
-	$effect(() => {
+	// load once when the screen opens
+	onMount(() => {
 		loadReport();
 	});
 </script>
@@ -83,7 +87,7 @@
 					{report.passed} of {report.checks.length} passed
 				</span>
 			{/if}
-			<button class="btn btn-secondary" onclick={loadReport} disabled={isLoading}>
+			<button class="btn btn-secondary" onclick={() => loadReport(true)} disabled={isLoading}>
 				{isLoading ? 'Checking...' : 'Check again'}
 			</button>
 		</div>
@@ -96,7 +100,7 @@
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>
-			<button class="btn btn-secondary" onclick={loadReport}>Try again</button>
+			<button class="btn btn-secondary" onclick={() => loadReport(true)}>Try again</button>
 		</div>
 	{:else if report}
 		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">

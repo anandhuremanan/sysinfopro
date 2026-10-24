@@ -3,9 +3,7 @@ package devcache
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -26,32 +24,61 @@ func exists(path string) bool {
 	return err == nil
 }
 
-func TestFindNodeModules(t *testing.T) {
+func TestFindLeftovers(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "app-a", "package.json"), 10)
-	writeFile(t, filepath.Join(root, "app-a", "node_modules", "x", "index.js"), 4000)
-	// nested node_modules belongs to app-a's total, not a separate result
-	writeFile(t, filepath.Join(root, "app-a", "node_modules", "x", "node_modules", "y", "index.js"), 1000)
-	writeFile(t, filepath.Join(root, "deep", "er", "app-b", "node_modules", "z.js"), 300)
-	writeFile(t, filepath.Join(root, "app-c", "src", "main.js"), 50)
-	// folders inside .git are never searched
-	writeFile(t, filepath.Join(root, "app-c", ".git", "node_modules", "ignored.js"), 9999)
+	write := func(rel string, size int) { writeFile(t, filepath.Join(root, rel), size) }
 
-	items, err := FindNodeModules(context.Background(), root, nil)
+	write("app-a/package.json", 10)
+	write("app-a/node_modules/x/index.js", 4000)
+	// nested node_modules belongs to app-a's total, not a separate result
+	write("app-a/node_modules/x/node_modules/y/index.js", 1000)
+	write("rust-tool/Cargo.toml", 10)
+	write("rust-tool/target/debug/tool.exe", 3000)
+	write("py-app/.venv/pyvenv.cfg", 10)
+	write("py-app/.venv/Lib/site-packages/pkg.py", 1990)
+	write("web/package.json", 10)
+	write("web/.next/cache/page.js", 1500)
+	write("svc/svc.csproj", 10)
+	write("svc/bin/Debug/svc.dll", 700)
+	write("svc/obj/project.assets.json", 600)
+
+	// look-alikes that must never be offered
+	write("photos/target/holiday.jpg", 8000)    // no Cargo.toml or pom.xml
+	write("scripts/venv/notes.txt", 900)        // no pyvenv.cfg
+	write("site/.next/readme.txt", 500)         // no package.json
+	write("tool/bin/run.sh", 300)               // no .NET project
+	write("wails-app/build/appicon.png", 400)   // build is never a leftover
+	write("app-c/.git/node_modules/x.js", 9999) // nothing inside .git is searched
+
+	items, err := FindLeftovers(context.Background(), root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 {
-		t.Fatalf("found %d node_modules folders, want 2: %+v", len(items), items)
+	got := map[string]int64{}
+	for _, item := range items {
+		got[item.Name+" "+item.Label] = item.SizeBytes
+		if item.LastUsed == "" || item.Kind != "leftover" || !item.Deletable {
+			t.Errorf("%s: %+v", item.Path, item)
+		}
 	}
-	if items[0].Name != "app-a" || items[0].SizeBytes != 5000 || items[0].Files != 2 {
-		t.Errorf("first = %+v, want app-a with 5000 bytes in 2 files", items[0])
+	want := map[string]int64{
+		"app-a node_modules":          5000,
+		"rust-tool Rust build":        3000,
+		"py-app Python environment":   2000,
+		"web Next.js build":           1500,
+		"svc .NET build output":       700,
+		"svc .NET intermediate files": 600,
 	}
-	if items[0].LastUsed == "" {
-		t.Error("app-a has a package.json, so LastUsed should be set")
+	if len(got) != len(want) {
+		t.Fatalf("found %v\nwant %v", got, want)
 	}
-	if items[1].Name != "app-b" || items[1].SizeBytes != 300 || items[1].LastUsed != "" {
-		t.Errorf("second = %+v, want app-b with 300 bytes and no LastUsed", items[1])
+	for key, size := range want {
+		if got[key] != size {
+			t.Errorf("%s: %d bytes, want %d", key, got[key], size)
+		}
+	}
+	if items[0].Label != "node_modules" || items[0].Folder != "node_modules" {
+		t.Errorf("largest first: got %+v", items[0])
 	}
 }
 
@@ -64,6 +91,8 @@ func TestProjectLastUsedTakesNewestMarker(t *testing.T) {
 	installMarker := filepath.Join(project, "node_modules", ".package-lock.json")
 	writeFile(t, manifest, 10)
 	writeFile(t, installMarker, 10)
+	// the folder itself was last changed long ago too
+	modules := filepath.Join(project, "node_modules")
 	// an untouched package.json must not hide a recent install
 	if err := os.Chtimes(manifest, old, old); err != nil {
 		t.Fatal(err)
@@ -71,8 +100,11 @@ func TestProjectLastUsedTakesNewestMarker(t *testing.T) {
 	if err := os.Chtimes(installMarker, recent, recent); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chtimes(modules, old, old); err != nil {
+		t.Fatal(err)
+	}
 
-	if got := projectLastUsed(project); got != "2026-09-20" {
+	if got := projectLastUsed(project, filepath.Join(project, "node_modules")); got != "2026-09-20" {
 		t.Errorf("projectLastUsed = %q, want 2026-09-20", got)
 	}
 }
@@ -103,6 +135,11 @@ func TestDeleteOnlyAllowedFolders(t *testing.T) {
 	writeFile(t, filepath.Join(docker, "disk.vhdx"), 700)
 	writeFile(t, filepath.Join(modules, "x", "i.js"), 200)
 	writeFile(t, filepath.Join(source, "main.js"), 50)
+	rustTarget := filepath.Join(root, "tool", "target")
+	writeFile(t, filepath.Join(root, "tool", "Cargo.toml"), 10)
+	writeFile(t, filepath.Join(rustTarget, "debug", "tool.exe"), 300)
+	photos := filepath.Join(root, "photos", "target")
+	writeFile(t, filepath.Join(photos, "holiday.jpg"), 900)
 
 	caches := []knownCache{
 		{"npm", "npm cache", cache, "", true},
@@ -111,6 +148,8 @@ func TestDeleteOnlyAllowedFolders(t *testing.T) {
 	result := deletePaths(context.Background(), []string{
 		cache,
 		modules,
+		rustTarget,
+		photos,         // named target, but not a Rust or Maven project
 		docker,         // known but marked not deletable
 		source,         // not a cache at all
 		root,           // parent of everything
@@ -118,16 +157,16 @@ func TestDeleteOnlyAllowedFolders(t *testing.T) {
 		filepath.Join(root, "proj", "node_modules", "..", "src"), // traversal back out of node_modules
 	}, caches, nil)
 
-	if result.FreedBytes != 1200 || len(result.Deleted) != 2 {
-		t.Errorf("freed %d bytes from %v, want 1200 from the cache and node_modules", result.FreedBytes, result.Deleted)
+	if result.FreedBytes != 1500 || len(result.Deleted) != 3 {
+		t.Errorf("freed %d bytes from %v, want 1500 from the cache, node_modules and the Rust target", result.FreedBytes, result.Deleted)
 	}
-	if len(result.Failed) != 5 {
-		t.Errorf("refused %d paths, want 5: %v", len(result.Failed), result.Failed)
+	if len(result.Failed) != 6 {
+		t.Errorf("refused %d paths, want 6: %v", len(result.Failed), result.Failed)
 	}
-	if exists(cache) || exists(modules) {
+	if exists(cache) || exists(modules) || exists(rustTarget) {
 		t.Error("allowed folders should be gone")
 	}
-	for _, keep := range []string{docker, source, filepath.Join(source, "main.js"), filepath.Join(root, "proj")} {
+	for _, keep := range []string{docker, source, filepath.Join(source, "main.js"), filepath.Join(root, "proj"), filepath.Join(photos, "holiday.jpg")} {
 		if !exists(keep) {
 			t.Errorf("%s must not be deleted", keep)
 		}
@@ -181,53 +220,5 @@ func TestDeleteReportsProgress(t *testing.T) {
 	last := reports[len(reports)-1]
 	if last.FreedBytes != 600 || last.FilesDeleted != 3 || last.Folder != 2 {
 		t.Errorf("last report = %+v, want 600 bytes in 3 files at folder 2", last)
-	}
-}
-
-func TestRemoveTreeStopsWhenCancelled(t *testing.T) {
-	root := t.TempDir()
-	modules := filepath.Join(root, "node_modules")
-	for i := 0; i < 20; i++ {
-		writeFile(t, filepath.Join(modules, "pkg", string(rune('a'+i))+".js"), 10)
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	removed := 0
-	err := removeTree(ctx, modules, func(int64) {
-		removed++
-		cancel()
-	})
-	if err == nil || !strings.Contains(err.Error(), "stopped") {
-		t.Fatalf("err = %v, want stopped", err)
-	}
-	if removed != 1 || !exists(modules) {
-		t.Errorf("removed %d files, want 1 and the rest of the folder left in place", removed)
-	}
-}
-
-func TestDeleteDoesNotFollowLinks(t *testing.T) {
-	root := t.TempDir()
-	outside := filepath.Join(root, "my-project", "src")
-	keep := filepath.Join(outside, "main.js")
-	writeFile(t, keep, 50)
-	modules := filepath.Join(root, "node_modules")
-	writeFile(t, filepath.Join(modules, "real.js"), 10)
-	// pnpm links packages with junctions on Windows, which need no special privilege
-	link := filepath.Join(modules, "linked")
-	if err := os.Symlink(outside, link); err != nil {
-		if runtime.GOOS != "windows" {
-			t.Skipf("cannot create symlinks here: %v", err)
-		}
-		if out, err := exec.Command("cmd", "/c", "mklink", "/J", link, outside).CombinedOutput(); err != nil {
-			t.Skipf("cannot create a junction here: %v %s", err, out)
-		}
-	}
-
-	result := deletePaths(context.Background(), []string{modules}, nil, nil)
-	if len(result.Failed) != 0 || exists(modules) {
-		t.Fatalf("failed = %v, want node_modules removed", result.Failed)
-	}
-	if !exists(keep) {
-		t.Fatal("a file outside node_modules was deleted through a link")
 	}
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tools, type Tool, type ToolStatus } from '$lib/tools';
+	import { matchTool, tools, type Tool, type ToolStatus } from '$lib/tools';
 	import ToolTile from '../ui/ToolTile.svelte';
 
 	let {
@@ -13,12 +13,9 @@
 	let searchTerm = $state('');
 
 	let groups = $derived.by(() => {
-		const term = searchTerm.trim().toLowerCase();
 		const byGroup = new Map<string, Tool[]>();
 		for (const tool of tools) {
-			if (term && !tool.name.toLowerCase().includes(term) && !tool.group.toLowerCase().includes(term)) {
-				continue;
-			}
+			if (matchTool(tool, searchTerm) === 0) continue;
 			byGroup.set(tool.group, [...(byGroup.get(tool.group) ?? []), tool]);
 		}
 		return [...byGroup.entries()].map(([name, items]) => ({ name, items }));
@@ -31,7 +28,7 @@
 		<input
 			type="search"
 			aria-label="Search tools"
-			placeholder="Search tools"
+			placeholder="Search tools (Ctrl+K)"
 			bind:value={searchTerm}
 			class="text-xs w-48 h-7 px-2.5 py-0 rounded-lg border border-line bg-tile text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
 		/>

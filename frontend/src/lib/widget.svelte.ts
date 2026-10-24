@@ -2,7 +2,9 @@ import { GetDrives, SetWidgetMode } from '$lib/wailsjs/go/main/App';
 import {
 	WindowCenter,
 	WindowSetAlwaysOnTop,
-	WindowSetSize
+	WindowSetSize,
+	WindowShow,
+	WindowUnminimise
 } from '$lib/wailsjs/runtime/runtime';
 
 // 'cpu' | 'memory' | 'battery', or a drive as 'drive:C:'
@@ -129,4 +131,12 @@ export function toggleWidgetMetric(id: WidgetMetric) {
 	}
 	save();
 	if (widget.active) WindowSetSize(WIDGET_WIDTH, widgetHeight());
+}
+
+// the keyboard shortcut: from anywhere, switch between the widget and the full window
+export function toggleWidget() {
+	WindowUnminimise();
+	WindowShow();
+	if (widget.active) exitWidget();
+	else enterWidget();
 }

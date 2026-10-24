@@ -33,7 +33,7 @@
 
 	// Every tile on the home grid opens something
 	const tile =
-		'bg-tile rounded-[14px] min-w-0 text-left cursor-pointer transition-transform active:scale-[0.99] hover:ring-1 hover:ring-line';
+		'bg-tile rounded-[14px] min-w-0 text-left cursor-pointer transition-transform active:scale-[0.99] hover:ring-1 hover:ring-inset hover:ring-line';
 
 	let score = $derived(Math.round(report?.overall_score ?? 0));
 	let issueCount = $derived(report?.recommendations?.length ?? 0);

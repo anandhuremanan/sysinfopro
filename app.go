@@ -13,18 +13,26 @@ import (
 	"time"
 
 	"myproject/functions"
+	"myproject/internal/alerts"
+	"myproject/internal/cleaner"
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/hardware"
 	"myproject/internal/history"
+	"myproject/internal/hotkey"
 	"myproject/internal/locks"
 	"myproject/internal/network"
+	"myproject/internal/notify"
 	"myproject/internal/process"
+	"myproject/internal/reminder"
 	"myproject/internal/security"
 	"myproject/internal/storage"
 	"myproject/internal/system"
+	"myproject/internal/vdisk"
+	"myproject/internal/winget"
 	"myproject/internal/winwidget"
 
+	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -39,6 +47,17 @@ type App struct {
 	devScanMu       sync.Mutex
 	devScanCancel   context.CancelFunc
 	devDeleteCancel context.CancelFunc
+
+	cleanMu     sync.Mutex
+	cleanCancel context.CancelFunc
+
+	alerts *alerts.Monitor
+
+	hotkeyMu       sync.Mutex
+	hotkeyListener *hotkey.Listener
+	hotkeySettings hotkey.Settings
+
+	reminderMu sync.Mutex
 }
 
 // NewApp creates a new App application struct
@@ -52,6 +71,137 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	functions.StartCPUMonitoring(ctx)
 	functions.StartMemoryMonitoring(ctx)
+	a.alerts = alerts.NewMonitor(alerts.LoadSettings())
+	go a.watchDrives(ctx)
+	a.applyHotkey(hotkey.LoadSettings())
+	go a.reminderLoop(ctx)
+}
+
+// reminderLoop runs the monthly cleanup check when it is due: a couple of
+// minutes after start, so it never slows opening the app, then every few hours
+func (a *App) reminderLoop(ctx context.Context) {
+	wait := 2 * time.Minute
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
+		}
+		a.runReminderCheck(ctx, false)
+		wait = 6 * time.Hour
+	}
+}
+
+// runReminderCheck measures what could be freed and raises the reminder if it is
+// worth it; force skips the once-a-month rule
+func (a *App) runReminderCheck(ctx context.Context, force bool) {
+	a.reminderMu.Lock()
+	defer a.reminderMu.Unlock()
+
+	s := reminder.LoadSettings()
+	if !s.Enabled || (!force && !reminder.Due(s, time.Now())) {
+		return
+	}
+
+	var f reminder.Findings
+	for _, c := range devcache.ScanCaches(ctx) {
+		if c.Deletable {
+			f.CacheBytes += c.SizeBytes
+		}
+	}
+	f.JunkBytes = cleaner.Scan(ctx, cleaner.DefaultLocations()).TotalBytes
+	if s.ProjectsRoot != "" {
+		cutoff := time.Now().Add(-reminder.StaleAfter).Format("2006-01-02")
+		leftovers, _ := devcache.FindLeftovers(ctx, s.ProjectsRoot, nil)
+		for _, l := range leftovers {
+			if l.LastUsed != "" && l.LastUsed < cutoff {
+				f.LeftoverBytes += l.SizeBytes
+				f.LeftoverCount++
+			}
+		}
+	}
+	if ctx.Err() != nil {
+		return
+	}
+
+	s.LastCheck = time.Now().Unix()
+	reminder.SaveSettings(s)
+	if title, body, ok := reminder.Message(f); ok {
+		a.raise(alerts.Alert{Kind: "reminder", Title: title, Body: body, At: time.Now().UnixMilli()})
+	}
+}
+
+// applyHotkey (re)registers the widget shortcut; a press asks the frontend to
+// switch between the widget and the full window
+func (a *App) applyHotkey(s hotkey.Settings) hotkey.Settings {
+	a.hotkeyMu.Lock()
+	defer a.hotkeyMu.Unlock()
+	a.hotkeyListener.Stop()
+	a.hotkeyListener = nil
+	s.Error = ""
+	if s.Enabled {
+		listener, err := hotkey.Listen(s.Combo, func() {
+			runtime.EventsEmit(a.ctx, "widget-hotkey")
+		})
+		if err != nil {
+			s.Error = err.Error()
+		} else {
+			a.hotkeyListener = listener
+		}
+	}
+	a.hotkeySettings = s
+	return s
+}
+
+// how often free space is checked for alerts
+const driveCheckInterval = 30 * time.Second
+
+// watchDrives checks every drive's free space while the app (or its widget) is
+// open, and raises low-space and fast-drop alerts
+func (a *App) watchDrives(ctx context.Context) {
+	ticker := time.NewTicker(driveCheckInterval)
+	defer ticker.Stop()
+	for {
+		if drives, err := storage.ListDrives(); err == nil {
+			now := time.Now()
+			for _, d := range drives {
+				name := strings.TrimRight(d.Path, `\/`)
+				for _, alert := range a.alerts.Observe(name, d.FreeBytes, d.TotalBytes, now) {
+					a.raise(alert)
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// raise shows an alert as a Windows notification and inside the app, which
+// still works where an organisation has turned notifications off
+func (a *App) raise(alert alerts.Alert) {
+	// inside the app the banner has a button for the next step instead
+	body := alert.Body
+	switch alert.Kind {
+	case "low", "dropping":
+		body += " Open SysInfo Pro to see what is taking the space."
+	case "reminder":
+		body += " Open SysInfo Pro, then Dev caches, to review it."
+	}
+	notify.Send(alert.Title, body)
+	runtime.EventsEmit(a.ctx, "drive-alert", alert)
+}
+
+// onSecondInstance brings the open window forward when the app is started again,
+// for example from the Start menu or by clicking a notification
+func (a *App) onSecondInstance(options.SecondInstanceData) {
+	if a.ctx == nil {
+		return
+	}
+	runtime.WindowUnminimise(a.ctx)
+	runtime.Show(a.ctx)
 }
 
 // Greet returns a greeting for the given name
@@ -126,38 +276,36 @@ func (a *App) GetBatteryDetails() (string, error) {
 	return string(jsonBytes), nil
 }
 
-func (a *App) ScanCleanableFiles() (functions.CleanerResult, error) {
-	result := functions.GetCleanableFiles()
-	return result, nil
+// ScanJunk totals the temporary files and browser caches that CleanJunk would remove
+func (a *App) ScanJunk() cleaner.ScanResult {
+	return cleaner.Scan(a.ctx, cleaner.DefaultLocations())
 }
 
-// ScanSafeCleanableFiles scans only user directories (no admin required)
-func (a *App) ScanSafeCleanableFiles() (functions.CleanerResult, error) {
-	result := functions.SafeClean()
-	return result, nil
-}
+// CleanJunk removes temporary files and browser caches, leaving anything changed
+// in the last hour. Progress is sent as "cleaner-progress" events.
+func (a *App) CleanJunk() cleaner.Summary {
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
 
-// CleanSelectedFiles cleans the selected files and returns results
-func (a *App) CleanSelectedFiles(files []functions.FileInfo) map[string]interface{} {
-	count, size, failures := functions.CleanFiles(files)
-
-	return map[string]interface{}{
-		"cleanedCount":  count,
-		"cleanedSize":   size,
-		"formattedSize": functions.GetFormattedSize(size),
-		"failures":      failures,
+	a.cleanMu.Lock()
+	if a.cleanCancel != nil {
+		a.cleanCancel()
 	}
+	a.cleanCancel = cancel
+	a.cleanMu.Unlock()
+
+	return cleaner.Clean(ctx, cleaner.DefaultLocations(), func(p cleaner.Progress) {
+		runtime.EventsEmit(a.ctx, "cleaner-progress", p)
+	})
 }
 
-// PurgeJunkFiles purges all scanned temporary files, logs, and caches
-func (a *App) PurgeJunkFiles() map[string]interface{} {
-	count, size, failures := functions.PurgeJunk()
-
-	return map[string]interface{}{
-		"cleanedCount":  count,
-		"cleanedSize":   size,
-		"formattedSize": functions.GetFormattedSize(size),
-		"failures":      failures,
+// CancelCleanJunk stops a running CleanJunk after the file it is on
+func (a *App) CancelCleanJunk() {
+	a.cleanMu.Lock()
+	defer a.cleanMu.Unlock()
+	if a.cleanCancel != nil {
+		a.cleanCancel()
+		a.cleanCancel = nil
 	}
 }
 
@@ -217,32 +365,6 @@ func (a *App) GetEnvPathAnalysis() (*system.EnvPathAnalysis, error) {
 // GetSoftwareHealthDetails audits installed software versions against official releases
 func (a *App) GetSoftwareHealthDetails() ([]system.SoftwareItem, error) {
 	return system.GetSoftwareHealthDetails()
-}
-
-// CheckCleanerPermissions checks if we have elevated permissions
-func (a *App) CheckCleanerPermissions() functions.PermissionStatus {
-	return functions.CheckPermissions()
-}
-
-// GetFormattedSize returns a human-readable size
-func (a *App) GetFormattedSize(size int64) string {
-	return functions.GetFormattedSize(size)
-}
-
-// CheckUpdate checks for updates
-func (a *App) CheckUpdate() (string, error) {
-	updateStatus, err := functions.CheckUpdate()
-
-	if err != nil {
-		return "Error Occured", fmt.Errorf("error checking for update: %w", err)
-	}
-
-	jsonBytes, err := json.MarshalIndent(updateStatus, "", "  ")
-	if err != nil {
-		return "Error Occured", fmt.Errorf("error marshalling JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
 }
 
 // --- Version 3.0 RPC Endpoints ---
@@ -306,8 +428,9 @@ func (a *App) PickFolder(title string) (string, error) {
 	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
 }
 
-// FindNodeModules searches a folder for node_modules directories; a new search cancels the previous one
-func (a *App) FindNodeModules(root string) ([]devcache.Item, error) {
+// FindLeftovers searches a folder for project leftovers (node_modules, Rust target,
+// Python virtual environments and similar); a new search cancels the previous one
+func (a *App) FindLeftovers(root string) ([]devcache.Item, error) {
 	ctx, cancel := context.WithCancel(a.ctx)
 	defer cancel()
 
@@ -318,15 +441,21 @@ func (a *App) FindNodeModules(root string) ([]devcache.Item, error) {
 	a.devScanCancel = cancel
 	a.devScanMu.Unlock()
 
-	return devcache.FindNodeModules(ctx, root, func(current string) {
+	// the monthly reminder looks for old leftovers in the folder searched last
+	if s := reminder.LoadSettings(); s.ProjectsRoot != root {
+		s.ProjectsRoot = root
+		reminder.SaveSettings(s)
+	}
+
+	return devcache.FindLeftovers(ctx, root, func(current string) {
 		if ctx.Err() == nil {
 			runtime.EventsEmit(a.ctx, "devcache-progress", current)
 		}
 	})
 }
 
-// CancelNodeModulesSearch stops the running node_modules search, if any
-func (a *App) CancelNodeModulesSearch() {
+// CancelLeftoverSearch stops the running leftover search, if any
+func (a *App) CancelLeftoverSearch() {
 	a.devScanMu.Lock()
 	defer a.devScanMu.Unlock()
 	if a.devScanCancel != nil {
@@ -335,7 +464,7 @@ func (a *App) CancelNodeModulesSearch() {
 	}
 }
 
-// DeleteDevCaches removes the given cache or node_modules folders; any other path is refused.
+// DeleteDevCaches removes the given caches or project leftovers; any other path is refused.
 // Progress is sent as "devcache-delete-progress" events.
 func (a *App) DeleteDevCaches(paths []string) *devcache.DeleteResult {
 	ctx, cancel := context.WithCancel(a.ctx)
@@ -503,9 +632,9 @@ func (a *App) TerminateProcess(pid int32) error {
 	return process.TerminateProcess(pid)
 }
 
-// GetDriveHealthDetails returns storage health inspection data
-func (a *App) GetDriveHealthDetails() ([]hardware.DriveHealthInfo, error) {
-	return hardware.GetDriveHealthDetails()
+// GetDriveHealth reports what each drive and Windows say about its condition
+func (a *App) GetDriveHealth() ([]hardware.DriveHealth, error) {
+	return hardware.GetDriveHealth(a.ctx)
 }
 
 // GetDiagnosticReport returns system health report
@@ -539,4 +668,113 @@ func (a *App) GetDiagnosticReport() (diagnostics.DiagnosticReport, error) {
 	}
 
 	return diagnostics.EvaluateSystemHealth(input), nil
+}
+
+// GetAlertSettings returns the low-space alert settings
+func (a *App) GetAlertSettings() alerts.Settings {
+	return a.alerts.Settings()
+}
+
+// SetAlertSettings saves and applies new low-space alert settings
+func (a *App) SetAlertSettings(s alerts.Settings) error {
+	a.alerts.SetSettings(s)
+	return alerts.SaveSettings(s)
+}
+
+// GetNotificationStatus reports whether Windows will show the app's notifications
+func (a *App) GetNotificationStatus() string {
+	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	return notify.Status(ctx)
+}
+
+// SendTestAlert raises a sample alert so the user can see what one looks like
+func (a *App) SendTestAlert() {
+	a.raise(alerts.Alert{
+		Drive: "C:", Kind: "test", At: time.Now().UnixMilli(),
+		Title: "Alerts are on",
+		Body:  "SysInfo Pro will tell you here when a drive runs low or fills up fast.",
+	})
+}
+
+// ListVirtualDisks returns the virtual disks of WSL distributions and Docker Desktop
+func (a *App) ListVirtualDisks() []vdisk.Disk {
+	return vdisk.ListDisks()
+}
+
+// GetDockerUsage reports how much space Docker uses and could give back
+func (a *App) GetDockerUsage() vdisk.DockerUsage {
+	return vdisk.GetDockerUsage(a.ctx)
+}
+
+// PruneDocker removes Docker's unused data (volumes are kept) and returns the
+// space Docker reports as reclaimed
+func (a *App) PruneDocker() (string, error) {
+	return vdisk.PruneDocker(a.ctx)
+}
+
+// GetWingetUpgrades lists the installed apps that Windows Package Manager can update
+func (a *App) GetWingetUpgrades() winget.Result {
+	return winget.ListUpgrades(a.ctx)
+}
+
+// UpgradeWithWinget updates one app by its winget ID
+func (a *App) UpgradeWithWinget(id string) error {
+	return winget.Upgrade(a.ctx, id)
+}
+
+// RemoveUserPathEntries removes broken or duplicate entries from the user's own
+// PATH; original is the stored PATH they were chosen from
+func (a *App) RemoveUserPathEntries(original string, indices []int) (*system.EnvPathAnalysis, error) {
+	return system.RemoveUserPathEntries(original, indices)
+}
+
+// UndoPathChange restores the user PATH as it was before the last removal
+func (a *App) UndoPathChange() (*system.EnvPathAnalysis, error) {
+	return system.UndoPathChange()
+}
+
+// GetHotkeySettings returns the widget shortcut setting, with an error if Windows refused it
+func (a *App) GetHotkeySettings() hotkey.Settings {
+	a.hotkeyMu.Lock()
+	defer a.hotkeyMu.Unlock()
+	return a.hotkeySettings
+}
+
+// GetHotkeyCombos lists the shortcuts the user can choose from
+func (a *App) GetHotkeyCombos() []string {
+	return hotkey.Combos
+}
+
+// SetHotkeySettings saves and applies the widget shortcut setting
+func (a *App) SetHotkeySettings(enabled bool, combo string) (hotkey.Settings, error) {
+	s := hotkey.Settings{Enabled: enabled, Combo: combo}
+	if err := hotkey.SaveSettings(s); err != nil {
+		return a.GetHotkeySettings(), err
+	}
+	return a.applyHotkey(s), nil
+}
+
+// GetReminderSettings returns the monthly cleanup reminder setting
+func (a *App) GetReminderSettings() reminder.Settings {
+	return reminder.LoadSettings()
+}
+
+// SetReminderEnabled turns the monthly cleanup reminder on or off. Turning it on
+// runs the first check straight away.
+func (a *App) SetReminderEnabled(enabled bool) (reminder.Settings, error) {
+	a.reminderMu.Lock()
+	s := reminder.LoadSettings()
+	s.Enabled = enabled
+	err := reminder.SaveSettings(s)
+	a.reminderMu.Unlock()
+	if err == nil && enabled {
+		go a.runReminderCheck(a.ctx, true)
+	}
+	return s, err
+}
+
+// IsStoreApp reports whether this copy was installed from the Microsoft Store
+func (a *App) IsStoreApp() bool {
+	return functions.IsStorePackage()
 }

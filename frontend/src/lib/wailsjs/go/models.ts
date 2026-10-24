@@ -1,3 +1,95 @@
+export namespace alerts {
+	
+	export class Settings {
+	    enabled: boolean;
+	    min_free_gb: number;
+	    drop_gb: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.min_free_gb = source["min_free_gb"];
+	        this.drop_gb = source["drop_gb"];
+	    }
+	}
+
+}
+
+export namespace cleaner {
+	
+	export class Category {
+	    name: string;
+	    size_bytes: number;
+	    items: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Category(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.size_bytes = source["size_bytes"];
+	        this.items = source["items"];
+	    }
+	}
+	export class ScanResult {
+	    categories: Category[];
+	    total_bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScanResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.categories = this.convertValues(source["categories"], Category);
+	        this.total_bytes = source["total_bytes"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Summary {
+	    freed_bytes: number;
+	    files_deleted: number;
+	    skipped: number;
+	    stopped: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Summary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.freed_bytes = source["freed_bytes"];
+	        this.files_deleted = source["files_deleted"];
+	        this.skipped = source["skipped"];
+	        this.stopped = source["stopped"];
+	    }
+	}
+
+}
+
 export namespace devcache {
 	
 	export class DeleteResult {
@@ -25,6 +117,8 @@ export namespace devcache {
 	    files: number;
 	    note: string;
 	    deletable: boolean;
+	    label: string;
+	    folder: string;
 	    last_used: string;
 	
 	    static createFrom(source: any = {}) {
@@ -41,6 +135,8 @@ export namespace devcache {
 	        this.files = source["files"];
 	        this.note = source["note"];
 	        this.deletable = source["deletable"];
+	        this.label = source["label"];
+	        this.folder = source["folder"];
 	        this.last_used = source["last_used"];
 	    }
 	}
@@ -169,82 +265,6 @@ export namespace functions {
 	        this.sustained_load = source["sustained_load"];
 	    }
 	}
-	export class PermissionStatus {
-	    IsElevated: boolean;
-	    RequiresElevation: boolean;
-	    UnaccessiblePaths: string[];
-	    ElevationCommand: string;
-	    CanCleanUserFiles: boolean;
-	    CanCleanSystemFiles: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new PermissionStatus(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.IsElevated = source["IsElevated"];
-	        this.RequiresElevation = source["RequiresElevation"];
-	        this.UnaccessiblePaths = source["UnaccessiblePaths"];
-	        this.ElevationCommand = source["ElevationCommand"];
-	        this.CanCleanUserFiles = source["CanCleanUserFiles"];
-	        this.CanCleanSystemFiles = source["CanCleanSystemFiles"];
-	    }
-	}
-	export class CleanerResult {
-	    Files: Record<string, Array<FileInfo>>;
-	    TotalSize: number;
-	    Permissions: PermissionStatus;
-	
-	    static createFrom(source: any = {}) {
-	        return new CleanerResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.Files = this.convertValues(source["Files"], Array<FileInfo>, true);
-	        this.TotalSize = source["TotalSize"];
-	        this.Permissions = this.convertValues(source["Permissions"], PermissionStatus);
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class FileInfo {
-	    Path: string;
-	    Size: number;
-	    Name: string;
-	    Location: string;
-	    NeedsElevation: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new FileInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.Path = source["Path"];
-	        this.Size = source["Size"];
-	        this.Name = source["Name"];
-	        this.Location = source["Location"];
-	        this.NeedsElevation = source["NeedsElevation"];
-	    }
-	}
 	export class MemoryStats {
 	    totalRAMMB: number;
 	    freeRAMMB: number;
@@ -346,35 +366,47 @@ export namespace hardware {
 	        this.media = source["media"];
 	    }
 	}
-	export class DriveHealthInfo {
-	    device: string;
-	    mount_point: string;
-	    fs_type: string;
-	    total_gb: number;
-	    free_gb: number;
-	    used_gb: number;
-	    usage_percent: number;
-	    health_status: string;
-	    estimated_life_pct: number;
-	    estimated_life_years: number;
+	export class DriveHealth {
+	    drive: string;
+	    model: string;
+	    type: string;
+	    status: string;
+	    reason: string;
+	    nvme?: storage.NVMeHealth;
+	    life_left_pct: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new DriveHealthInfo(source);
+	        return new DriveHealth(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.device = source["device"];
-	        this.mount_point = source["mount_point"];
-	        this.fs_type = source["fs_type"];
-	        this.total_gb = source["total_gb"];
-	        this.free_gb = source["free_gb"];
-	        this.used_gb = source["used_gb"];
-	        this.usage_percent = source["usage_percent"];
-	        this.health_status = source["health_status"];
-	        this.estimated_life_pct = source["estimated_life_pct"];
-	        this.estimated_life_years = source["estimated_life_years"];
+	        this.drive = source["drive"];
+	        this.model = source["model"];
+	        this.type = source["type"];
+	        this.status = source["status"];
+	        this.reason = source["reason"];
+	        this.nvme = this.convertValues(source["nvme"], storage.NVMeHealth);
+	        this.life_left_pct = source["life_left_pct"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class GPUSpec {
 	    name: string;
@@ -590,6 +622,27 @@ export namespace history {
 
 }
 
+export namespace hotkey {
+	
+	export class Settings {
+	    enabled: boolean;
+	    combo: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.combo = source["combo"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace locks {
 	
 	export class LockingProcess {
@@ -735,6 +788,27 @@ export namespace process {
 	        this.memory_percent = source["memory_percent"];
 	        this.energy_impact = source["energy_impact"];
 	        this.energy_impact_label = source["energy_impact_label"];
+	    }
+	}
+
+}
+
+export namespace reminder {
+	
+	export class Settings {
+	    enabled: boolean;
+	    projects_root: string;
+	    last_check: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.projects_root = source["projects_root"];
+	        this.last_check = source["last_check"];
 	    }
 	}
 
@@ -891,6 +965,32 @@ export namespace storage {
 		    return a;
 		}
 	}
+	export class NVMeHealth {
+	    percent_used: number;
+	    available_spare: number;
+	    spare_threshold: number;
+	    temperature_c: number;
+	    power_on_hours: number;
+	    media_errors: number;
+	    critical_warning: number;
+	    tb_written: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NVMeHealth(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.percent_used = source["percent_used"];
+	        this.available_spare = source["available_spare"];
+	        this.spare_threshold = source["spare_threshold"];
+	        this.temperature_c = source["temperature_c"];
+	        this.power_on_hours = source["power_on_hours"];
+	        this.media_errors = source["media_errors"];
+	        this.critical_warning = source["critical_warning"];
+	        this.tb_written = source["tb_written"];
+	    }
+	}
 
 }
 
@@ -912,9 +1012,13 @@ export namespace system {
 	}
 	export class PathEntry {
 	    path: string;
+	    raw: string;
+	    scope: string;
+	    index: number;
 	    is_valid: boolean;
 	    is_duplicate: boolean;
 	    status_text: string;
+	    fixable: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PathEntry(source);
@@ -923,9 +1027,13 @@ export namespace system {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.path = source["path"];
+	        this.raw = source["raw"];
+	        this.scope = source["scope"];
+	        this.index = source["index"];
 	        this.is_valid = source["is_valid"];
 	        this.is_duplicate = source["is_duplicate"];
 	        this.status_text = source["status_text"];
+	        this.fixable = source["fixable"];
 	    }
 	}
 	export class EnvPathAnalysis {
@@ -935,6 +1043,9 @@ export namespace system {
 	    duplicates_count: number;
 	    path_entries: PathEntry[];
 	    key_variables: EnvVariable[];
+	    user_path_raw: string;
+	    can_undo: boolean;
+	    editable: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new EnvPathAnalysis(source);
@@ -948,6 +1059,9 @@ export namespace system {
 	        this.duplicates_count = source["duplicates_count"];
 	        this.path_entries = this.convertValues(source["path_entries"], PathEntry);
 	        this.key_variables = this.convertValues(source["key_variables"], EnvVariable);
+	        this.user_path_raw = source["user_path_raw"];
+	        this.can_undo = source["can_undo"];
+	        this.editable = source["editable"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1013,6 +1127,152 @@ export namespace system {
 	        this.impact_score = source["impact_score"];
 	        this.is_enabled = source["is_enabled"];
 	    }
+	}
+
+}
+
+export namespace vdisk {
+	
+	export class Disk {
+	    name: string;
+	    kind: string;
+	    path: string;
+	    default: boolean;
+	    version: number;
+	    size_bytes: number;
+	    on_disk_bytes: number;
+	    sparse: boolean;
+	    missing: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Disk(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.path = source["path"];
+	        this.default = source["default"];
+	        this.version = source["version"];
+	        this.size_bytes = source["size_bytes"];
+	        this.on_disk_bytes = source["on_disk_bytes"];
+	        this.sparse = source["sparse"];
+	        this.missing = source["missing"];
+	    }
+	}
+	export class DockerRow {
+	    type: string;
+	    count: string;
+	    size: string;
+	    reclaimable: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerRow(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.count = source["count"];
+	        this.size = source["size"];
+	        this.reclaimable = source["reclaimable"];
+	    }
+	}
+	export class DockerUsage {
+	    installed: boolean;
+	    running: boolean;
+	    rows: DockerRow[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DockerUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.running = source["running"];
+	        this.rows = this.convertValues(source["rows"], DockerRow);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace winget {
+	
+	export class Package {
+	    name: string;
+	    id: string;
+	    version: string;
+	    available: string;
+	    source: string;
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Package(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.id = source["id"];
+	        this.version = source["version"];
+	        this.available = source["available"];
+	        this.source = source["source"];
+	        this.truncated = source["truncated"];
+	    }
+	}
+	export class Result {
+	    status: string;
+	    message: string;
+	    packages: Package[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.message = source["message"];
+	        this.packages = this.convertValues(source["packages"], Package);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

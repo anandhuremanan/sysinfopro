@@ -1,6 +1,13 @@
 <script lang="ts">
-	import { GetSoftwareHealthDetails } from '$lib/wailsjs/go/main/App';
+	import { onMount, untrack } from 'svelte';
+	import {
+		GetSoftwareHealthDetails,
+		GetWingetUpgrades,
+		UpgradeWithWinget
+	} from '$lib/wailsjs/go/main/App';
 	import { BrowserOpenURL } from '$lib/wailsjs/runtime/runtime';
+	import { load, recall } from '$lib/cache';
+	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
 	type SoftwareItem = {
 		name: string;
@@ -10,35 +17,34 @@
 		release_date: string;
 		official_download: string;
 	};
+	type WingetPackage = {
+		name: string;
+		id: string;
+		version: string;
+		available: string;
+		source: string;
+		truncated: boolean;
+	};
+	type WingetResult = {
+		status: 'ok' | 'missing' | 'blocked' | 'failed';
+		message: string;
+		packages: WingetPackage[];
+	};
+	type UpdateState = { state: 'updating' | 'done' | 'failed'; error?: string };
 
-	let items = $state<SoftwareItem[]>([]);
+	// App Installer, which provides winget
+	const APP_INSTALLER_URL = 'https://apps.microsoft.com/detail/9NBLGGH4NNS1';
+
+	let tab = $state<'dev' | 'apps'>('dev');
+
+	let items = $state<SoftwareItem[]>(recall('software') ?? []);
 	let isLoading = $state(false);
 	let searchTerm = $state('');
 
-	async function loadSoftware() {
-		isLoading = true;
-		try {
-			// @ts-ignore
-			const res = await GetSoftwareHealthDetails();
-			if (res) {
-				items = res;
-			}
-		} catch (err) {
-			console.error('Failed to get software health details:', err);
-		} finally {
-			isLoading = false;
-		}
-	}
-
-	function openDownload(url: string) {
-		if (url) {
-			BrowserOpenURL(url);
-		}
-	}
-
-	$effect(() => {
-		loadSoftware();
-	});
+	let winget = $state<WingetResult | null>(recall('winget') ?? null);
+	let isLoadingWinget = $state(false);
+	let updates = $state<Record<string, UpdateState>>({});
+	let isUpdatingAll = $state(false);
 
 	let filteredItems = $derived(
 		items.filter(
@@ -47,145 +53,245 @@
 				i.current_version.toLowerCase().includes(searchTerm.toLowerCase())
 		)
 	);
-
 	let outdatedCount = $derived(items.filter((i) => i.is_outdated).length);
+
+	// whether the latest release was actually looked up; apps found only in the
+	// installed-programs list are "Vendor Managed" and never compared
+	const isChecked = (item: SoftwareItem) =>
+		!!item.latest_version && item.latest_version !== 'Vendor Managed';
+	// what "Update all" will try: apps not yet updated; a failed one is retried on its own
+	let updatable = $derived((winget?.packages ?? []).filter((p) => !p.truncated && !updates[p.id]));
+
+	// versions are looked up online, so a result is reused for half an hour; Refresh looks again
+	async function loadSoftware(force = false) {
+		isLoading = force || items.length === 0;
+		try {
+			items = ((await load('software', GetSoftwareHealthDetails, 30 * 60_000, force)) || []) as SoftwareItem[];
+		} catch (err) {
+			console.error('Failed to get software health details:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function loadWinget(force = false) {
+		isLoadingWinget = true;
+		updates = {};
+		try {
+			winget = (await load('winget', GetWingetUpgrades, 10 * 60_000, force)) as WingetResult;
+		} catch (err) {
+			winget = { status: 'failed', message: `${err}`, packages: [] };
+		} finally {
+			isLoadingWinget = false;
+		}
+	}
+
+	async function update(pkg: WingetPackage) {
+		updates[pkg.id] = { state: 'updating' };
+		try {
+			await UpgradeWithWinget(pkg.id);
+			updates[pkg.id] = { state: 'done' };
+		} catch (err) {
+			updates[pkg.id] = { state: 'failed', error: `${err}` };
+		}
+	}
+
+	async function updateAll() {
+		isUpdatingAll = true;
+		// one at a time: installers often cannot run side by side
+		for (const pkg of updatable) await update(pkg);
+		isUpdatingAll = false;
+	}
+
+	function refresh() {
+		if (tab === 'dev') loadSoftware(true);
+		else loadWinget(true);
+	}
+
+	// load once when the screen opens
+	onMount(() => {
+		loadSoftware();
+	});
+
+	$effect(() => {
+		if (tab === 'apps' && !winget && !isLoadingWinget) untrack(() => loadWinget());
+	});
+
+	let anyUpdating = $derived(Object.values(updates).some((u) => u.state === 'updating'));
 </script>
 
-<div class="flex flex-col h-full min-h-0 space-y-2 p-1">
-	<!-- Header Bar -->
-	<div
-		class="flex justify-between items-center pb-2 border-b border-line shrink-0"
-	>
-		<div>
-			<div class="font-bold text-base text-ink flex items-center gap-2">
-				<span>Software Health Checker</span>
-			</div>
-			<div class="text-xs text-muted">
-				Audit installed developer tools & system software against official latest releases
+<div class="flex flex-col h-full min-h-0 gap-2 p-1">
+	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
+		<div class="min-w-0">
+			<div class="font-bold text-base text-ink">Software</div>
+			<div class="text-xs text-muted truncate">
+				{tab === 'dev'
+					? 'Developer tools compared with their latest official releases'
+					: 'Apps that Windows Package Manager (winget) can update'}
 			</div>
 		</div>
-
-		<div class="flex items-center gap-3">
-			<input
-				type="text"
-				placeholder="Search software..."
-				bind:value={searchTerm}
-				class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-44"
-			/>
+		<div class="flex items-center gap-2 shrink-0">
+			<div role="tablist" aria-label="Software lists" class="flex gap-0.5 p-[3px] rounded-[10px] bg-line">
+				{#each [{ id: 'dev', label: 'Developer tools' }, { id: 'apps', label: 'All apps' }] as t (t.id)}
+					<button
+						role="tab"
+						aria-selected={tab === t.id}
+						class="h-6 px-2.5 rounded-lg cursor-pointer font-medium transition-colors {tab === t.id
+							? 'bg-tile text-ink font-semibold shadow-xs'
+							: 'text-muted hover:text-ink'}"
+						onclick={() => (tab = t.id as 'dev' | 'apps')}
+					>
+						{t.label}
+					</button>
+				{/each}
+			</div>
 			<button
-				class="text-xs bg-ground px-3 py-1.5 rounded-lg cursor-pointer hover:bg-line font-medium transition-transform active:scale-95 border border-line"
-				onclick={loadSoftware}
-				disabled={isLoading}
+				class="btn btn-secondary"
+				disabled={(tab === 'dev' ? isLoading : isLoadingWinget) || anyUpdating}
+				onclick={refresh}
 			>
-				{isLoading ? 'Scanning...' : 'Refresh'}
+				Refresh
 			</button>
 		</div>
 	</div>
 
-	<!-- Main List -->
-	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Auditing installed software versions...
+	{#if tab === 'dev'}
+		{#if isLoading}
+			<div class="flex-1 flex items-center justify-center text-muted animate-pulse">
+				Checking installed versions...
+			</div>
+		{:else}
+			<div class="flex items-center justify-between gap-3 shrink-0">
+				<span class="text-muted">
+					{items.length} tools ·
+					<span class={outdatedCount > 0 ? 'text-amber-700 dark:text-amber-400 font-semibold' : ''}>
+						{outdatedCount} outdated
+					</span>
+				</span>
+				<input
+					type="search"
+					placeholder="Search"
+					aria-label="Search developer tools"
+					bind:value={searchTerm}
+					class="text-xs w-40 h-7 px-2.5 py-0 rounded-lg border border-line bg-tile text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+				/>
+			</div>
+			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+				{#each filteredItems as item (item.name)}
+					<div class="flex items-center gap-3 h-10 border-b border-line">
+						<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={item.name}>{item.name}</span>
+						<span class="w-36 shrink-0 font-mono text-[11px] text-right truncate">
+							{#if item.is_outdated}
+								<span class="text-muted">{item.current_version}</span>
+								<span class="text-muted">→</span>
+								<span class="text-accent font-semibold">{item.latest_version}</span>
+							{:else}
+								<span class="text-muted">{item.current_version}</span>
+							{/if}
+						</span>
+						<span class="w-16 shrink-0 text-right">
+							{#if item.is_outdated}
+								<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+									Outdated
+								</span>
+							{:else if isChecked(item)}
+								<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-green-500/15 text-green-700 dark:text-green-400 font-semibold">
+									Current
+								</span>
+							{/if}
+						</span>
+						<button
+							class="w-16 shrink-0 text-right text-[11px] font-semibold text-accent cursor-pointer hover:underline disabled:opacity-40 disabled:no-underline"
+							disabled={!item.official_download}
+							onclick={() => BrowserOpenURL(item.official_download)}
+						>
+							{item.official_download.includes('google.com/search') ? 'Search' : 'Download'}
+						</button>
+					</div>
+				{:else}
+					<div class="h-full flex items-center justify-center text-muted">No matching tools.</div>
+				{/each}
+			</div>
+		{/if}
+	{:else if isLoadingWinget || !winget}
+		<div class="flex-1 flex items-center justify-center text-muted animate-pulse">
+			Asking winget for updates. This can take half a minute...
 		</div>
-	{:else if filteredItems.length === 0}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted">
-			No software items found.
+	{:else if winget.status === 'blocked'}
+		<div class="flex-1 flex items-center justify-center text-muted text-center px-10 leading-relaxed">
+			Your organisation has turned off Windows Package Manager (winget) on this PC, so apps cannot be
+			updated from here.
+		</div>
+	{:else if winget.status === 'missing'}
+		<div class="flex-1 flex flex-col items-center justify-center gap-3 text-center px-10">
+			<p class="text-muted leading-relaxed">
+				Windows Package Manager (winget) is not installed. It comes with App Installer from the
+				Microsoft Store.
+			</p>
+			<button class="btn btn-primary" onclick={() => BrowserOpenURL(APP_INSTALLER_URL)}>
+				Get App Installer
+			</button>
+		</div>
+	{:else if winget.status === 'failed'}
+		<div class="flex-1 flex items-center justify-center text-muted text-center px-10">
+			winget could not list updates{winget.message ? `: ${winget.message}` : '.'}
+		</div>
+	{:else if winget.packages.length === 0}
+		<div class="flex-1 flex items-center justify-center text-muted">
+			Everything winget manages is up to date.
 		</div>
 	{:else}
-		<div class="flex-1 flex flex-col min-h-0 space-y-2">
-			<!-- Summary Stats Bar -->
-			<div
-				class="grid grid-cols-3 gap-3 bg-ground p-2.5 rounded-xl text-xs border border-line shrink-0"
+		<div class="flex items-center justify-between gap-3 shrink-0">
+			<span class="text-muted">
+				{winget.packages.length}
+				{winget.packages.length === 1 ? 'update' : 'updates'} available · some installers ask for
+				administrator permission
+			</span>
+			<button
+				class="btn btn-primary"
+				disabled={updatable.length === 0 || anyUpdating}
+				onclick={updateAll}
 			>
-				<div>
-					<div class="text-[10px] text-muted">Total Monitored</div>
-					<div class="font-bold font-mono text-ink">
-						{items.length} Apps
-					</div>
+				{isUpdatingAll ? 'Updating...' : `Update all (${updatable.length})`}
+			</button>
+		</div>
+		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+			{#each winget.packages as pkg (pkg.id + pkg.name)}
+				{@const u = updates[pkg.id]}
+				<div class="flex items-center gap-3 h-10 border-b border-line">
+					<span class="flex-1 min-w-0 flex flex-col leading-tight">
+						<span class="font-semibold text-ink truncate" title={pkg.name}>{pkg.name}</span>
+						<span class="text-[11px] text-muted truncate" title={pkg.id}>{pkg.id}</span>
+					</span>
+					<span class="w-40 shrink-0 font-mono text-[11px] text-right truncate">
+						<span class="text-muted">{pkg.version}</span>
+						<span class="text-muted">→</span>
+						<span class="text-accent font-semibold">{pkg.available}</span>
+					</span>
+					<span class="w-20 shrink-0 flex justify-end">
+						{#if u?.state === 'updating'}
+							<span class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" aria-label="Updating"></span>
+						{:else if u?.state === 'done'}
+							<span class="flex items-center gap-1 text-green-700 dark:text-green-400 font-semibold text-[11px]">
+								<StrokeIcon d="M5 12.5l4.5 4.5L19 7.5" size={12} /> Updated
+							</span>
+						{:else}
+							<button
+								class="btn btn-secondary h-6 px-2.5 {u?.state === 'failed' ? 'text-red-600 dark:text-red-400' : ''}"
+								disabled={pkg.truncated || anyUpdating}
+								title={pkg.truncated
+									? 'winget shortened this app’s ID; update it from a terminal with: winget upgrade'
+									: u?.state === 'failed'
+										? `Update failed: ${u.error}`
+										: `Update ${pkg.name} to ${pkg.available}`}
+								onclick={() => update(pkg)}
+							>
+								{u?.state === 'failed' ? 'Retry' : 'Update'}
+							</button>
+						{/if}
+					</span>
 				</div>
-				<div>
-					<div class="text-[10px] text-muted">Up to Date</div>
-					<div class="font-bold font-mono text-green-700 dark:text-green-400">
-						{items.length - outdatedCount}
-					</div>
-				</div>
-				<div>
-					<div class="text-[10px] text-muted">Updates Pending</div>
-					<div class="font-bold font-mono {outdatedCount > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-muted'}">
-						{outdatedCount} Outdated
-					</div>
-				</div>
-			</div>
-
-			<!-- Main Table Container (Single vertical scroll, 100% width fit) -->
-			<div class="flex-1 basis-0 min-h-0 overflow-y-auto overflow-x-hidden pr-1 rounded-lg">
-				<table class="w-full text-xs text-left border-collapse table-fixed">
-					<thead class="sticky top-0 z-10 bg-tile shadow-xs">
-						<tr
-							class="border-b border-line text-muted uppercase tracking-wider text-[10px]"
-						>
-							<th class="py-2 pl-2 text-left w-[34%]">Software Name</th>
-							<th class="py-2 text-center w-[16%]">Status</th>
-							<th class="py-2 text-center w-[14%]">Current</th>
-							<th class="py-2 text-center w-[15%]">Latest</th>
-							<th class="py-2 text-center w-[11%]">Release</th>
-							<th class="py-2 pr-2 text-center w-[10%]">Link</th>
-						</tr>
-					</thead>
-					<tbody class="divide-y divide-line">
-						{#each filteredItems as item}
-							<tr class="hover:bg-ground transition-colors">
-								<td
-									class="py-2 pl-2 font-semibold text-ink truncate pr-2"
-									title={item.name}
-								>
-									{item.name}
-								</td>
-								<td class="py-2 text-center">
-									{#if item.is_outdated}
-										<span
-											class="inline-block px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/30 text-[9px] whitespace-nowrap"
-										>
-											Outdated
-										</span>
-									{:else}
-										<span
-											class="inline-block px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-700 dark:text-green-400 font-medium text-[9px] whitespace-nowrap"
-										>
-											Current
-										</span>
-									{/if}
-								</td>
-								<td class="py-2 text-center font-mono text-[10px] text-muted truncate">
-									{item.current_version}
-								</td>
-								<td class="py-2 text-center font-mono text-[10px] text-accent font-semibold truncate">
-									{item.latest_version}
-								</td>
-								<td class="py-2 text-center font-mono text-[9px] text-muted truncate">
-									{item.release_date}
-								</td>
-								<td class="py-2 pr-2 text-center">
-									<button
-										class="px-2 py-0.5 text-[10px] bg-accent text-on-accent rounded-md cursor-pointer hover:opacity-90 font-medium transition-transform active:scale-95 shadow-xs whitespace-nowrap"
-										onclick={() => openDownload(item.official_download)}
-									>
-										Get
-									</button>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
+			{/each}
 		</div>
 	{/if}
-
-	<!-- Footer Note -->
-	<div
-		class="text-[11px] text-muted pt-1.5 border-t border-line flex justify-between items-center shrink-0"
-	>
-		<span>Software Health & Security Auditor</span>
-		<span class="text-[10px] text-muted">Official vendor release channels</span>
-	</div>
 </div>

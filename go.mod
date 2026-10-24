@@ -2,9 +2,10 @@ module myproject
 
 go 1.26.0
 
-toolchain go1.27.2
+toolchain go1.27.3
 
 require (
+	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3
 	github.com/distatus/battery v0.11.0
 	github.com/m-lab/ndt7-client-go v0.9.0
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -14,7 +15,6 @@ require (
 )
 
 require (
-	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/ebitengine/purego v0.8.2 // indirect

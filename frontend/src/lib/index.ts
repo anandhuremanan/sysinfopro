@@ -42,14 +42,14 @@ export function isBatteryCharging(state: string | undefined): boolean {
 export function formatBytes(bytes: number): string {
 	if (!bytes || bytes < 0) return '0 B';
 	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-	const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-	const value = bytes / Math.pow(1024, i);
+	let i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+	let value = bytes / Math.pow(1024, i);
+	// 1000 to 1023 of a unit reads better as the next one up ("1.0 GB", not "1001 MB")
+	if (value >= 999.5 && i < units.length - 1) {
+		i++;
+		value /= 1024;
+	}
 	return `${value >= 100 || i === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[i]}`;
-}
-
-export function bytesToGb(kb: number) {
-	if (!kb) return '0.00';
-	return (kb / 1024 / 1024 / 1024).toFixed(2);
 }
 
 export async function copyStat(systemInfo: any): Promise<string> {
