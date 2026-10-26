@@ -8,6 +8,9 @@
 	import EnvPathInspector from './EnvPathInspector.svelte';
 	import FileLocks from './FileLocks.svelte';
 	import GrowthWatch from './GrowthWatch.svelte';
+	import NetworkDoctor from './NetworkDoctor.svelte';
+	import DevDoctor from './DevDoctor.svelte';
+	import DuplicateFinder from './DuplicateFinder.svelte';
 	import HardwareSpecs from './HardwareSpecs.svelte';
 	import PortInspector from './PortInspector.svelte';
 	import SecurityCheck from './SecurityCheck.svelte';
@@ -40,7 +43,10 @@
 			| 'startup'
 			| 'env'
 			| 'software'
-			| 'wsl';
+			| 'wsl'
+			| 'netdoctor'
+			| 'devdoctor'
+			| 'dupes';
 	} = $props();
 
 	let batteryDetails: any = $state(undefined);
@@ -121,6 +127,12 @@
 			<SoftwareChecker />
 		{:else if tool === 'wsl'}
 			<VirtualDisks />
+		{:else if tool === 'netdoctor'}
+			<NetworkDoctor />
+		{:else if tool === 'devdoctor'}
+			<DevDoctor />
+		{:else if tool === 'dupes'}
+			<DuplicateFinder />
 		{/if}
 	</div>
 </div>

@@ -13,7 +13,10 @@ export type ToolId =
 	| 'env'
 	| 'software'
 	| 'speed'
-	| 'wsl';
+	| 'wsl'
+	| 'netdoctor'
+	| 'devdoctor'
+	| 'dupes';
 
 export type Tool = {
 	id: ToolId;
@@ -103,6 +106,14 @@ export const tools: Tool[] = [
 		icon: 'M12 14l4-4M4 18a9 9 0 1 1 16 0'
 	},
 	{
+		id: 'netdoctor',
+		name: 'Network doctor',
+		hint: 'Why is it offline',
+		group: 'Network',
+		keywords: 'internet not working offline wifi dns router proxy hosts no connection troubleshoot',
+		icon: 'M12 20h.01M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 14 0M2 9.5a15 15 0 0 1 20 0'
+	},
+	{
 		id: 'ports',
 		name: 'Ports',
 		hint: 'Listening ports',
@@ -133,6 +144,22 @@ export const tools: Tool[] = [
 		group: 'Developer',
 		keywords: 'in use open handle cannot delete locked',
 		icon: 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM12 15v2.5'
+	},
+	{
+		id: 'devdoctor',
+		name: 'Dev doctor',
+		hint: 'Which version runs',
+		group: 'Developer',
+		keywords: 'python node java git go dotnet version wrong shadowed java_home nvm pyenv toolchain environment',
+		icon: 'M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3M7.5 15h9'
+	},
+	{
+		id: 'dupes',
+		name: 'Duplicates',
+		hint: 'Same file twice',
+		group: 'Clean up',
+		keywords: 'duplicate files copies same identical photos downloads free space',
+		icon: 'M8 8h11v13H8zM5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1'
 	},
 	{
 		id: 'env',

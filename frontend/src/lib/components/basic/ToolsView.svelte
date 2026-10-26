@@ -53,7 +53,7 @@
 		{#if shown.length === 0}
 			<div class="h-full flex items-center justify-center text-muted">No matching tools found.</div>
 		{:else}
-			<div class="grid grid-cols-5 gap-2 auto-rows-[100px]">
+			<div class="grid grid-cols-6 gap-2 auto-rows-[100px]">
 				{#each shown as tool (tool.id)}
 					{@const count = toolStatus[tool.id]?.count ?? 0}
 					<button

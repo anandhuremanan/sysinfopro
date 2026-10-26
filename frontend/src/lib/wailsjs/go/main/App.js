@@ -18,8 +18,16 @@ export function CancelDiskScan() {
   return window['go']['main']['App']['CancelDiskScan']();
 }
 
+export function CancelDuplicateSearch() {
+  return window['go']['main']['App']['CancelDuplicateSearch']();
+}
+
 export function CancelLeftoverSearch() {
   return window['go']['main']['App']['CancelLeftoverSearch']();
+}
+
+export function CheckDevTools() {
+  return window['go']['main']['App']['CheckDevTools']();
 }
 
 export function CheckInternetConnection() {
@@ -32,6 +40,10 @@ export function CleanJunk() {
 
 export function DeleteDevCaches(arg1) {
   return window['go']['main']['App']['DeleteDevCaches'](arg1);
+}
+
+export function FindDuplicates(arg1, arg2) {
+  return window['go']['main']['App']['FindDuplicates'](arg1, arg2);
 }
 
 export function FindLeftovers(arg1) {
@@ -76,6 +88,10 @@ export function GetDriveHealth() {
 
 export function GetDrives() {
   return window['go']['main']['App']['GetDrives']();
+}
+
+export function GetDuplicateFolders() {
+  return window['go']['main']['App']['GetDuplicateFolders']();
 }
 
 export function GetEnvPathAnalysis() {
@@ -166,12 +182,20 @@ export function PruneDocker() {
   return window['go']['main']['App']['PruneDocker']();
 }
 
+export function RemoveDuplicates(arg1) {
+  return window['go']['main']['App']['RemoveDuplicates'](arg1);
+}
+
 export function RemoveUserPathEntries(arg1, arg2) {
   return window['go']['main']['App']['RemoveUserPathEntries'](arg1, arg2);
 }
 
 export function RevealInExplorer(arg1) {
   return window['go']['main']['App']['RevealInExplorer'](arg1);
+}
+
+export function RunNetworkDoctor(arg1) {
+  return window['go']['main']['App']['RunNetworkDoctor'](arg1);
 }
 
 export function RunThermalStressTest() {

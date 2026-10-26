@@ -106,6 +106,14 @@
           server (8.8.8.8) to see whether you are online. No data is sent.
         </li>
         <li>
+          <strong>Network doctor</strong> (only when you open it or press Check): one ping to your
+          own router, a name lookup of www.microsoft.com through your DNS servers, and Windows' own
+          connectivity check (www.msftconnecttest.com), the same one Windows uses to show "No
+          internet". If you type a site to test, the app looks up that site and opens one secure
+          connection to it. It goes through your proxy if you have one, and nothing about you or
+          your PC is sent.
+        </li>
+        <li>
           <strong>Software version check</strong> (only when you open the Software tool): the
           app asks the publishers of common developer tools for their latest version numbers, from
           nodejs.org, go.dev, endoflife.date and GitHub. It does not send them your list of

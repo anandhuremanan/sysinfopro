@@ -17,10 +17,12 @@ import (
 	"myproject/internal/cleaner"
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
+	"myproject/internal/dupes"
 	"myproject/internal/hardware"
 	"myproject/internal/history"
 	"myproject/internal/hotkey"
 	"myproject/internal/locks"
+	"myproject/internal/netdoctor"
 	"myproject/internal/network"
 	"myproject/internal/notify"
 	"myproject/internal/process"
@@ -50,6 +52,10 @@ type App struct {
 
 	cleanMu     sync.Mutex
 	cleanCancel context.CancelFunc
+
+	dupesMu     sync.Mutex
+	dupesCancel context.CancelFunc
+	dupesLast   *dupes.Result
 
 	alerts *alerts.Monitor
 
@@ -695,6 +701,96 @@ func (a *App) SendTestAlert() {
 		Title: "Alerts are on",
 		Body:  "SysInfo Pro will tell you here when a drive runs low or fills up fast.",
 	})
+}
+
+// RunNetworkDoctor checks each link of the connection in turn (adapter, router,
+// DNS, internet, and the site given, if any), sending "netdoctor-step" as each finishes
+func (a *App) RunNetworkDoctor(site string) netdoctor.Report {
+	return netdoctor.Run(a.ctx, strings.TrimSpace(site), func(s netdoctor.Step) {
+		runtime.EventsEmit(a.ctx, "netdoctor-step", s)
+	})
+}
+
+// CheckDevTools reports, for Python, Node, Java and other developer tools, which
+// copy runs in a new terminal and what points builds at a different one
+func (a *App) CheckDevTools() []system.DevTool {
+	return system.CheckDevTools()
+}
+
+// FindDuplicates looks for files with the same contents under root, sending
+// "dupes-progress" while it works; a new search cancels the previous one
+func (a *App) FindDuplicates(root string, minSize int64) (*dupes.Result, error) {
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+	a.dupesMu.Lock()
+	if a.dupesCancel != nil {
+		a.dupesCancel()
+	}
+	a.dupesCancel = cancel
+	a.dupesMu.Unlock()
+
+	res, err := dupes.Find(ctx, root, minSize, func(p dupes.Progress) {
+		if ctx.Err() == nil {
+			runtime.EventsEmit(a.ctx, "dupes-progress", p)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	a.dupesMu.Lock()
+	a.dupesLast = res
+	a.dupesMu.Unlock()
+	return res, nil
+}
+
+// GetDuplicateFolders suggests personal folders to search for duplicates
+func (a *App) GetDuplicateFolders() []dupes.Place {
+	return dupes.UserFolders()
+}
+
+// CancelDuplicateSearch stops the running duplicate search, if any
+func (a *App) CancelDuplicateSearch() {
+	a.dupesMu.Lock()
+	defer a.dupesMu.Unlock()
+	if a.dupesCancel != nil {
+		a.dupesCancel()
+		a.dupesCancel = nil
+	}
+}
+
+type DuplicateRemoval struct {
+	Removed int      `json:"removed"`
+	Freed   int64    `json:"freed"`
+	Failed  []string `json:"failed"`
+}
+
+// RemoveDuplicates moves extra copies to the Recycle Bin. Only files from the
+// last search are accepted, and at least one copy of each is always kept.
+func (a *App) RemoveDuplicates(paths []string) (DuplicateRemoval, error) {
+	out := DuplicateRemoval{Failed: []string{}}
+	a.dupesMu.Lock()
+	last := a.dupesLast
+	a.dupesMu.Unlock()
+	if last == nil {
+		return out, fmt.Errorf("search again before removing files")
+	}
+	if err := dupes.CheckKeepsOne(last.Groups, paths); err != nil {
+		return out, err
+	}
+	for _, p := range paths {
+		info, err := os.Stat(p)
+		if err != nil {
+			out.Failed = append(out.Failed, p)
+			continue
+		}
+		if err := dupes.ToRecycleBin(p); err != nil {
+			out.Failed = append(out.Failed, p)
+			continue
+		}
+		out.Removed++
+		out.Freed += info.Size()
+	}
+	return out, nil
 }
 
 // ListVirtualDisks returns the virtual disks of WSL distributions and Docker Desktop
