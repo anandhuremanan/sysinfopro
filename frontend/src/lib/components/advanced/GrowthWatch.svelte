@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes } from '$lib';
 	import {
 		AnalyzeDiskUsage,
@@ -187,7 +188,7 @@
 		</div>
 	{:else if checks === 0}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-			<div class="w-9 h-9 border-3 border-accent border-t-transparent rounded-full animate-spin"></div>
+			<BusyArt kind="measure" size={64} />
 			<div class="text-xs text-ink font-semibold">
 				{isScanning ? 'Taking the starting measurement...' : 'Starting point recorded'}
 			</div>

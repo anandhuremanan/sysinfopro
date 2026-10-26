@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount, untrack } from 'svelte';
 	import {
 		GetSoftwareHealthDetails,
@@ -7,6 +8,7 @@
 	} from '$lib/wailsjs/go/main/App';
 	import { BrowserOpenURL } from '$lib/wailsjs/runtime/runtime';
 	import { load, recall } from '$lib/cache';
+	import Segmented from '../ui/Segmented.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
 	type SoftwareItem = {
@@ -131,20 +133,17 @@
 			</div>
 		</div>
 		<div class="flex items-center gap-2 shrink-0">
-			<div role="tablist" aria-label="Software lists" class="flex gap-0.5 p-[3px] rounded-[10px] bg-line">
-				{#each [{ id: 'dev', label: 'Developer tools' }, { id: 'apps', label: 'All apps' }] as t (t.id)}
-					<button
-						role="tab"
-						aria-selected={tab === t.id}
-						class="h-6 px-2.5 rounded-lg cursor-pointer font-medium transition-colors {tab === t.id
-							? 'bg-tile text-ink font-semibold shadow-xs'
-							: 'text-muted hover:text-ink'}"
-						onclick={() => (tab = t.id as 'dev' | 'apps')}
-					>
-						{t.label}
-					</button>
-				{/each}
-			</div>
+			<Segmented
+				options={[
+					{ id: 'dev', label: 'Developer tools' },
+					{ id: 'apps', label: 'All apps' }
+				]}
+				value={tab}
+				onchange={(t) => (tab = t as 'dev' | 'apps')}
+				label="Software lists"
+				tabs
+				size="sm"
+			/>
 			<button
 				class="btn btn-secondary"
 				disabled={(tab === 'dev' ? isLoading : isLoadingWinget) || anyUpdating}
@@ -157,9 +156,7 @@
 
 	{#if tab === 'dev'}
 		{#if isLoading}
-			<div class="flex-1 flex items-center justify-center text-muted animate-pulse">
-				Checking installed versions...
-			</div>
+			<div class="flex-1 flex items-center justify-center"><BusyArt kind="measure" size={64} label="Checking installed versions..." /></div>
 		{:else}
 			<div class="flex items-center justify-between gap-3 shrink-0">
 				<span class="text-muted">
@@ -214,9 +211,7 @@
 			</div>
 		{/if}
 	{:else if isLoadingWinget || !winget}
-		<div class="flex-1 flex items-center justify-center text-muted animate-pulse">
-			Asking winget for updates. This can take half a minute...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Asking winget for updates. This can take half a minute..." /></div>
 	{:else if winget.status === 'blocked'}
 		<div class="flex-1 flex items-center justify-center text-muted text-center px-10 leading-relaxed">
 			Your organisation has turned off Windows Package Manager (winget) on this PC, so apps cannot be

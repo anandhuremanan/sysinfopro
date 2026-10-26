@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount } from 'svelte';
 	import { formatBytes } from '$lib';
 	import {
@@ -131,9 +132,7 @@
 	{/if}
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-muted animate-pulse">
-			Looking for WSL and Docker disks...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Looking for WSL and Docker disks..." /></div>
 	{:else if disks.length === 0 && !docker?.installed}
 		<div class="flex-1 flex items-center justify-center text-muted text-center px-8">
 			No WSL distributions or Docker disks on this PC.

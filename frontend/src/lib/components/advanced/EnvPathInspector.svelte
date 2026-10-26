@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import {
 		GetEnvPathAnalysis,
 		RemoveUserPathEntries,
@@ -139,7 +140,7 @@
 	{/if}
 
 	{#if isLoading && !analysis}
-		<div class="flex-1 flex items-center justify-center text-muted animate-pulse">Reading PATH...</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="read" size={64} label="Reading PATH..." /></div>
 	{:else if analysis}
 		<div class="text-muted shrink-0">
 			{analysis.total_entries} entries ·

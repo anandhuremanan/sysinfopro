@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { GetStartupItems } from '$lib/wailsjs/go/main/App';
 
 	type StartupItem = {
@@ -75,9 +76,7 @@
 
 	<!-- Main List -->
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Scanning Registry & Startup triggers...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Scanning Registry & Startup triggers..." /></div>
 	{:else if filteredItems.length === 0}
 		<div class="flex-1 flex items-center justify-center text-xs text-muted">
 			No startup items found.

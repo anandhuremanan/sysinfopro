@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount } from 'svelte';
 	import { load, recall } from '$lib/cache';
 	import { GetSecurityReport } from '$lib/wailsjs/go/main/App';
@@ -94,9 +95,7 @@
 	</div>
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Checking antivirus, firewall, encryption and updates...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="check" size={64} label="Checking antivirus, firewall, encryption and updates..." /></div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>

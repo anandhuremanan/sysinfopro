@@ -76,7 +76,7 @@
 			{/if}
 
 			{#if actions}
-				<div class="flex justify-end gap-2 px-5 py-3 border-t border-line shrink-0">
+				<div class="flex justify-end gap-2 px-5 pt-1 pb-4 shrink-0">
 					{@render actions()}
 				</div>
 			{/if}

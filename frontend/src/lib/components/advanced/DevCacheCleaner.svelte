@@ -1,12 +1,17 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes } from '$lib';
-	import { load, recall, remember } from '$lib/cache';
+	import { load, recall } from '$lib/cache';
+	import {
+		cancelLeftoverSearch,
+		leftoverSearch,
+		removeLeftovers,
+		searchLeftovers
+	} from '$lib/leftoverSearch.svelte';
 	import { recordFreed } from '$lib/rating.svelte';
 	import {
 		CancelDevCacheDelete,
-		CancelLeftoverSearch,
 		DeleteDevCaches,
-		FindLeftovers,
 		PickFolder,
 		RevealInExplorer,
 		ScanDevCaches
@@ -50,16 +55,14 @@
 	const REVEAL_ICON =
 		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
-	type Search = { root: string; items: Item[] };
-	const lastSearch = recall<Search>('leftovers');
-
 	let caches = $state<Item[]>(recall('devcaches') ?? []);
-	// the last search stays on screen when you come back to this tool
-	let leftovers = $state<Item[]>(lastSearch?.items ?? []);
-	let searchRoot = $state(lastSearch?.root ?? '');
-	let searchCurrent = $state('');
+	// the project search lives in a store: it keeps running, and its result stays,
+	// when you leave this screen
+	let leftovers = $derived(leftoverSearch.items as Item[]);
+	let searchRoot = $derived(leftoverSearch.root);
+	let searchCurrent = $derived(leftoverSearch.current);
+	let isSearching = $derived(leftoverSearch.isSearching);
 	let isScanningCaches = $state(false);
-	let isSearching = $state(false);
 	let isDeleting = $state(false);
 	let isStopping = $state(false);
 	// live state of a running delete, from "devcache-delete-progress" events
@@ -154,32 +157,17 @@
 		await searchModules(folder);
 	}
 
-	async function searchModules(folder: string) {
-		const id = ++searchId;
-		searchRoot = folder;
-		searchCurrent = folder;
-		isSearching = true;
-		leftovers = [];
-
-		try {
-			const found = ((await FindLeftovers(folder)) || []) as Item[];
-			if (id !== searchId) return;
-			leftovers = found;
-			remember('leftovers', { root: folder, items: found });
-		} catch (err) {
-			if (id !== searchId) return;
-			showStatus(`${err}`);
-		} finally {
-			if (id === searchId) isSearching = false;
-		}
+	function searchModules(folder: string) {
+		searchLeftovers(folder);
 	}
 
 	function cancelSearch() {
-		if (!isSearching) return;
-		searchId++;
-		isSearching = false;
-		CancelLeftoverSearch();
+		cancelLeftoverSearch();
 	}
+
+	$effect(() => {
+		if (leftoverSearch.error) showStatus(leftoverSearch.error);
+	});
 
 	function itemLabel(item: Item) {
 		return item.kind === 'leftover' ? `${item.name} / ${item.folder}` : item.name;
@@ -217,8 +205,7 @@
 
 			selected = {};
 			const gone = new Set(result.deleted ?? []);
-			leftovers = leftovers.filter((item) => !gone.has(item.path));
-			remember('leftovers', { root: searchRoot, items: leftovers });
+			removeLeftovers(gone);
 			// folders that were only partly deleted are smaller now
 			if (failed.length > 0 && searchRoot) searchModules(searchRoot);
 			await loadCaches(true);
@@ -249,9 +236,6 @@
 		}
 	}
 
-	const unsubscribe = EventsOn('devcache-progress', (current: string) => {
-		if (isSearching && current) searchCurrent = current;
-	});
 	const unsubscribeDelete = EventsOn('devcache-delete-progress', (progress: DeleteProgress) => {
 		if (isDeleting) deleteProgress = progress;
 	});
@@ -262,8 +246,6 @@
 	});
 
 	onDestroy(() => {
-		cancelSearch();
-		unsubscribe();
 		unsubscribeDelete();
 	});
 </script>
@@ -360,9 +342,7 @@
 			</div>
 			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
 				{#if isScanningCaches}
-					<div class="h-full flex items-center justify-center text-muted animate-pulse">
-						Measuring caches...
-					</div>
+					<div class="h-full flex items-center justify-center"><BusyArt kind="measure" size={64} label="Measuring caches..." /></div>
 				{:else}
 					{#each caches as item (item.path)}
 						{@render row(item, item.name, item.deletable ? item.path : item.note)}
@@ -439,9 +419,7 @@
 			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
 				{#if isSearching}
 					<div class="h-full flex flex-col items-center justify-center gap-2 text-center">
-						<div
-							class="w-7 h-7 border-3 border-accent border-t-transparent rounded-full animate-spin"
-						></div>
+						<BusyArt kind="search" size={64} />
 						<div class="text-[11px] text-muted max-w-full truncate px-2" title={searchCurrent}>
 							{searchCurrent}
 						</div>

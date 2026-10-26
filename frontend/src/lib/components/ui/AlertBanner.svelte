@@ -7,7 +7,7 @@
 
 	let alert = $derived(driveAlerts.current);
 	// a reminder or test is news, not a warning
-	let calm = $derived(alert?.kind === 'test' || alert?.kind === 'reminder');
+	let calm = $derived(alert?.kind !== 'low' && alert?.kind !== 'dropping');
 </script>
 
 {#if alert}
@@ -24,7 +24,9 @@
 		>
 			<StrokeIcon
 				d={calm
-					? 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5'
+					? alert.kind === 'task'
+						? 'M5 12.5l4.5 4.5L19 7.5'
+						: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17l9 5 9-5'
 					: 'M12 8v5M12 16.5v.5M10.3 3.9 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'}
 				size={15}
 			/>
@@ -40,7 +42,11 @@
 						dismissAlert();
 					}}
 				>
-					{alert.kind === 'reminder' ? 'Open Dev caches' : `See what is using ${alert.drive}`}
+					{alert.kind === 'reminder'
+						? 'Open Dev caches'
+						: alert.kind === 'task'
+							? 'Show results'
+							: `See what is using ${alert.drive}`}
 				</button>
 			{/if}
 		</div>

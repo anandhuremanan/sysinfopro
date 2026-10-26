@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes } from '$lib';
 	import { load, recall } from '$lib/cache';
 	import { recordFreed } from '$lib/rating.svelte';
@@ -171,7 +172,7 @@
 			</div>
 
 			{#if healthState === 'loading'}
-				<div class="h-16 flex items-center text-muted animate-pulse">Reading drive health...</div>
+				<div class="h-16 flex items-center"><BusyArt kind="read" size={40} label="Reading drive health..." /></div>
 			{:else if healthState === 'failed' || disks.length === 0}
 				<div class="h-16 flex items-center text-muted">Windows did not report drive health.</div>
 			{:else}

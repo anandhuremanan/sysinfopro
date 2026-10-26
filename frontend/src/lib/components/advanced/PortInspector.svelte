@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { GetActiveSockets, TerminateProcess } from '$lib/wailsjs/go/main/App';
 
 	type SocketItem = {
@@ -137,9 +138,7 @@
 
 	<!-- Main Table Container -->
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Scanning active system network sockets...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Scanning active system network sockets..." /></div>
 	{:else if filteredSockets.length === 0}
 		<div class="flex-1 flex items-center justify-center text-xs text-muted">
 			No matching listening ports found.

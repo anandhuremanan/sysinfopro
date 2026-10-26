@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { GetChanges, SaveChangesBaseline } from '$lib/wailsjs/go/main/App';
 
 	type CategoryDiff = {
@@ -97,9 +98,7 @@
 	</div>
 
 	{#if isLoading && !changes}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Reading the current state of this PC...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="check" size={64} label="Reading the current state of this PC..." /></div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>

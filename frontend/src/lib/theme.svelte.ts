@@ -110,9 +110,11 @@ function applyTheme(mode: ThemeMode, accent: string) {
 		const v = dark ? vars.dark : vars.light;
 		root.style.setProperty('--accent', v.accent);
 		root.style.setProperty('--on-accent', v.on);
+		root.style.setProperty('--tone-mix', v.on === '#000000' ? '#ffffff' : '#000000');
 	} else {
 		root.style.removeProperty('--accent');
 		root.style.removeProperty('--on-accent');
+		root.style.removeProperty('--tone-mix');
 	}
 }
 

@@ -1,13 +1,19 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes, usageBarColor } from '$lib';
 	import {
-		AnalyzeDiskUsage,
-		CancelDiskScan,
 		GetDrives,
 		RevealInExplorer
 	} from '$lib/wailsjs/go/main/App';
-	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
-	import { onDestroy } from 'svelte';
+	import {
+		cancelScan,
+		diskScan,
+		scanPath,
+		showPath,
+		type FolderUsage,
+		type ScanProgress,
+		type UsageEntry
+	} from '$lib/diskScan.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
 	type Drive = {
@@ -19,27 +25,6 @@
 		used_pct: number;
 	};
 
-	type UsageEntry = {
-		name: string;
-		path: string;
-		is_dir: boolean;
-		size_bytes: number;
-		files: number;
-	};
-
-	type FolderUsage = {
-		path: string;
-		total_bytes: number;
-		files: number;
-		skipped: number;
-		entries: UsageEntry[];
-		largest_files: UsageEntry[];
-		duration_ms: number;
-		cancelled: boolean;
-	};
-
-	type ScanProgress = { files: number; bytes: number; current: string };
-
 	const FOLDER_ICON =
 		'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z';
 	const FILE_ICON = 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5';
@@ -50,17 +35,14 @@
 	let { drive: initialDrive }: { drive?: string } = $props();
 
 	let drives = $state<Drive[]>([]);
-	let selectedDrive = $state<Drive | undefined>(undefined);
-	let currentPath = $state('');
-	let usage = $state<FolderUsage | undefined>(undefined);
-	let isScanning = $state(false);
-	let scanProgress = $state<ScanProgress | undefined>(undefined);
 	let statusMessage = $state<string | undefined>(undefined);
 
-	// Finished scans, so going back up a level is instant
-	const cache = new Map<string, FolderUsage>();
-	// Bumped on every scan/cancel so a superseded scan's result is ignored
-	let scanId = 0;
+	// the scan itself lives in a store, so it keeps running when you leave this screen
+	let selectedDrive = $derived(drives.find((d) => d.path === diskScan.drivePath));
+	let currentPath = $derived(diskScan.currentPath);
+	let usage = $derived<FolderUsage | undefined>(diskScan.usage);
+	let isScanning = $derived(diskScan.isScanning);
+	let scanProgress = $derived<ScanProgress | undefined>(diskScan.progress);
 
 	// "C:" would mean the current directory on C, so drive roots always end in a separator
 	function driveRoot(drive: Drive) {
@@ -93,13 +75,11 @@
 	async function loadDrives() {
 		try {
 			drives = (await GetDrives()) || [];
-			if (!selectedDrive && drives.length > 0) {
-				const wanted = initialDrive?.toUpperCase();
-				selectDrive(drives.find((d) => d.path.toUpperCase().startsWith(wanted ?? '-')) ?? drives[0]);
-			} else if (selectedDrive) {
-				// keep the selected drive's figures current too
-				selectedDrive = drives.find((d) => d.path === selectedDrive?.path) ?? selectedDrive;
-			}
+			const wanted = initialDrive?.toUpperCase();
+			const asked = wanted ? drives.find((d) => d.path.toUpperCase().startsWith(wanted)) : undefined;
+			// an alert can ask for a drive; otherwise keep the drive chosen before, or the first
+			if (asked && asked.path !== diskScan.drivePath && !diskScan.isScanning) selectDrive(asked);
+			else if (!drives.some((d) => d.path === diskScan.drivePath) && drives.length > 0) selectDrive(drives[0]);
 		} catch (err) {
 			console.error('Failed to list drives:', err);
 			showStatus(`Failed to list drives: ${err}`);
@@ -108,46 +88,16 @@
 
 	function selectDrive(drive: Drive) {
 		cancelScan();
-		selectedDrive = drive;
-		currentPath = driveRoot(drive);
-		usage = cache.get(currentPath);
+		showPath(drive.path, driveRoot(drive));
 	}
 
-	async function scan(path: string, force = false) {
-		cancelScan();
-		currentPath = path;
-
-		const cached = cache.get(path);
-		if (cached && !force) {
-			usage = cached;
-			return;
-		}
-
-		const id = ++scanId;
-		isScanning = true;
-		scanProgress = undefined;
-		usage = undefined;
-
-		try {
-			const result = (await AnalyzeDiskUsage(path)) as FolderUsage;
-			if (id !== scanId) return;
-			if (result.cancelled) return;
-			cache.set(path, result);
-			usage = result;
-		} catch (err) {
-			if (id !== scanId) return;
-			showStatus(`${err}`);
-		} finally {
-			if (id === scanId) isScanning = false;
-		}
+	function scan(path: string, force = false) {
+		scanPath(path, force);
 	}
 
-	function cancelScan() {
-		if (!isScanning) return;
-		scanId++;
-		isScanning = false;
-		CancelDiskScan();
-	}
+	$effect(() => {
+		if (diskScan.error) showStatus(diskScan.error);
+	});
 
 	async function reveal(path: string) {
 		try {
@@ -163,9 +113,6 @@
 		return pct > 0 && pct < 0.1 ? '<0.1%' : `${pct.toFixed(1)}%`;
 	}
 
-	const unsubscribe = EventsOn('disk-scan-progress', (data: ScanProgress) => {
-		if (isScanning && data) scanProgress = data;
-	});
 
 	$effect(() => {
 		loadDrives();
@@ -174,10 +121,6 @@
 		return () => clearInterval(timer);
 	});
 
-	onDestroy(() => {
-		cancelScan();
-		unsubscribe();
-	});
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
@@ -255,7 +198,7 @@
 	<!-- Main area -->
 	{#if isScanning}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 min-h-0">
-			<div class="w-9 h-9 border-3 border-accent border-t-transparent rounded-full animate-spin"></div>
+			<BusyArt kind="scan" size={72} />
 			<div class="text-xs text-ink font-semibold tabular-nums">
 				{#if scanProgress}
 					{scanProgress.files.toLocaleString()} files · {formatBytes(scanProgress.bytes)} scanned

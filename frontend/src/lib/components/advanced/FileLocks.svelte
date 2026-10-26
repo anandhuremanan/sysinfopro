@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import {
 		FindLockingProcesses,
 		PickFile,
@@ -96,9 +97,7 @@
 	{/if}
 
 	{#if isChecking}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Asking Windows which programs have it open...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Asking Windows which programs have it open..." /></div>
 	{:else if result}
 		<div class="flex items-center justify-between gap-3 shrink-0">
 			<span class="font-semibold text-ink truncate" title={result.path}>{result.path}</span>

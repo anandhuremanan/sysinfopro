@@ -18,18 +18,28 @@
 		SetHotkeySettings,
 		SetReminderEnabled
 	} from '$lib/wailsjs/go/main/App';
+	import {
+		CARD_STYLES,
+		generateSpecCardPNG,
+		getCardStyle,
+		setCardStyle,
+		type CardStyle
+	} from '$lib/utils/cardExporter';
+	import { fade } from 'svelte/transition';
 	import Credits from './Credits.svelte';
+	import Segmented from './Segmented.svelte';
 	import Modal from './Modal.svelte';
 	import Switch from './Switch.svelte';
 
 	let { showModal = $bindable(false) } = $props();
 
-	type Tab = 'general' | 'widget' | 'alerts';
+	type Tab = 'general' | 'card' | 'widget' | 'alerts';
 	type AlertSettings = { enabled: boolean; min_free_gb: number; drop_gb: number };
 	type HotkeySettings = { enabled: boolean; combo: string; error?: string };
 
 	const tabs: { id: Tab; label: string }[] = [
 		{ id: 'general', label: 'General' },
+		{ id: 'card', label: 'Card' },
 		{ id: 'widget', label: 'Widget' },
 		{ id: 'alerts', label: 'Alerts' }
 	];
@@ -57,6 +67,28 @@
 	};
 
 	let tab = $state<Tab>('general');
+
+	// the share card's look, previewed as it will be saved
+	let cardStyle = $state<CardStyle>(getCardStyle());
+	let cardPreview = $state('');
+	let previewToken = 0;
+
+	$effect(() => {
+		if (!showModal || tab !== 'card') return;
+		// redraw when the style, theme or accent changes
+		const style = cardStyle;
+		theme.mode;
+		theme.accent;
+		const token = ++previewToken;
+		generateSpecCardPNG(undefined, style).then((url) => {
+			if (token === previewToken) cardPreview = url;
+		});
+	});
+
+	function pickCardStyle(style: CardStyle) {
+		cardStyle = style;
+		setCardStyle(style);
+	}
 	let alertSettings = $state<AlertSettings | null>(null);
 	let notificationStatus = $state<string>('');
 	let hotkeySettings = $state<HotkeySettings | null>(null);
@@ -112,42 +144,24 @@
 	disabled = false,
 	group = ''
 )}
-	<div role="radiogroup" aria-label={group} class="flex gap-0.5 p-[3px] rounded-[10px] bg-line">
-		{#each options as option (option)}
-			<button
-				role="radio"
-				aria-checked={selected === option}
-				{disabled}
-				class="h-6 px-2.5 rounded-lg cursor-pointer font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed {selected ===
-				option
-					? 'bg-tile text-ink font-semibold shadow-xs'
-					: 'text-muted hover:text-ink'}"
-				onclick={() => onpick(option)}
-			>
-				{label(option)}
-			</button>
-		{/each}
-	</div>
+	<Segmented
+		options={options.map((o) => ({ id: o, label: label(o) }))}
+		value={selected}
+		onchange={onpick}
+		{disabled}
+		label={group}
+		size="sm"
+	/>
 {/snippet}
 
 <Modal bind:showModal title="Settings">
-	<div class="flex flex-col gap-4">
-		<div role="tablist" aria-label="Settings sections" class="flex gap-1 -mt-1 border-b border-line">
-			{#each tabs as t (t.id)}
-				<button
-					role="tab"
-					aria-selected={tab === t.id}
-					class="h-8 px-3 -mb-px border-b-2 cursor-pointer font-semibold transition-colors {tab ===
-					t.id
-						? 'border-accent text-ink'
-						: 'border-transparent text-muted hover:text-ink'}"
-					onclick={() => (tab = t.id)}
-				>
-					{t.label}
-				</button>
-			{/each}
+	<div class="flex flex-col gap-5">
+		<div class="self-start">
+			<Segmented options={tabs} value={tab} onchange={(t) => (tab = t)} label="Settings sections" tabs />
 		</div>
 
+		{#key tab}
+			<div class="flex flex-col gap-5" in:fade={{ duration: 160 }}>
 		{#if tab === 'general'}
 			<div class="flex items-center justify-between gap-4">
 				<div>
@@ -164,7 +178,7 @@
 				)}
 			</div>
 
-			<div class="flex items-center justify-between gap-4 pt-4 border-t border-line">
+			<div class="flex items-center justify-between gap-4">
 				<div>
 					<div class="font-semibold">Accent</div>
 					<div class="text-muted">Buttons, bars and highlights</div>
@@ -204,12 +218,36 @@
 				</div>
 			</div>
 
-			<div class="flex items-center justify-between gap-4 pt-4 border-t border-line">
+			<div class="flex items-center justify-between gap-4">
 				<div>
 					<div class="font-semibold">SysInfo Pro</div>
 					<div class="text-muted">About, credits and source code</div>
 				</div>
 				<Credits />
+			</div>
+		{:else if tab === 'card'}
+			<div class="flex flex-col gap-2.5">
+				<div class="flex items-center justify-between gap-4">
+					<div class="min-w-0">
+						<div class="font-semibold">Share card</div>
+						<div class="text-muted truncate">
+							{CARD_STYLES.find((s) => s.id === cardStyle)?.hint}
+						</div>
+					</div>
+					{@render chips(
+						CARD_STYLES.map((s) => s.id),
+						cardStyle,
+						(id) => CARD_STYLES.find((s) => s.id === id)?.label ?? id,
+						pickCardStyle,
+						false,
+						'Share card style'
+					)}
+				</div>
+				<div class="rounded-xl overflow-hidden bg-ground aspect-[16/9]">
+					{#if cardPreview}
+						<img src={cardPreview} alt="Preview of the share card" class="w-full h-full object-cover" />
+					{/if}
+				</div>
 			</div>
 		{:else if tab === 'widget'}
 			<div class="flex items-center justify-between gap-4">
@@ -227,7 +265,7 @@
 					Open widget
 				</button>
 			</div>
-			<div class="flex flex-col gap-2 pt-4 border-t border-line">
+			<div class="flex flex-col gap-2">
 				<span class="font-semibold">Show</span>
 				<div class="flex flex-wrap gap-1.5" role="group" aria-label="Readings shown in the widget">
 					{#each widgetOptions() as metric (metric.id)}
@@ -246,7 +284,7 @@
 				</div>
 			</div>
 			{#if hotkeySettings}
-				<div class="flex flex-col gap-2 pt-4 border-t border-line">
+				<div class="flex flex-col gap-2">
 					<div class="flex items-center justify-between gap-4">
 						<div>
 							<div class="font-semibold">Keyboard shortcut</div>
@@ -294,7 +332,7 @@
 				/>
 			</div>
 
-			<div class="flex flex-col gap-3 pt-4 border-t border-line">
+			<div class="flex flex-col gap-3">
 				<div class="flex items-center justify-between gap-4">
 					<span class={alertSettings.enabled ? '' : 'text-muted'}>When free space drops below</span>
 					{@render chips(
@@ -320,7 +358,7 @@
 			</div>
 
 			{#if reminder}
-				<div class="flex items-center justify-between gap-4 pt-4 border-t border-line">
+				<div class="flex items-center justify-between gap-4">
 					<div class="min-w-0">
 						<div class="font-semibold">Monthly cleanup reminder</div>
 						<div class="text-muted leading-snug">
@@ -340,7 +378,7 @@
 				</div>
 			{/if}
 
-			<div class="flex items-start justify-between gap-4 pt-4 border-t border-line">
+			<div class="flex items-start justify-between gap-4">
 				<p
 					class="leading-snug {notificationStatus === 'enabled' || !notificationStatus
 						? 'text-muted'
@@ -359,5 +397,7 @@
 				</button>
 			</div>
 		{/if}
+			</div>
+		{/key}
 	</div>
 </Modal>

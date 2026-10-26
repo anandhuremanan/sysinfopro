@@ -26,12 +26,20 @@
 		GetStartupItems,
 		GetSysInfo
 	} from '$lib/wailsjs/go/main/App';
-	import { prefetch } from '$lib/cache';
+	import { prefetch, remember } from '$lib/cache';
+	import { setActiveView, tasks } from '$lib/tasks.svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { fly } from 'svelte/transition';
+
+	// screens ease in over a sixth of a second, or appear at once with reduced motion
+	const enterMs =
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
 	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
 
 	type View = 'home' | 'processes' | 'tools' | ToolId;
 
 	const WIDGET_ICON = 'M3 5h18v14H3zM12 12h7v5h-7z';
+	const SHARE_ICON = 'M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5';
 	const SETTINGS_ICON =
 		'M4 6h9M17 6h3M17 6a2 2 0 1 1-4 0a2 2 0 0 1 4 0zM4 12h3M11 12h9M11 12a2 2 0 1 1-4 0a2 2 0 0 1 4 0zM4 18h11M19 18h1M19 18a2 2 0 1 1-4 0a2 2 0 0 1 4 0z';
 
@@ -51,6 +59,7 @@
 
 	// Ctrl+K opens quick search from anywhere in the full window
 	function onWindowKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape' && showShare) showShare = false;
 		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !widget.active) {
 			event.preventDefault();
 			showQuickSearch = !showQuickSearch;
@@ -111,11 +120,16 @@
 		showQuitConfirm = !showQuitConfirm;
 	}
 
+	// Share menu: copying and saving the PC's specs, out of the way until needed
+	let showShare = $state(false);
+
 	async function copyStatHandler() {
+		showShare = false;
 		showLog(await copyStat(systemInfo));
 	}
 
 	async function exportSpecCardHandler() {
+		showShare = false;
 		const savedPath = await exportSpecCardPNG(systemInfo);
 		showLog(savedPath ? `Spec Card saved: ${savedPath}` : 'Failed to export spec card.', 4000);
 	}
@@ -126,6 +140,7 @@
 			const result = await GetSysInfo();
 			if (result) {
 				systemInfo = JSON.parse(result);
+				remember('sysinfo', systemInfo);
 			}
 		} catch (err) {
 			error = `Failed to get system information: ${err}`;
@@ -171,6 +186,12 @@
 		return () => clearTimeout(timer);
 	});
 
+	// jobs still running elsewhere show as chips in the header
+	$effect(() => {
+		setActiveView(view);
+	});
+	let backgroundTasks = $derived(tasks.running.filter((t) => t.view !== view));
+
 	$effect(() => {
 		initWidget();
 		listenForAlerts();
@@ -178,6 +199,10 @@
 	});
 
 	function openForAlert(alert: DriveAlert) {
+		if (alert.kind === 'task' && alert.view) {
+			openView(alert.view);
+			return;
+		}
 		if (alert.kind === 'reminder') {
 			openView('devcache');
 			return;
@@ -237,30 +262,61 @@
 			</div>
 
 			<div class="flex items-center gap-1 shrink-0">
-				{#if view === 'home'}
+				{#each backgroundTasks as task (task.id)}
 					<button
-						class="h-7 px-2.5 rounded-lg text-muted font-medium cursor-pointer hover:text-ink hover:bg-line transition-colors"
-						onclick={getSysInfo}
+						class="h-7 max-w-[220px] pl-2 pr-2.5 mr-1 rounded-full flex items-center gap-2 bg-tile border border-line text-ink cursor-pointer hover:border-accent transition-colors"
+						title="Running in the background. Click to see it."
+						onclick={() => openView(task.view)}
 					>
-						Refresh
+						<span class="relative shrink-0 w-3.5 h-3.5">
+							<span class="absolute inset-0 rounded-full border-2 border-accent/30"></span>
+							<span class="absolute inset-0 rounded-full border-2 border-accent border-t-transparent animate-spin"></span>
+						</span>
+						<span class="font-semibold truncate">{task.label}</span>
+						{#if task.detail}
+							<span class="text-muted truncate tabular-nums">{task.detail}</span>
+						{/if}
 					</button>
-					<button
-						class="h-7 px-2.5 rounded-lg text-muted font-medium cursor-pointer hover:text-ink hover:bg-line transition-colors"
-						onclick={copyStatHandler}
-					>
-						Copy stats
-					</button>
-					<button
-						class="h-7 px-3 rounded-lg bg-ink text-tile font-semibold cursor-pointer transition-transform active:scale-95"
-						onclick={exportSpecCardHandler}
-					>
-						Export card
-					</button>
+				{/each}
+				{#if view === 'home' && systemInfo}
+					<div class="relative">
+						<button
+							aria-label="Share"
+							aria-haspopup="menu"
+							aria-expanded={showShare}
+							title="Copy or save this PC's specs"
+							class="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer transition-colors {showShare
+								? 'text-ink bg-line'
+								: 'text-muted hover:text-ink hover:bg-line'}"
+							onclick={() => (showShare = !showShare)}
+						>
+							<StrokeIcon d={SHARE_ICON} />
+						</button>
+						{#if showShare}
+							<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+							<div class="fixed inset-0 z-40" onclick={() => (showShare = false)}></div>
+							<div
+								role="menu"
+								class="absolute right-0 top-9 z-50 w-56 p-1 rounded-xl bg-tile border border-line shadow-2xl"
+							>
+								{#each [{ label: 'Copy stats', hint: 'System details as text', run: copyStatHandler }, { label: 'Save spec card', hint: 'A shareable image, to Downloads', run: exportSpecCardHandler }] as item (item.label)}
+									<button
+										role="menuitem"
+										class="w-full flex flex-col items-start px-2.5 py-1.5 rounded-lg text-left cursor-pointer hover:bg-ground"
+										onclick={item.run}
+									>
+										<span class="font-semibold text-ink">{item.label}</span>
+										<span class="text-[11px] text-muted">{item.hint}</span>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				{/if}
 				<button
 					aria-label="Shrink to widget"
 					title="Shrink to a small always-visible widget"
-					class="w-7 h-7 ml-1 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
+					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
 					onclick={enterWidget}
 				>
 					<StrokeIcon d={WIDGET_ICON} />
@@ -289,6 +345,9 @@
 			{#if error && !systemInfo}
 				<div class="h-full flex items-center justify-center text-red-500">{error}</div>
 			{:else if systemInfo}
+				<!-- the new screen eases in; the old one goes at once, so a click never waits -->
+				{#key view}
+				<div class="h-full" in:fly={{ y: 6, duration: enterMs, easing: cubicOut }}>
 				{#if view === 'home'}
 					<HomeDash {systemInfo} {toolStatus} onOpen={openView} onSpeedTest={openSpeedTest} />
 				{:else if view === 'tools'}
@@ -306,6 +365,8 @@
 						{/if}
 					</div>
 				{/if}
+				</div>
+				{/key}
 			{/if}
 		</main>
 

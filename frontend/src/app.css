@@ -25,6 +25,8 @@
 	--track: #e6e9ed;
 	--accent: #0f766e;
 	--on-accent: #ffffff;
+	/* what lighter or darker shades of the accent are mixed with: away from the text on it */
+	--tone-mix: #000000;
 	color-scheme: light;
 }
 
@@ -37,6 +39,7 @@
 	--track: #1e293b;
 	--accent: #2dd4bf;
 	--on-accent: #042f2e;
+	--tone-mix: #ffffff;
 	color-scheme: dark;
 }
 

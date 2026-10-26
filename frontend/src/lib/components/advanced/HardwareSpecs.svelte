@@ -1,4 +1,5 @@
 <script lang="ts">
+	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount } from 'svelte';
 	import { buildSpecSections, exportSystemReport, specsToText } from '$lib/utils/reportExporter';
 	import { load, recall } from '$lib/cache';
@@ -95,9 +96,7 @@
 	{/if}
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
-			Reading hardware inventory...
-		</div>
+		<div class="flex-1 flex items-center justify-center"><BusyArt kind="read" size={64} label="Reading hardware inventory..." /></div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>

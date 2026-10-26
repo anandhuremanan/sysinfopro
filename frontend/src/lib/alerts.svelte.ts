@@ -2,7 +2,9 @@ import { EventsOn } from '$lib/wailsjs/runtime/runtime';
 
 export type DriveAlert = {
 	drive: string;
-	kind: 'low' | 'dropping' | 'reminder' | 'test';
+	kind: 'low' | 'dropping' | 'reminder' | 'test' | 'task';
+	// task results: the screen that shows them
+	view?: string;
 	title: string;
 	body: string;
 	free_bytes: number;
