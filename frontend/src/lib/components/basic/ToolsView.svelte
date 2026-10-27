@@ -22,10 +22,13 @@
 	const toneOf = (group: string) => GROUPS.find((g) => g.name === group)?.tone ?? 100;
 	// --tone-mix is white for light accents and black for dark ones, so a lighter
 	// shade keeps the icon on it readable
-	const tint = (group: string) => `color-mix(in srgb, var(--accent) ${toneOf(group)}%, var(--tone-mix))`;
+	const tint = (group: string) =>
+		`color-mix(in srgb, var(--accent) ${toneOf(group)}%, var(--tone-mix))`;
 
 	let shown = $derived(
-		GROUPS.flatMap((g) => tools.filter((t) => t.group === g.name)).filter((t) => matchTool(t, searchTerm) > 0)
+		GROUPS.flatMap((g) => tools.filter((t) => t.group === g.name)).filter(
+			(t) => matchTool(t, searchTerm) > 0
+		)
 	);
 </script>
 
@@ -53,20 +56,21 @@
 		{#if shown.length === 0}
 			<div class="h-full flex items-center justify-center text-muted">No matching tools found.</div>
 		{:else}
-			<div class="grid grid-cols-6 gap-2 auto-rows-[100px]">
+			<div class="grid grid-cols-6 gap-2 auto-rows-[80px]">
 				{#each shown as tool (tool.id)}
 					{@const count = toolStatus[tool.id]?.count ?? 0}
 					<button
-						class="relative min-w-0 rounded-2xl bg-tile px-2.5 py-2 flex flex-col items-center justify-center gap-1 text-center cursor-pointer transition-[background-color,transform] duration-150 hover:bg-line/60 active:scale-[0.97]"
+						class="relative min-w-0 rounded-2xl bg-tile px-2 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer transition-[background-color,transform] duration-150 hover:bg-line/60 active:scale-[0.97]"
 						onclick={() => onOpen(tool.id)}
 					>
 						<span
-							class="w-[34px] h-[34px] mb-0.5 rounded-[10px] flex items-center justify-center text-on-accent"
+							class="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-on-accent"
 							style="background: {tint(tool.group)}"
 						>
 							<StrokeIcon d={tool.icon} size={18} />
 						</span>
-						<span class="font-semibold text-ink leading-tight max-w-full truncate">{tool.name}</span>
+						<span class="font-semibold text-ink leading-tight max-w-full truncate">{tool.name}</span
+						>
 						<span class="text-[11px] text-muted leading-tight max-w-full truncate">
 							{toolStatus[tool.id]?.hint ?? tool.hint}
 						</span>

@@ -11,6 +11,10 @@
 	import NetworkDoctor from './NetworkDoctor.svelte';
 	import DevDoctor from './DevDoctor.svelte';
 	import DuplicateFinder from './DuplicateFinder.svelte';
+	import SlowNow from './SlowNow.svelte';
+	import BatteryReport from './BatteryReport.svelte';
+	import Handover from './Handover.svelte';
+	import GitSweep from './GitSweep.svelte';
 	import HardwareSpecs from './HardwareSpecs.svelte';
 	import PortInspector from './PortInspector.svelte';
 	import SecurityCheck from './SecurityCheck.svelte';
@@ -46,7 +50,11 @@
 			| 'wsl'
 			| 'netdoctor'
 			| 'devdoctor'
-			| 'dupes';
+			| 'dupes'
+			| 'slow'
+			| 'battery'
+			| 'handover'
+			| 'gitsweep';
 	} = $props();
 
 	let batteryDetails: any = $state(undefined);
@@ -133,6 +141,14 @@
 			<DevDoctor />
 		{:else if tool === 'dupes'}
 			<DuplicateFinder />
+		{:else if tool === 'slow'}
+			<SlowNow />
+		{:else if tool === 'battery'}
+			<BatteryReport />
+		{:else if tool === 'handover'}
+			<Handover />
+		{:else if tool === 'gitsweep'}
+			<GitSweep />
 		{/if}
 	</div>
 </div>

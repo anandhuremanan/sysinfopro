@@ -12,6 +12,7 @@
 	import QuickSearch from '$lib/components/ui/QuickSearch.svelte';
 	import RatingPrompt from '$lib/components/ui/RatingPrompt.svelte';
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
+	import ReportModal from '$lib/components/ui/ReportModal.svelte';
 	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
 	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
@@ -33,7 +34,9 @@
 
 	// screens ease in over a sixth of a second, or appear at once with reduced motion
 	const enterMs =
-		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 160;
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+			? 0
+			: 160;
 	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
 
 	type View = 'home' | 'processes' | 'tools' | ToolId;
@@ -122,6 +125,12 @@
 
 	// Share menu: copying and saving the PC's specs, out of the way until needed
 	let showShare = $state(false);
+	let showReport = $state(false);
+
+	function openReport() {
+		showShare = false;
+		showReport = true;
+	}
 
 	async function copyStatHandler() {
 		showShare = false;
@@ -270,7 +279,9 @@
 					>
 						<span class="relative shrink-0 w-3.5 h-3.5">
 							<span class="absolute inset-0 rounded-full border-2 border-accent/30"></span>
-							<span class="absolute inset-0 rounded-full border-2 border-accent border-t-transparent animate-spin"></span>
+							<span
+								class="absolute inset-0 rounded-full border-2 border-accent border-t-transparent animate-spin"
+							></span>
 						</span>
 						<span class="font-semibold truncate">{task.label}</span>
 						{#if task.detail}
@@ -299,7 +310,7 @@
 								role="menu"
 								class="absolute right-0 top-9 z-50 w-56 p-1 rounded-xl bg-tile border border-line shadow-2xl"
 							>
-								{#each [{ label: 'Copy stats', hint: 'System details as text', run: copyStatHandler }, { label: 'Save spec card', hint: 'A shareable image, to Downloads', run: exportSpecCardHandler }] as item (item.label)}
+								{#each [{ label: 'Copy stats', hint: 'System details as text', run: copyStatHandler }, { label: 'Save spec card', hint: 'A shareable image, to Downloads', run: exportSpecCardHandler }, { label: 'Save full report', hint: 'Specs, health and checks, to Downloads', run: openReport }] as item (item.label)}
 									<button
 										role="menuitem"
 										class="w-full flex flex-col items-start px-2.5 py-1.5 rounded-lg text-left cursor-pointer hover:bg-ground"
@@ -347,25 +358,25 @@
 			{:else if systemInfo}
 				<!-- the new screen eases in; the old one goes at once, so a click never waits -->
 				{#key view}
-				<div class="h-full" in:fly={{ y: 6, duration: enterMs, easing: cubicOut }}>
-				{#if view === 'home'}
-					<HomeDash {systemInfo} {toolStatus} onOpen={openView} onSpeedTest={openSpeedTest} />
-				{:else if view === 'tools'}
-					<ToolsView {toolStatus} onOpen={openView} />
-				{:else}
-					<div class="h-full bg-tile rounded-2xl p-4">
-						{#if view === 'speed'}
-							<div class="h-full flex items-center justify-center">
-								<SpeedAnimation />
-							</div>
-						{:else if view === 'processes'}
-							<ProcessView />
+					<div class="h-full" in:fly={{ y: 6, duration: enterMs, easing: cubicOut }}>
+						{#if view === 'home'}
+							<HomeDash {systemInfo} {toolStatus} onOpen={openView} onSpeedTest={openSpeedTest} />
+						{:else if view === 'tools'}
+							<ToolsView {toolStatus} onOpen={openView} />
 						{:else}
-							<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
+							<div class="h-full bg-tile rounded-2xl p-4">
+								{#if view === 'speed'}
+									<div class="h-full flex items-center justify-center">
+										<SpeedAnimation />
+									</div>
+								{:else if view === 'processes'}
+									<ProcessView />
+								{:else}
+									<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
+								{/if}
+							</div>
 						{/if}
 					</div>
-				{/if}
-				</div>
 				{/key}
 			{/if}
 		</main>
@@ -388,6 +399,7 @@
 		<RatingPrompt />
 
 		<SettingsModal bind:showModal={showSettings} />
+		<ReportModal bind:showModal={showReport} {systemInfo} />
 
 		<!-- Quit Confirmation Modal -->
 		<Modal

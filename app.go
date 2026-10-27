@@ -14,11 +14,14 @@ import (
 
 	"myproject/functions"
 	"myproject/internal/alerts"
+	"myproject/internal/batteryreport"
 	"myproject/internal/cleaner"
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/dupes"
 	"myproject/internal/hardware"
+	"myproject/internal/gitsweep"
+	"myproject/internal/handover"
 	"myproject/internal/history"
 	"myproject/internal/hotkey"
 	"myproject/internal/locks"
@@ -28,6 +31,7 @@ import (
 	"myproject/internal/process"
 	"myproject/internal/reminder"
 	"myproject/internal/security"
+	"myproject/internal/slownow"
 	"myproject/internal/storage"
 	"myproject/internal/system"
 	"myproject/internal/vdisk"
@@ -52,6 +56,9 @@ type App struct {
 
 	cleanMu     sync.Mutex
 	cleanCancel context.CancelFunc
+
+	gitMu     sync.Mutex
+	gitCancel context.CancelFunc
 
 	dupesMu     sync.Mutex
 	dupesCancel context.CancelFunc
@@ -520,6 +527,24 @@ func (a *App) SaveSystemReport(html string) (string, error) {
 	return targetPath, nil
 }
 
+// GetPrivateTerms lists words that identify this PC or its user (the PC's name
+// and the Windows user name), so a shared report can leave them out
+func (a *App) GetPrivateTerms() []string {
+	terms := []string{}
+	if h, err := os.Hostname(); err == nil && h != "" {
+		terms = append(terms, h)
+	}
+	if u := os.Getenv("USERNAME"); u != "" {
+		terms = append(terms, u)
+	}
+	if p := os.Getenv("USERPROFILE"); p != "" {
+		if base := filepath.Base(p); base != "" && base != os.Getenv("USERNAME") {
+			terms = append(terms, base)
+		}
+	}
+	return terms
+}
+
 // PickFile opens the system file picker and returns the chosen path ("" if cancelled)
 func (a *App) PickFile(title string) (string, error) {
 	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
@@ -791,6 +816,52 @@ func (a *App) RemoveDuplicates(paths []string) (DuplicateRemoval, error) {
 		out.Freed += info.Size()
 	}
 	return out, nil
+}
+
+// DiagnoseSlowness measures the PC for a few seconds and explains what is
+// slowing it down right now
+func (a *App) DiagnoseSlowness() slownow.Report {
+	return slownow.Diagnose(a.ctx)
+}
+
+// CheckHandover lists what to deal with before the PC changes hands. Nothing is changed.
+func (a *App) CheckHandover() handover.Report {
+	return handover.Check(a.ctx)
+}
+
+// GetBatteryReport reads Windows' own battery report: real capacity, its
+// history, and recent time on battery
+func (a *App) GetBatteryReport() (*batteryreport.Report, error) {
+	return batteryreport.Get(a.ctx)
+}
+
+// FindGitRepos finds git projects under root and what in them exists only on
+// this PC, sending "gitsweep-progress"; a new search cancels the previous one
+func (a *App) FindGitRepos(root string) (*gitsweep.Result, error) {
+	ctx, cancel := context.WithCancel(a.ctx)
+	defer cancel()
+	a.gitMu.Lock()
+	if a.gitCancel != nil {
+		a.gitCancel()
+	}
+	a.gitCancel = cancel
+	a.gitMu.Unlock()
+
+	return gitsweep.Find(ctx, root, func(p gitsweep.Progress) {
+		if ctx.Err() == nil {
+			runtime.EventsEmit(a.ctx, "gitsweep-progress", p)
+		}
+	})
+}
+
+// CancelGitSweep stops the running project search, if any
+func (a *App) CancelGitSweep() {
+	a.gitMu.Lock()
+	defer a.gitMu.Unlock()
+	if a.gitCancel != nil {
+		a.gitCancel()
+		a.gitCancel = nil
+	}
 }
 
 // ListVirtualDisks returns the virtual disks of WSL distributions and Docker Desktop

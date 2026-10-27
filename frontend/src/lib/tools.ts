@@ -16,7 +16,11 @@ export type ToolId =
 	| 'wsl'
 	| 'netdoctor'
 	| 'devdoctor'
-	| 'dupes';
+	| 'dupes'
+	| 'slow'
+	| 'battery'
+	| 'handover'
+	| 'gitsweep';
 
 export type Tool = {
 	id: ToolId;
@@ -48,6 +52,30 @@ export const tools: Tool[] = [
 		group: 'System',
 		keywords: 'antivirus firewall bitlocker updates defender secure boot uac',
 		icon: 'M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6l7-3zM9 12l2 2 4-4'
+	},
+	{
+		id: 'slow',
+		name: 'Why so slow',
+		hint: 'Right now',
+		group: 'System',
+		keywords: 'slow lag sluggish performance cpu memory ram disk busy hang freeze high usage',
+		icon: 'M12 13l3-3M4.5 18a9 9 0 1 1 15 0M12 13h.01'
+	},
+	{
+		id: 'battery',
+		name: 'Battery',
+		hint: 'Health & history',
+		group: 'System',
+		keywords: 'battery health wear capacity cycles charge laptop runtime',
+		icon: 'M3 8h15a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM22 11v2M6 11v2M10 11v2'
+	},
+	{
+		id: 'handover',
+		name: 'Hand over',
+		hint: 'Before you sell',
+		group: 'System',
+		keywords: 'sell give away hand over reset wipe new pc accounts sign out privacy',
+		icon: 'M7 11l3-3 3 2 4-4M3 14l4 1 5 4 9-6M3 14V9M21 13V8'
 	},
 	{
 		id: 'changes',
@@ -144,6 +172,14 @@ export const tools: Tool[] = [
 		group: 'Developer',
 		keywords: 'in use open handle cannot delete locked',
 		icon: 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM12 15v2.5'
+	},
+	{
+		id: 'gitsweep',
+		name: 'Git projects',
+		hint: 'Unpushed work',
+		group: 'Developer',
+		keywords: 'git repo repository unpushed uncommitted commit push stash backup branch lost work',
+		icon: 'M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9a9 9 0 0 1-9 9'
 	},
 	{
 		id: 'devdoctor',

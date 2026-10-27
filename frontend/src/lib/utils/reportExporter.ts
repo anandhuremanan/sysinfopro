@@ -9,10 +9,37 @@ export type ReportInput = {
 	specs?: any;
 	security?: any;
 	drives?: any[];
+	driveHealth?: any[];
+	battery?: any;
+	network?: any;
+	devTools?: any[];
+	slow?: any;
+	// leave out serial numbers, the PC's name, the user name, addresses and emails
+	hidePersonal?: boolean;
+	privateTerms?: string[];
 };
 
+// set while a report is being written: hides personal details in every value
+let redact: (text: string) => string = (t) => t;
+
+function makeRedactor(terms: string[]): (text: string) => string {
+	const words = terms
+		.filter((t) => t && t.length >= 3)
+		.sort((a, b) => b.length - a.length)
+		.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+	const named = words.length ? new RegExp(words.join('|'), 'gi') : null;
+	return (text) => {
+		let out = text
+			.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '(email hidden)')
+			.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '(hidden)')
+			.replace(/\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b/gi, '(hidden)');
+		if (named) out = out.replace(named, '(hidden)');
+		return out;
+	};
+}
+
 function escapeHtml(value: unknown): string {
-	return String(value ?? '')
+	return redact(String(value ?? ''))
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;')
@@ -57,10 +84,7 @@ export function buildSpecSections(specs: any): Section[] {
 	const totalRam = specs.memory.reduce((sum: number, m: any) => sum + m.size_bytes, 0);
 	add('Memory', [
 		['Installed', totalRam > 0 ? formatBytes(totalRam) : ''],
-		[
-			'Slots',
-			specs.memory_slots > 0 ? `${specs.memory.length} of ${specs.memory_slots} used` : ''
-		],
+		['Slots', specs.memory_slots > 0 ? `${specs.memory.length} of ${specs.memory_slots} used` : ''],
 		...specs.memory.map(
 			(m: any): Row => [
 				m.slot || 'Module',
@@ -113,8 +137,144 @@ const STATUS_LABEL: Record<string, string> = {
 	unknown: 'Unknown'
 };
 
-export function generateReportHTML({ systemInfo, specs, security, drives }: ReportInput): string {
-	const sections = buildSpecSections(specs);
+export function generateReportHTML(input: ReportInput): string {
+	redact = input.hidePersonal
+		? makeRedactor([...(input.privateTerms ?? []), input.specs?.bios?.serial ?? ''])
+		: (t) => t;
+	try {
+		return writeReport(input);
+	} finally {
+		redact = (t) => t;
+	}
+}
+
+// a row whose value carries an OK / Review / Problem label
+const statusCell = (status: string, text: string, advice = '') =>
+	`<span class="status ${escapeHtml(status)}">${STATUS_LABEL[status] ?? escapeHtml(status)}</span> ${escapeHtml(text)}${advice ? `<div class="advice">${escapeHtml(advice)}</div>` : ''}`;
+const statusTable = (rows: [label: string, cell: string][]) =>
+	`<table>${rows.map(([label, cell]) => `<tr><th>${escapeHtml(label)}</th><td>${cell}</td></tr>`).join('')}</table>`;
+const LEVEL_STATUS: Record<string, string> = {
+	ok: 'pass',
+	warn: 'warn',
+	fail: 'fail',
+	skip: 'unknown',
+	high: 'fail',
+	medium: 'warn',
+	info: 'unknown',
+	missing: 'unknown'
+};
+
+function extraSections({ driveHealth, battery, network, devTools, slow }: ReportInput): string {
+	const out: string[] = [];
+	const minutes = (m: number) => (m ? `${Math.floor(m / 60)} h ${m % 60} min` : 'n/a');
+
+	if (driveHealth?.length) {
+		out.push(
+			`<section><h2>Drive health</h2>${statusTable(
+				driveHealth.map((d: any) => [
+					`${d.drive} ${d.model ?? ''}`.trim(),
+					statusCell(
+						d.status === 'Healthy'
+							? 'pass'
+							: d.status === 'Unknown'
+								? 'unknown'
+								: d.status === 'Warning'
+									? 'warn'
+									: 'fail',
+						[
+							d.type,
+							d.life_left_pct >= 0 ? `${d.life_left_pct}% of rated life left` : '',
+							d.nvme?.temperature_c ? `${d.nvme.temperature_c} °C` : ''
+						]
+							.filter(Boolean)
+							.join(' · '),
+						d.reason
+					)
+				])
+			)}</section>`
+		);
+	}
+
+	if (battery?.has_battery) {
+		const b = battery.batteries[0];
+		out.push(
+			`<section><h2>Battery</h2><table>${[
+				['Health', `${Math.round(battery.health_pct)}% of original capacity`],
+				[
+					'Full charge',
+					`${(battery.batteries.reduce((s: number, x: any) => s + x.full_mwh, 0) / 1000).toFixed(1)} Wh, was ${(battery.batteries.reduce((s: number, x: any) => s + x.design_mwh, 0) / 1000).toFixed(1)} Wh new`
+				],
+				[
+					'Lasts about',
+					`${minutes(battery.runtime_now_min)}, was ${minutes(battery.runtime_new_min)} new`
+				],
+				['Charge cycles', b.cycles >= 0 ? String(b.cycles) : 'Not reported by the battery'],
+				[
+					'Wear',
+					battery.loss_per_year > 0
+						? `about ${battery.loss_per_year.toFixed(1)}% a year, recorded since ${battery.tracked_since}`
+						: `recorded since ${battery.tracked_since || 'today'}`
+				]
+			]
+				.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(v)}</td></tr>`)
+				.join('')}</table></section>`
+		);
+	}
+
+	if (network?.steps?.length) {
+		out.push(
+			`<section><h2>Network doctor</h2><p class="lead">${escapeHtml(network.summary)}</p>${statusTable(
+				network.steps.map((s: any) => [
+					s.name,
+					statusCell(LEVEL_STATUS[s.status] ?? 'unknown', s.detail || 'Not checked', s.fix)
+				])
+			)}</section>`
+		);
+	}
+
+	const installed = (devTools ?? []).filter((t: any) => t.status !== 'missing');
+	if (installed.length) {
+		out.push(
+			`<section><h2>Developer tools</h2>${statusTable(
+				installed.map((t: any) => [
+					t.name,
+					statusCell(
+						LEVEL_STATUS[t.status] ?? 'unknown',
+						`${t.version || 'no version'} · ${t.copies[0]?.path ?? ''}${t.copies.length > 1 ? ` (+${t.copies.length - 1} more)` : ''}`,
+						t.issues.map((i: any) => i.text).join(' ')
+					)
+				])
+			)}</section>`
+		);
+	}
+
+	if (slow) {
+		const rows: [string, string][] = [
+			['Processor', `${Math.round(slow.cpu.percent)}% busy`],
+			['Memory', `${Math.round(slow.memory.used_pct)}% used`],
+			['Drive', slow.disk.busy_pct >= 0 ? `${Math.round(slow.disk.busy_pct)}% busy` : 'n/a']
+		];
+		out.push(
+			`<section class="wide"><h2>Slowness check</h2><p class="lead">${escapeHtml(slow.calm ? 'Nothing was slowing the PC down when this report was made.' : slow.summary)}</p>${statusTable(
+				[
+					...rows.map(([l, v]): [string, string] => [l, escapeHtml(v)]),
+					...slow.findings.map((f: any): [string, string] => [
+						f.title,
+						statusCell(LEVEL_STATUS[f.level] ?? 'unknown', f.detail, f.fix)
+					])
+				]
+			)}</section>`
+		);
+	}
+	return out.join('');
+}
+
+function writeReport(input: ReportInput): string {
+	const { systemInfo, specs, security, drives } = input;
+	const sections = buildSpecSections(specs).map((s) => ({
+		...s,
+		rows: input.hidePersonal ? s.rows.filter(([label]) => label !== 'Serial number') : s.rows
+	}));
 
 	if (sections.length === 0 && systemInfo) {
 		// hardware inventory unavailable: fall back to the basic overview
@@ -130,7 +290,9 @@ export function generateReportHTML({ systemInfo, specs, security, drives }: Repo
 
 	const table = (rows: Row[]) =>
 		`<table>${rows
-			.map(([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`)
+			.map(
+				([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
+			)
 			.join('')}</table>`;
 
 	const specHtml = sections
@@ -140,10 +302,12 @@ export function generateReportHTML({ systemInfo, specs, security, drives }: Repo
 	const driveHtml =
 		drives && drives.length > 0
 			? `<section><h2>Drives</h2>${table(
-					drives.map((d): Row => [
-						d.path,
-						`${formatBytes(d.free_bytes)} free of ${formatBytes(d.total_bytes)} (${d.used_pct.toFixed(0)}% used) · ${d.fs_type}`
-					])
+					drives.map(
+						(d): Row => [
+							d.path,
+							`${formatBytes(d.free_bytes)} free of ${formatBytes(d.total_bytes)} (${d.used_pct.toFixed(0)}% used) · ${d.fs_type}`
+						]
+					)
 				)}</section>`
 			: '';
 
@@ -192,6 +356,7 @@ td { font-weight: 600; }
 .status.warn { color: #b45309; }
 .status.fail { color: #dc2626; }
 .advice { font-weight: 400; color: var(--muted); }
+.lead { margin: 0 0 8px; font-weight: 600; }
 footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
 @media print { body { background: #fff; padding: 0; } section { border: 1px solid var(--line); break-inside: avoid; } }
 </style>
@@ -199,8 +364,8 @@ footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
 <body>
 <main>
 <header><h1>${escapeHtml(title)}</h1><p>System report · ${escapeHtml(generated)}</p></header>
-<div class="grid">${specHtml}${driveHtml}${securityHtml}</div>
-<footer>Generated by SysInfo Pro. This report contains your device serial number; remove it before sharing publicly.</footer>
+<div class="grid">${specHtml}${driveHtml}${extraSections(input)}${securityHtml}</div>
+<footer>Generated by SysInfo Pro. ${input.hidePersonal ? "Serial numbers, the PC's name, the user name, network addresses and emails are left out." : 'This report contains your device serial number and PC name; remove them before sharing publicly.'}</footer>
 </main>
 </body>
 </html>`;

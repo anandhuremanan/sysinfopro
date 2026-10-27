@@ -22,12 +22,20 @@ export function CancelDuplicateSearch() {
   return window['go']['main']['App']['CancelDuplicateSearch']();
 }
 
+export function CancelGitSweep() {
+  return window['go']['main']['App']['CancelGitSweep']();
+}
+
 export function CancelLeftoverSearch() {
   return window['go']['main']['App']['CancelLeftoverSearch']();
 }
 
 export function CheckDevTools() {
   return window['go']['main']['App']['CheckDevTools']();
+}
+
+export function CheckHandover() {
+  return window['go']['main']['App']['CheckHandover']();
 }
 
 export function CheckInternetConnection() {
@@ -42,8 +50,16 @@ export function DeleteDevCaches(arg1) {
   return window['go']['main']['App']['DeleteDevCaches'](arg1);
 }
 
+export function DiagnoseSlowness() {
+  return window['go']['main']['App']['DiagnoseSlowness']();
+}
+
 export function FindDuplicates(arg1, arg2) {
   return window['go']['main']['App']['FindDuplicates'](arg1, arg2);
+}
+
+export function FindGitRepos(arg1) {
+  return window['go']['main']['App']['FindGitRepos'](arg1);
 }
 
 export function FindLeftovers(arg1) {
@@ -64,6 +80,10 @@ export function GetAlertSettings() {
 
 export function GetBatteryDetails() {
   return window['go']['main']['App']['GetBatteryDetails']();
+}
+
+export function GetBatteryReport() {
+  return window['go']['main']['App']['GetBatteryReport']();
 }
 
 export function GetCPUStats() {
@@ -124,6 +144,10 @@ export function GetMemoryVelocity() {
 
 export function GetNotificationStatus() {
   return window['go']['main']['App']['GetNotificationStatus']();
+}
+
+export function GetPrivateTerms() {
+  return window['go']['main']['App']['GetPrivateTerms']();
 }
 
 export function GetReminderSettings() {
