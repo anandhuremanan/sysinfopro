@@ -3,14 +3,8 @@ package hardware
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
-	"fmt"
-
-	"myproject/internal/winps"
+	"time"
 )
-
-//go:embed specs.ps1
-var specsScript string
 
 type SystemSpec struct {
 	Manufacturer string `json:"manufacturer"`
@@ -85,30 +79,7 @@ type HardwareSpecs struct {
 
 // GetHardwareSpecs reads the machine's hardware inventory from Windows (WMI)
 func GetHardwareSpecs(ctx context.Context) (*HardwareSpecs, error) {
-	out, err := winps.Run(ctx, specsScript)
-	if err != nil {
-		return nil, err
-	}
-	return parseHardwareSpecs(out)
-}
-
-func parseHardwareSpecs(data []byte) (*HardwareSpecs, error) {
-	specs := &HardwareSpecs{}
-	if err := json.Unmarshal(data, specs); err != nil {
-		return nil, fmt.Errorf("could not read hardware inventory: %w", err)
-	}
-	// keep lists non-nil so the UI can iterate without checks
-	if specs.CPUs == nil {
-		specs.CPUs = []CPUSpec{}
-	}
-	if specs.GPUs == nil {
-		specs.GPUs = []GPUSpec{}
-	}
-	if specs.Memory == nil {
-		specs.Memory = []MemoryModuleSpec{}
-	}
-	if specs.Disks == nil {
-		specs.Disks = []DiskSpec{}
-	}
-	return specs, nil
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	return readSpecs(ctx)
 }

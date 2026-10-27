@@ -1,0 +1,82 @@
+name: Release build
+
+# Builds the exe and the Store package for a version tag (v3.2.0 and so on).
+# Nothing is published: download the artifacts and upload the .msix in Partner Center.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Check and test
+        run: |
+          Push-Location frontend
+          npm run check; if ($LASTEXITCODE -ne 0) { throw 'svelte-check failed' }
+          npm run test --if-present; if ($LASTEXITCODE -ne 0) { throw 'frontend tests failed' }
+          npm run build; if ($LASTEXITCODE -ne 0) { throw 'frontend build failed' }
+          Pop-Location
+          go vet ./...; if ($LASTEXITCODE -ne 0) { throw 'go vet failed' }
+          go test ./...; if ($LASTEXITCODE -ne 0) { throw 'go test failed' }
+
+      # the tag must match wails.json, so the exe, the package and the Store agree
+      - name: Check version
+        run: |
+          $version = (Get-Content wails.json -Raw | ConvertFrom-Json).info.productVersion
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "Tag $env:GITHUB_REF_NAME does not match wails.json productVersion $version"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Build the Wails CLI
+        run: ./scripts/build-wails-cli.ps1
+
+      - name: Build the app
+        run: |
+          wails-go127 build -o "sysinfopro-$env:VERSION.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'wails build failed' }
+
+      # identity values come from Partner Center (Product identity); store them as
+      # repository variables MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME
+      - name: Package the MSIX
+        if: ${{ vars.MSIX_IDENTITY_NAME != '' }}
+        run: |
+          ./build/windows/msix/build-msix.ps1 `
+            -IdentityName '${{ vars.MSIX_IDENTITY_NAME }}' `
+            -Publisher '${{ vars.MSIX_PUBLISHER }}' `
+            -PublisherDisplayName '${{ vars.MSIX_PUBLISHER_DISPLAY_NAME }}'
+
+      - name: Upload exe and package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sysinfopro-${{ env.VERSION }}
+          path: |
+            build/bin/sysinfopro-*.exe
+            build/bin/*.msix
+          if-no-files-found: error

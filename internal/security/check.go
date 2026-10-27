@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"myproject/internal/winps"
+	"sysinfopro/internal/winps"
 )
 
 //go:embed security.ps1

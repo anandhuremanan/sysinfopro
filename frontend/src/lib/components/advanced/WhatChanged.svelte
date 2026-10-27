@@ -1,21 +1,13 @@
 <script lang="ts">
+	import type { history } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { onMount } from 'svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { GetChanges, SaveChangesBaseline } from '$lib/wailsjs/go/main/App';
 
-	type CategoryDiff = {
-		id: string;
-		title: string;
-		added: string[];
-		removed: string[];
-		changed: string[];
-	};
+	type CategoryDiff = history.CategoryDiff;
 
-	type Changes = {
-		has_baseline: boolean;
-		since: string;
-		total: number;
-		categories: CategoryDiff[];
-	};
+	type Changes = history.Changes;
 
 	let changes = $state<Changes | undefined>(undefined);
 	let isLoading = $state(false);
@@ -61,41 +53,39 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		load();
 	});
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">What changed</div>
-			<div class="text-xs text-muted truncate">
-				{#if changes?.has_baseline}
-					Compared with {sinceLabel}
-				{:else}
-					Startup programs, installed software, listening ports and PATH, compared over time
+	<ToolHeader title="What changed">
+		{#snippet sub()}
+			{#if changes?.has_baseline}
+				Compared with {sinceLabel}
+			{:else}
+				Startup programs, installed software, listening ports and PATH, compared over time
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<button class="btn btn-secondary" onclick={load} disabled={isLoading}>
+					{isLoading ? 'Comparing...' : 'Compare again'}
+				</button>
+				{#if changes?.has_baseline && changes.total > 0}
+					<button
+						class="btn btn-primary"
+						onclick={markReviewed}
+						disabled={isSaving}
+						title="Start comparing from now"
+					>
+						Mark as reviewed
+					</button>
 				{/if}
 			</div>
-		</div>
-
-		<div class="flex items-center gap-2 shrink-0">
-			<button class="btn btn-secondary" onclick={load} disabled={isLoading}>
-				{isLoading ? 'Comparing...' : 'Compare again'}
-			</button>
-			{#if changes?.has_baseline && changes.total > 0}
-				<button
-					class="btn btn-primary"
-					onclick={markReviewed}
-					disabled={isSaving}
-					title="Start comparing from now"
-				>
-					Mark as reviewed
-				</button>
-			{/if}
-		</div>
-	</div>
+		{/snippet}
+	</ToolHeader>
 
 	{#if isLoading && !changes}
 		<div class="flex-1 flex items-center justify-center">
@@ -138,9 +128,7 @@
 					</h2>
 					{#each category.added as item}
 						<div class="flex gap-2 py-0.5">
-							<span class="shrink-0 w-14 font-semibold text-green-700 dark:text-green-400"
-								>Added</span
-							>
+							<span class="shrink-0 w-14 font-semibold text-ok">Added</span>
 							<span class="min-w-0 break-words text-ink select-text">{item}</span>
 						</div>
 					{/each}
@@ -152,8 +140,7 @@
 					{/each}
 					{#each category.removed as item}
 						<div class="flex gap-2 py-0.5">
-							<span class="shrink-0 w-14 font-semibold text-red-600 dark:text-red-400">Removed</span
-							>
+							<span class="shrink-0 w-14 font-semibold text-fail">Removed</span>
 							<span class="min-w-0 break-words text-ink select-text">{item}</span>
 						</div>
 					{/each}

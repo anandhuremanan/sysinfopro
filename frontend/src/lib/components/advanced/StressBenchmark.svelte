@@ -1,13 +1,11 @@
 <script lang="ts">
+	import type { hardware } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { RunThermalStressTest } from '$lib/wailsjs/go/main/App';
 
 	// The backend also returns a "thermal score", a status line and a peak load read
 	// after the test ends; none of them measure heat, so only the real numbers are shown.
-	type StressResult = {
-		duration_sec: number;
-		ops_completed: number;
-		baseline_load_pct: number;
-	};
+	type StressResult = hardware.StressResult;
 	type Saved = { perSec: number; at: number };
 
 	const KEY = 'sysinfopro-stress-last';
@@ -66,24 +64,23 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Stress test</div>
-			<div class="text-xs text-muted truncate">
-				Runs the processor flat out for 10 seconds to see if it overheats or slows down
-			</div>
-		</div>
-		<button class="btn btn-primary shrink-0" onclick={start} disabled={isTesting}>
-			{isTesting ? `Running... ${countdown}s` : result ? 'Run again' : 'Start'}
-		</button>
-	</div>
+	<ToolHeader
+		title="Stress test"
+		subtitle="Runs the processor flat out for 10 seconds to see if it overheats or slows down"
+	>
+		{#snippet actions()}
+			<button class="btn btn-primary shrink-0" onclick={start} disabled={isTesting}>
+				{isTesting ? `Running... ${countdown}s` : result ? 'Run again' : 'Start'}
+			</button>
+		{/snippet}
+	</ToolHeader>
 
 	<div class="flex-1 min-h-0 flex flex-col items-center justify-center px-4">
 		{#if isTesting}
 			<div class="flex flex-col items-center gap-3">
 				<div class="relative size-20 grid place-items-center">
 					<div
-						class="absolute inset-0 border-4 border-track border-t-accent rounded-full animate-spin motion-reduce:animate-none"
+						class="absolute inset-0 border-4 border-track border-t-accent rounded-full motion-safe:animate-spin motion-reduce:animate-none"
 					></div>
 					<span class="font-bold text-xl text-ink tabular-nums">{countdown}s</span>
 				</div>
@@ -95,11 +92,7 @@
 					<div class="text-[11px] text-muted">Calculations a second, on all cores</div>
 					<div class="text-2xl font-bold text-ink tabular-nums mt-0.5">{millions(perSec)}</div>
 					{#if change !== null && previous}
-						<p
-							class="text-xs mt-1 {change < -15
-								? 'text-amber-700 dark:text-amber-400 font-semibold'
-								: 'text-muted'}"
-						>
+						<p class="text-xs mt-1 {change < -15 ? 'text-warn font-semibold' : 'text-muted'}">
 							{#if Math.abs(change) < 5}
 								About the same as last time ({dateText(previous.at)}).
 							{:else if change < 0}

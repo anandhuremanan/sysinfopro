@@ -38,6 +38,18 @@
 		options;
 		place().then(() => requestAnimationFrame(() => (ready = true)));
 	});
+
+	// arrow keys move between options (and choose), as tabs and radio groups do
+	function onKeydown(event: KeyboardEvent, i: number) {
+		const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+		let next = step === undefined ? -1 : (i + step + options.length) % options.length;
+		if (event.key === 'Home') next = 0;
+		if (event.key === 'End') next = options.length - 1;
+		if (next < 0) return;
+		event.preventDefault();
+		onchange(options[next].id);
+		buttons[next]?.focus();
+	}
 </script>
 
 <div
@@ -58,11 +70,16 @@
 			role={tabs ? 'tab' : 'radio'}
 			aria-selected={tabs ? value === option.id : undefined}
 			aria-checked={tabs ? undefined : value === option.id}
+			tabindex={value === option.id ? 0 : -1}
 			{disabled}
-			class="relative z-10 rounded-lg cursor-pointer font-medium transition-colors duration-200 disabled:cursor-not-allowed {size === 'sm'
+			class="relative z-10 rounded-lg cursor-pointer font-medium transition-colors duration-200 disabled:cursor-not-allowed {size ===
+			'sm'
 				? 'h-6 px-2.5'
-				: 'h-7 px-3'} {value === option.id ? 'text-ink font-semibold' : 'text-muted hover:text-ink'}"
+				: 'h-7 px-3'} {value === option.id
+				? 'text-ink font-semibold'
+				: 'text-muted hover:text-ink'}"
 			onclick={() => onchange(option.id)}
+			onkeydown={(event) => onKeydown(event, i)}
 		>
 			{option.label}
 		</button>

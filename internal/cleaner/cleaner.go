@@ -7,9 +7,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"myproject/internal/fsutil"
+	"sysinfopro/internal/fsutil"
 )
 
 // Files changed this recently are left alone: a program is probably still using them
@@ -19,6 +20,9 @@ const recentWindow = time.Hour
 type Location struct {
 	Category string // shown to the user, e.g. "Temporary files"
 	Path     string
+	// why this folder is not cleaned, when it does not look like what it should;
+	// empty when it is fine
+	Refused string
 }
 
 type Category struct {
@@ -30,6 +34,9 @@ type Category struct {
 type ScanResult struct {
 	Categories []Category `json:"categories"`
 	TotalBytes int64      `json:"total_bytes"`
+	// folders left alone, each with the reason, e.g. a TEMP setting that points
+	// at a whole drive
+	Refused []string `json:"refused"`
 }
 
 type Progress struct {
@@ -51,7 +58,8 @@ type Summary struct {
 // browsers. Only cache folders are listed, never profiles, so history,
 // passwords and settings are never touched.
 func DefaultLocations() []Location {
-	locations := []Location{{"Temporary files", os.TempDir()}}
+	temp := os.TempDir()
+	locations := []Location{{Category: "Temporary files", Path: temp, Refused: tempDirProblem(temp, os.Getenv("USERPROFILE"), os.Getenv("SystemRoot"))}}
 	local := os.Getenv("LOCALAPPDATA")
 	if local == "" {
 		return locations
@@ -65,13 +73,13 @@ func DefaultLocations() []Location {
 		caches, _ := filepath.Glob(filepath.Join(browser.userData, "*", "Cache"))
 		for _, cache := range caches {
 			locations = append(locations,
-				Location{browser.name, cache},
-				Location{browser.name, filepath.Join(filepath.Dir(cache), "Code Cache")})
+				Location{Category: browser.name, Path: cache},
+				Location{Category: browser.name, Path: filepath.Join(filepath.Dir(cache), "Code Cache")})
 		}
 	}
 	firefox, _ := filepath.Glob(filepath.Join(local, "Mozilla", "Firefox", "Profiles", "*", "cache2"))
 	for _, cache := range firefox {
-		locations = append(locations, Location{"Firefox cache", cache})
+		locations = append(locations, Location{Category: "Firefox cache", Path: cache})
 	}
 	return locations
 }
@@ -90,6 +98,9 @@ func entries(ctx context.Context, locations []Location) []entry {
 	seen := map[string]bool{}
 	var found []entry
 	for _, loc := range locations {
+		if loc.Refused != "" {
+			continue
+		}
 		dir := filepath.Clean(loc.Path)
 		if seen[dir] {
 			continue // the same folder reached two ways is listed once
@@ -149,7 +160,12 @@ func treeSize(ctx context.Context, root string, cutoff time.Time) int64 {
 
 // Scan totals what Clean would remove, by category, in the order of locations
 func Scan(ctx context.Context, locations []Location) ScanResult {
-	result := ScanResult{Categories: []Category{}}
+	result := ScanResult{Categories: []Category{}, Refused: []string{}}
+	for _, loc := range locations {
+		if loc.Refused != "" {
+			result.Refused = append(result.Refused, loc.Refused)
+		}
+	}
 	index := map[string]int{}
 	for _, e := range entries(ctx, locations) {
 		i, ok := index[e.category]
@@ -217,4 +233,39 @@ func Clean(ctx context.Context, locations []Location, progress func(Progress)) S
 	summary.Stopped = ctx.Err() != nil
 	report(true)
 	return summary
+}
+
+// tempDirProblem says why a temp folder must not be emptied, or "" when it
+// looks like a real temp folder. Windows takes the temp folder from the TMP and
+// TEMP settings, falling back to the profile or the Windows folder, so a
+// mistaken setting could otherwise point the cleaner at a whole drive or at the
+// user's own files.
+func tempDirProblem(dir, profile, windows string) string {
+	clean := strings.TrimRight(filepath.Clean(strings.TrimSpace(dir)), `\/`)
+	if clean == "" || clean == "." {
+		return "Temporary files were skipped: no temp folder is set."
+	}
+	same := func(a, b string) bool {
+		return b != "" && strings.EqualFold(clean, strings.TrimRight(filepath.Clean(b), `\/`))
+	}
+	if vol := filepath.VolumeName(clean); clean == vol || filepath.Dir(clean) == clean {
+		return "Temporary files were skipped: the temp folder is set to a whole drive (" + dir + ")."
+	}
+	if same(clean, profile) {
+		return "Temporary files were skipped: the temp folder is set to your user folder."
+	}
+	if same(clean, windows) {
+		return "Temporary files were skipped: the temp folder is set to the Windows folder."
+	}
+	if profile != "" {
+		for _, personal := range []string{"Desktop", "Documents", "Downloads", "Pictures", "Videos", "Music", "OneDrive"} {
+			if same(clean, filepath.Join(profile, personal)) {
+				return "Temporary files were skipped: the temp folder is set to your " + personal + " folder."
+			}
+		}
+	}
+	if name := strings.ToLower(filepath.Base(clean)); name != "temp" && name != "tmp" {
+		return "Temporary files were skipped: the temp folder (" + dir + ") is not named Temp, so it may hold other files."
+	}
+	return ""
 }

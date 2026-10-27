@@ -276,6 +276,12 @@ func RevealInFileManager(path string) error {
 		return fmt.Errorf("cannot find %s: %w", path, err)
 	}
 
-	// explorer returns a non-zero exit code even on success, so only Start is checked
-	return revealCommand(path).Start()
+	// explorer returns a non-zero exit code even on success, so only Start is
+	// checked; waiting in the background releases the process handle
+	cmd := revealCommand(path)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
 }

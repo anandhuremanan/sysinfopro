@@ -32,7 +32,7 @@
 
     <main class="policy">
       <h1>Privacy policy</h1>
-      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 24 October 2026</p>
+      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 27 October 2026</p>
 
       <p>
         SysInfo Pro is a system information and maintenance tool for Windows. It runs entirely on
@@ -48,6 +48,33 @@
         disks of WSL and Docker, battery and security settings. This information is shown to you and
         is not sent anywhere.
       </p>
+      <ul>
+        <li>
+          <strong>Why so slow</strong> and the <strong>Processor</strong> screen read Windows' own
+          performance counters (processor use and speed, memory, drive activity) and the list of
+          running programs, for a few seconds at a time while those screens are open.
+        </li>
+        <li>
+          <strong>Battery</strong> asks Windows for its battery report (<code>powercfg</code>), which
+          records the battery's capacity over time. The report is read into the app and the
+          temporary file is deleted straight away.
+        </li>
+        <li>
+          <strong>Git projects</strong> runs read-only <code>git</code> commands (such as
+          <code>git status</code>) in the folders you choose to search, on your PC. Nothing is
+          fetched from or sent to any remote, and repositories whose own settings could run
+          commands are skipped.
+        </li>
+        <li>
+          <strong>Hand over</strong> checks what you may want to deal with before passing the PC on:
+          Windows and work accounts, browser sign-ins, OneDrive, saved Wi-Fi networks and saved
+          sign-ins, and developer keys and tokens. For the last of these it looks for marker text in
+          files such as <code>.npmrc</code> or <code>.git-credentials</code> to tell whether a
+          key or token is present. It does this on your PC only: it does not keep the contents, does
+          not show them, and does not send them anywhere. Email addresses are shown shortened (for
+          example a***@gmail.com).
+        </li>
+      </ul>
 
       <h2>What the app saves on your PC</h2>
       <ul>
@@ -72,8 +99,9 @@
         </li>
         <li>
           <strong>Files you choose to export</strong>, such as the spec card image and the system
-          report, are saved to your Downloads folder. The system report includes your device's
-          serial number; check it before sharing it.
+          report, are saved to your Downloads folder. By default the report leaves out serial
+          numbers, the PC's name, your user name, network addresses and email addresses; if you turn
+          that option off, check the report before sharing it.
         </li>
       </ul>
       <p>
@@ -84,7 +112,8 @@
       <h2>What the app changes on your PC</h2>
       <p>
         Only what you ask for, after you confirm: ending a program, deleting caches, temporary files
-        and project folders you select, removing entries from your own PATH, removing Docker data
+        and project folders you select, moving duplicate files you select to the Recycle Bin (one
+        copy of each is always kept), removing entries from your own PATH, removing Docker data
         Docker no longer uses, and updating apps through Windows Package Manager (winget).
       </p>
 
@@ -98,20 +127,25 @@
         <li>
           <strong>Speed test</strong> (only when you start one): Cloudflare
           (speed.cloudflare.com and 1.1.1.1). If Cloudflare is unavailable, Measurement Lab
-          (M-Lab) is used instead. <strong>M-Lab publishes all test results</strong>, including the
-          IP address and the measured speeds, as open data for internet research.
+          (M-Lab) is used instead: the app first asks M-Lab's server locator
+          (locate.measurementlab.net) for a nearby test server, then runs the test with it.
+          <strong>M-Lab publishes all test results</strong>, including the IP address and the
+          measured speeds, as open data for internet research.
         </li>
         <li>
-          <strong>Internet connection check</strong>: a brief connection to Google's public DNS
-          server (8.8.8.8) to see whether you are online. No data is sent.
+          <strong>Internet connection check</strong> (when the app starts, while the home screen is
+          open, and before a speed test): a brief connection to Google's public DNS server
+          (8.8.8.8) to see whether you are online. If that is blocked, as on many work networks, the
+          app tries Windows' own connectivity address (www.msftconnecttest.com) instead. No data is
+          sent.
         </li>
         <li>
           <strong>Network doctor</strong> (only when you open it or press Check): one ping to your
           own router, a name lookup of www.microsoft.com through your DNS servers, and Windows' own
           connectivity check (www.msftconnecttest.com), the same one Windows uses to show "No
-          internet". If you type a site to test, the app looks up that site and opens one secure
-          connection to it. It goes through your proxy if you have one, and nothing about you or
-          your PC is sent.
+          internet". If you type a site to test, the app looks up that site and opens one connection
+          to it, over https unless you type an address starting with http://. It goes through your
+          proxy if you have one, and nothing about you or your PC is sent.
         </li>
         <li>
           <strong>Software version check</strong> (only when you open the Software tool): the

@@ -1,4 +1,8 @@
 <script lang="ts">
+	import type { main, storage } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON } from '$lib/path';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes, usageBarColor } from '$lib';
 	import {
@@ -10,16 +14,15 @@
 		RevealInExplorer
 	} from '$lib/wailsjs/go/main/App';
 	import { diskScan } from '$lib/diskScan.svelte';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	type WatchFolder = { label: string; path: string };
-	type Drive = { path: string; total_bytes: number; free_bytes: number; used_pct: number };
-	type Entry = { name: string; path: string; is_dir: boolean; size_bytes: number };
+	type WatchFolder = main.WatchFolder;
+	type Drive = storage.DriveInfo;
+	type Entry = storage.UsageEntry;
 	type Row = Entry & { delta: number; perMinute: number };
 
 	const CHECK_EVERY_S = 30;
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	let folders = $state<WatchFolder[]>([]);
 	let drives = $state<Drive[]>([]);
@@ -37,7 +40,7 @@
 	let lastCheckAt = $state(0);
 	let rows = $state<Row[]>([]);
 	let totalDelta = $state(0);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(5000);
 
 	// sizes at the first scan, by item name
 	let baseline = new Map<string, number>();
@@ -45,13 +48,6 @@
 	let watchId = 0;
 
 	let changedRows = $derived(rows.filter((row) => row.delta !== 0));
-
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => {
-			statusMessage = undefined;
-		}, 5000);
-	}
 
 	function signed(bytes: number) {
 		return (bytes > 0 ? '+' : bytes < 0 ? '−' : '') + formatBytes(Math.abs(bytes));
@@ -82,7 +78,7 @@
 	async function start(path: string) {
 		// the measuring engine does one job at a time; never cancel Disk usage's analysis from here
 		if (diskScan.isScanning) {
-			showStatus(
+			status.show(
 				'Disk usage is analysing a drive. Start the watch when it finishes, or cancel it there.'
 			);
 			return;
@@ -103,7 +99,7 @@
 			const first = await scan(path);
 			if (id !== watchId) return;
 			if (!first) {
-				showStatus('The watch stopped because another analysis started.');
+				status.show('The watch stopped because another analysis started.');
 				isWatching = false;
 				return;
 			}
@@ -124,7 +120,7 @@
 				const current = await scan(path);
 				if (id !== watchId) return;
 				if (!current) {
-					showStatus('The watch stopped because another analysis started.');
+					status.show('The watch stopped because another analysis started.');
 					isWatching = false;
 					return;
 				}
@@ -143,7 +139,7 @@
 			}
 		} catch (err) {
 			if (id === watchId) {
-				showStatus(`${err}`);
+				status.show(`${err}`);
 				isWatching = false;
 			}
 		}
@@ -161,7 +157,7 @@
 			const path = await PickFolder('Choose a folder to watch for growth');
 			if (path) start(path);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		}
 	}
 
@@ -169,11 +165,11 @@
 		try {
 			await RevealInExplorer(path);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		GetWatchFolders()
 			.then((result) => (folders = result || []))
 			.catch((err) => console.error('Failed to get watch folders:', err));
@@ -187,33 +183,31 @@
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Disk growth</div>
-			<div class="text-xs text-muted truncate" title={watchPath}>
-				{isWatching
-					? `Watching ${watchDrive ? `all of ${watchDrive}` : watchPath}`
-					: 'Pick a drive or folder to see what is growing in it'}
-			</div>
-		</div>
+	<ToolHeader title="Disk growth">
+		{#snippet sub()}
+			{isWatching
+				? `Watching ${watchDrive ? `all of ${watchDrive}` : watchPath}`
+				: 'Pick a drive or folder to see what is growing in it'}
+		{/snippet}
+		{#snippet actions()}
+			{#if isWatching}
+				<div class="flex items-center gap-3 shrink-0">
+					<span class="text-muted tabular-nums">
+						{#if isScanning}
+							Measuring...
+						{:else}
+							Next check in {nextCheckIn}s
+						{/if}
+					</span>
+					<button class="btn btn-secondary" onclick={stop}>Stop</button>
+				</div>
+			{/if}
+		{/snippet}
+	</ToolHeader>
 
-		{#if isWatching}
-			<div class="flex items-center gap-3 shrink-0">
-				<span class="text-muted tabular-nums">
-					{#if isScanning}
-						Measuring...
-					{:else}
-						Next check in {nextCheckIn}s
-					{/if}
-				</span>
-				<button class="btn btn-secondary" onclick={stop}>Stop</button>
-			</div>
-		{/if}
-	</div>
-
-	{#if statusMessage}
-		<div class="text-xs text-amber-700 dark:text-amber-400 font-semibold px-1 shrink-0 truncate">
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs text-warn font-semibold px-1 shrink-0 truncate">
+			{status.text}
 		</div>
 	{/if}
 
@@ -291,11 +285,7 @@
 			<div class="flex items-baseline gap-2 shrink-0 px-1">
 				<span class="text-muted">Free space on {watchDrive}</span>
 				<span class="font-bold text-ink">{formatBytes(freeNow)}</span>
-				<span
-					class="font-mono font-bold {freeNow < freeAtStart
-						? 'text-amber-700 dark:text-amber-400'
-						: 'text-green-700 dark:text-green-400'}"
-				>
+				<span class="font-mono font-bold {freeNow < freeAtStart ? 'text-warn' : 'text-ok'}">
 					{freeNow === freeAtStart ? 'no change' : signed(freeNow - freeAtStart)}
 				</span>
 				<span class="text-muted">since the watch began</span>
@@ -314,8 +304,8 @@
 					</span>
 					<span
 						class="shrink-0 w-24 text-right font-mono font-bold {row.delta > 0
-							? 'text-amber-700 dark:text-amber-400'
-							: 'text-green-700 dark:text-green-400'}"
+							? 'text-warn'
+							: 'text-ok'}"
 					>
 						{signed(row.delta)}
 					</span>

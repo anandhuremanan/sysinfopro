@@ -1,12 +1,13 @@
 package system
 
 import (
-	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"sysinfopro/internal/settings"
 )
 
 type PathEntry struct {
@@ -170,7 +171,14 @@ func RemoveUserPathEntries(original string, indices []int) (*EnvPathAnalysis, er
 	if current != original {
 		return nil, ErrPathChanged
 	}
-	updated := removeEntries(current, indices)
+	// only entries the check itself marked as removable: broken or repeated
+	// folders in the user's own PATH, never a working one or a variable it
+	// could not check
+	before, err := GetEnvPathAnalysis()
+	if err != nil {
+		return nil, err
+	}
+	updated := removeEntries(current, onlyFixable(before, indices))
 	if updated == current {
 		return GetEnvPathAnalysis()
 	}
@@ -206,47 +214,44 @@ func UndoPathChange() (*EnvPathAnalysis, error) {
 
 // --- backup of the last change, for undo ---
 
+// the undo copy of the user PATH, kept with the other settings files
+const backupFile = "path-backup.json"
+
 type pathBackup struct {
 	Before string `json:"before"`
 	After  string `json:"after"`
 	At     int64  `json:"at"`
 }
 
-func backupPath() (string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "SysInfoPro", "path-backup.json"), nil
-}
-
 func saveBackup(b pathBackup) error {
-	path, err := backupPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, _ := json.MarshalIndent(b, "", "  ")
-	return os.WriteFile(path, data, 0o644)
+	return settings.Save(backupFile, b)
 }
 
 func loadBackup() (pathBackup, error) {
-	var b pathBackup
-	path, err := backupPath()
-	if err != nil {
-		return b, err
+	b, found, err := settings.LoadExisting(backupFile, pathBackup{})
+	if err == nil && !found {
+		err = os.ErrNotExist
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return b, err
-	}
-	return b, json.Unmarshal(data, &b)
+	return b, err
 }
 
 func removeBackup() {
-	if path, err := backupPath(); err == nil {
-		os.Remove(path)
+	settings.Remove(backupFile)
+}
+
+// onlyFixable keeps the user PATH positions that the analysis marked fixable
+func onlyFixable(a *EnvPathAnalysis, indices []int) []int {
+	fixable := map[int]bool{}
+	for _, e := range a.PathEntries {
+		if e.Scope == "user" && e.Fixable {
+			fixable[e.Index] = true
+		}
 	}
+	kept := []int{}
+	for _, i := range indices {
+		if fixable[i] {
+			kept = append(kept, i)
+		}
+	}
+	return kept
 }

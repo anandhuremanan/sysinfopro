@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,32 +12,33 @@ import (
 	"sync/atomic"
 	"time"
 
-	"myproject/functions"
-	"myproject/internal/alerts"
-	"myproject/internal/batteryreport"
-	"myproject/internal/cleaner"
-	"myproject/internal/cpuinfo"
-	"myproject/internal/devcache"
-	"myproject/internal/diagnostics"
-	"myproject/internal/dupes"
-	"myproject/internal/gitsweep"
-	"myproject/internal/handover"
-	"myproject/internal/hardware"
-	"myproject/internal/history"
-	"myproject/internal/hotkey"
-	"myproject/internal/locks"
-	"myproject/internal/netdoctor"
-	"myproject/internal/network"
-	"myproject/internal/notify"
-	"myproject/internal/process"
-	"myproject/internal/reminder"
-	"myproject/internal/security"
-	"myproject/internal/slownow"
-	"myproject/internal/storage"
-	"myproject/internal/system"
-	"myproject/internal/vdisk"
-	"myproject/internal/winget"
-	"myproject/internal/winwidget"
+	"sysinfopro/functions"
+	"sysinfopro/internal/alerts"
+	"sysinfopro/internal/batteryreport"
+	"sysinfopro/internal/cleaner"
+	"sysinfopro/internal/cpuinfo"
+	"sysinfopro/internal/devcache"
+	"sysinfopro/internal/diagnostics"
+	"sysinfopro/internal/dupes"
+	"sysinfopro/internal/gitsweep"
+	"sysinfopro/internal/handover"
+	"sysinfopro/internal/hardware"
+	"sysinfopro/internal/history"
+	"sysinfopro/internal/hotkey"
+	"sysinfopro/internal/locks"
+	"sysinfopro/internal/logging"
+	"sysinfopro/internal/netdoctor"
+	"sysinfopro/internal/network"
+	"sysinfopro/internal/notify"
+	"sysinfopro/internal/process"
+	"sysinfopro/internal/reminder"
+	"sysinfopro/internal/security"
+	"sysinfopro/internal/slownow"
+	"sysinfopro/internal/storage"
+	"sysinfopro/internal/system"
+	"sysinfopro/internal/vdisk"
+	"sysinfopro/internal/winget"
+	"sysinfopro/internal/winwidget"
 
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -48,24 +49,20 @@ type App struct {
 	ctx              context.Context
 	speedTestRunning atomic.Bool
 
-	diskScanMu     sync.Mutex
-	diskScanCancel context.CancelFunc
+	// network folders the user chose in a dialog; other network paths are refused
+	picked pickedRoots
 
-	devScanMu       sync.Mutex
-	devScanCancel   context.CancelFunc
-	devDeleteCancel context.CancelFunc
+	// the one running instance of each long job; a new run cancels the old one
+	diskScanJob, leftoverJob, devDeleteJob, cleanJob, gitJob, dupesJob cancelSlot
 
-	cleanMu     sync.Mutex
-	cleanCancel context.CancelFunc
+	// live processor and memory readings, sampled by one goroutine
+	metrics *functions.Monitor
+	// what the page last said about its own visibility; minimising is checked
+	// separately, because Wails does not tell the page about it
+	pageVisible atomic.Bool
 
-	cpuSampler cpuinfo.Sampler
-
-	gitMu     sync.Mutex
-	gitCancel context.CancelFunc
-
-	dupesMu     sync.Mutex
-	dupesCancel context.CancelFunc
-	dupesLast   *dupes.Result
+	dupesMu   sync.Mutex // guards dupesLast
+	dupesLast *dupes.Result
 
 	alerts *alerts.Monitor
 
@@ -73,7 +70,10 @@ type App struct {
 	hotkeyListener *hotkey.Listener
 	hotkeySettings hotkey.Settings
 
+	// guards loading and saving reminder settings; never held during a scan
 	reminderMu sync.Mutex
+	// a reminder check is running; a second one is not started meanwhile
+	reminderRunning atomic.Bool
 }
 
 // NewApp creates a new App application struct
@@ -85,12 +85,64 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	functions.StartCPUMonitoring(ctx)
-	functions.StartMemoryMonitoring(ctx)
+	if err := logging.Init(""); err != nil {
+		slog.Warn("log file unavailable; logging to standard error", "err", err)
+	}
+	slog.Info("SysInfo Pro starting", "version", appVersion())
+
+	// one sampler for processor and memory; events go out from here, so the
+	// domain packages stay free of the UI framework
+	a.metrics = functions.NewMonitor()
+	a.metrics.OnUpdate = func(cpu functions.CPUStats, mem functions.MemoryStats) {
+		runtime.EventsEmit(ctx, "cpu-stats-update", cpu)
+		runtime.EventsEmit(ctx, "ram-stats-update", mem)
+	}
+	logging.Go("metrics", func() { a.metrics.Run(ctx) })
+	a.pageVisible.Store(true)
+	logging.Go("window visibility", func() { a.watchVisibility(ctx) })
+
 	a.alerts = alerts.NewMonitor(alerts.LoadSettings())
-	go a.watchDrives(ctx)
+	logging.Go("drive alerts", func() { a.watchDrives(ctx) })
 	a.applyHotkey(hotkey.LoadSettings())
-	go a.reminderLoop(ctx)
+	logging.Go("monthly reminder", func() { a.reminderLoop(ctx) })
+}
+
+// SetWindowVisible tells the app whether its window (or the widget) is on
+// screen. While hidden, live readings are taken rarely and no updates are sent,
+// so a minimised app costs next to nothing; drive alerts keep running.
+func (a *App) SetWindowVisible(visible bool) {
+	a.pageVisible.Store(visible)
+	a.applyVisibility()
+}
+
+// applyVisibility slows the live readings while the window is minimised or the
+// page is hidden; the widget is a normal visible window, so it keeps updating
+func (a *App) applyVisibility() {
+	if a.metrics == nil || a.ctx == nil {
+		return
+	}
+	a.metrics.SetVisible(a.pageVisible.Load() && !runtime.WindowIsMinimised(a.ctx))
+}
+
+// watchVisibility notices minimise and restore, which the page is not told about
+// for frameless windows
+func (a *App) watchVisibility(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			a.applyVisibility()
+		}
+	}
+}
+
+// GetDiagnosticsText returns the app version, the Windows build and the most
+// recent log lines, for the user to copy into a bug report
+func (a *App) GetDiagnosticsText() string {
+	return logging.Text(appVersion(), windowsVersion(), 200)
 }
 
 // reminderLoop runs the monthly cleanup check when it is due: a couple of
@@ -111,10 +163,16 @@ func (a *App) reminderLoop(ctx context.Context) {
 // runReminderCheck measures what could be freed and raises the reminder if it is
 // worth it; force skips the once-a-month rule
 func (a *App) runReminderCheck(ctx context.Context, force bool) {
-	a.reminderMu.Lock()
-	defer a.reminderMu.Unlock()
+	if !a.reminderRunning.CompareAndSwap(false, true) {
+		return
+	}
+	defer a.reminderRunning.Store(false)
 
+	// read the settings, then let go of the lock: the scan below takes minutes,
+	// and turning the reminder on or off must not wait for it
+	a.reminderMu.Lock()
 	s := reminder.LoadSettings()
+	a.reminderMu.Unlock()
 	if !s.Enabled || (!force && !reminder.Due(s, time.Now())) {
 		return
 	}
@@ -140,8 +198,13 @@ func (a *App) runReminderCheck(ctx context.Context, force bool) {
 		return
 	}
 
-	s.LastCheck = time.Now().Unix()
-	reminder.SaveSettings(s)
+	// record the check on the settings as they are now, keeping any change
+	// made while the scan ran
+	a.reminderMu.Lock()
+	latest := reminder.LoadSettings()
+	latest.LastCheck = time.Now().Unix()
+	reminder.SaveSettings(latest)
+	a.reminderMu.Unlock()
 	if title, body, ok := reminder.Message(f); ok {
 		a.raise(alerts.Alert{Kind: "reminder", Title: title, Body: body, At: time.Now().UnixMilli()})
 	}
@@ -220,29 +283,20 @@ func (a *App) onSecondInstance(options.SecondInstanceData) {
 	runtime.Show(a.ctx)
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
-func (a *App) GetSysInfo() (string, error) {
+// GetSysInfo is the startup snapshot of the PC: system, processor, memory and disk
+func (a *App) GetSysInfo() (*functions.SystemInfo, error) {
 	sysInfo, err := functions.GetSystemInfo()
 	if err != nil {
-		return "Error Occured", fmt.Errorf("error gathering system info: %w", err)
+		return nil, fmt.Errorf("error gathering system info: %w", err)
 	}
-
-	jsonBytes, err := json.MarshalIndent(sysInfo, "", "  ")
-	if err != nil {
-		return "Error Occured", fmt.Errorf("error marshalling JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return sysInfo, nil
 }
 
-func (a *App) GetInterNetSpeed() (string, error) {
+// GetInterNetSpeed runs a speed test, sending "speedtest-progress" as it goes
+func (a *App) GetInterNetSpeed() (*functions.InternetSpeedStat, error) {
 	// Two tests at once would share the line and both read low
 	if !a.speedTestRunning.CompareAndSwap(false, true) {
-		return "Error Occured", fmt.Errorf("a speed test is already running")
+		return nil, fmt.Errorf("a speed test is already running")
 	}
 	defer a.speedTestRunning.Store(false)
 
@@ -250,22 +304,15 @@ func (a *App) GetInterNetSpeed() (string, error) {
 		runtime.EventsEmit(a.ctx, "speedtest-progress", p)
 	})
 	if err != nil {
-		return "Error Occured", fmt.Errorf("error gathering internet speed: %w", err)
+		return nil, fmt.Errorf("error gathering internet speed: %w", err)
 	}
-
-	jsonBytes, err := json.MarshalIndent(internetSpeedStat, "", "  ")
-
-	if err != nil {
-		return "Error Occured", fmt.Errorf("error marshalling JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return internetSpeedStat, nil
 }
 
 // GetCPUDetail reads the processor's live state: total and per-processor use,
 // the real current speed, and how many processes and threads are running
 func (a *App) GetCPUDetail() cpuinfo.Detail {
-	return a.cpuSampler.Sample()
+	return a.metrics.Detail()
 }
 
 // GetUptimeSeconds is how long Windows has been running since it last started
@@ -273,12 +320,14 @@ func (a *App) GetUptimeSeconds() uint64 {
 	return uint64(time.Duration(windowsTickMs()) * time.Millisecond / time.Second)
 }
 
+// GetCPUStats is the latest processor reading, as Task Manager counts use
 func (a *App) GetCPUStats() (*functions.CPUStats, error) {
-	return functions.GetCPUStats()
+	return a.metrics.CPU(), nil
 }
 
+// GetMemoryStats is the latest memory reading
 func (a *App) GetMemoryStats() (*functions.MemoryStats, error) {
-	return functions.GetMemoryStats()
+	return a.metrics.Memory()
 }
 
 func (a *App) GetMemoryVelocity() (*diagnostics.MemoryVelocitySample, error) {
@@ -289,18 +338,14 @@ func (a *App) CheckInternetConnection() bool {
 	return functions.IsConnectedToInternet()
 }
 
-func (a *App) GetBatteryDetails() (string, error) {
+// GetBatteryDetails is the battery's live state (charge, power source, capacity);
+// nil on a PC without a battery
+func (a *App) GetBatteryDetails() (*functions.BatteryDetails, error) {
 	batteryDetails, err := functions.GetBatteryDetails()
 	if err != nil {
-		return "Error Occured", fmt.Errorf("error gathering battery details: %w", err)
+		return nil, fmt.Errorf("error gathering battery details: %w", err)
 	}
-
-	jsonBytes, err := json.MarshalIndent(batteryDetails, "", "  ")
-	if err != nil {
-		return "Error Occured", fmt.Errorf("error marshalling JSON: %w", err)
-	}
-
-	return string(jsonBytes), nil
+	return batteryDetails, nil
 }
 
 // ScanJunk totals the temporary files and browser caches that CleanJunk would remove
@@ -311,15 +356,8 @@ func (a *App) ScanJunk() cleaner.ScanResult {
 // CleanJunk removes temporary files and browser caches, leaving anything changed
 // in the last hour. Progress is sent as "cleaner-progress" events.
 func (a *App) CleanJunk() cleaner.Summary {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-
-	a.cleanMu.Lock()
-	if a.cleanCancel != nil {
-		a.cleanCancel()
-	}
-	a.cleanCancel = cancel
-	a.cleanMu.Unlock()
+	ctx, done := a.cleanJob.start(a.ctx)
+	defer done()
 
 	return cleaner.Clean(ctx, cleaner.DefaultLocations(), func(p cleaner.Progress) {
 		runtime.EventsEmit(a.ctx, "cleaner-progress", p)
@@ -328,12 +366,7 @@ func (a *App) CleanJunk() cleaner.Summary {
 
 // CancelCleanJunk stops a running CleanJunk after the file it is on
 func (a *App) CancelCleanJunk() {
-	a.cleanMu.Lock()
-	defer a.cleanMu.Unlock()
-	if a.cleanCancel != nil {
-		a.cleanCancel()
-		a.cleanCancel = nil
-	}
+	a.cleanJob.stop()
 }
 
 // SaveSpecCardPNG saves the base64 PNG directly to Downloads without browser popups
@@ -347,19 +380,12 @@ func (a *App) SaveSpecCardPNG(base64Data string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to decode image: %w", err)
 	}
-
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		homeDir = "."
-	}
-
-	downloadsDir := filepath.Join(homeDir, "Downloads")
-	if _, err := os.Stat(downloadsDir); os.IsNotExist(err) {
-		downloadsDir = homeDir
+	if !isPNG(data) {
+		return "", fmt.Errorf("the spec card is not a PNG image")
 	}
 
 	filename := fmt.Sprintf("SysInfo_SpecCard_%d.png", time.Now().Unix())
-	targetPath := filepath.Join(downloadsDir, filename)
+	targetPath := filepath.Join(downloadsDir(), filename)
 
 	err = os.WriteFile(targetPath, data, 0644)
 	if err != nil {
@@ -403,15 +429,11 @@ func (a *App) GetDrives() ([]storage.DriveInfo, error) {
 
 // AnalyzeDiskUsage sizes everything directly inside path; a new scan cancels the previous one
 func (a *App) AnalyzeDiskUsage(path string) (*storage.FolderUsage, error) {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-
-	a.diskScanMu.Lock()
-	if a.diskScanCancel != nil {
-		a.diskScanCancel()
+	if err := a.picked.check(path); err != nil {
+		return nil, err
 	}
-	a.diskScanCancel = cancel
-	a.diskScanMu.Unlock()
+	ctx, done := a.diskScanJob.start(a.ctx)
+	defer done()
 
 	return storage.AnalyzeFolder(ctx, path, func(p storage.ScanProgress) {
 		if ctx.Err() == nil {
@@ -422,16 +444,14 @@ func (a *App) AnalyzeDiskUsage(path string) (*storage.FolderUsage, error) {
 
 // CancelDiskScan stops the running disk usage scan, if any
 func (a *App) CancelDiskScan() {
-	a.diskScanMu.Lock()
-	defer a.diskScanMu.Unlock()
-	if a.diskScanCancel != nil {
-		a.diskScanCancel()
-		a.diskScanCancel = nil
-	}
+	a.diskScanJob.stop()
 }
 
 // RevealInExplorer opens the file manager with the given file or folder selected
 func (a *App) RevealInExplorer(path string) error {
+	if err := a.picked.check(path); err != nil {
+		return err
+	}
 	return storage.RevealInFileManager(path)
 }
 
@@ -452,27 +472,27 @@ func (a *App) ScanDevCaches() []devcache.Item {
 
 // PickFolder opens the system folder picker and returns the chosen path ("" if cancelled)
 func (a *App) PickFolder(title string) (string, error) {
-	return runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+	a.picked.add(path)
+	return path, err
 }
 
 // FindLeftovers searches a folder for project leftovers (node_modules, Rust target,
 // Python virtual environments and similar); a new search cancels the previous one
 func (a *App) FindLeftovers(root string) ([]devcache.Item, error) {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-
-	a.devScanMu.Lock()
-	if a.devScanCancel != nil {
-		a.devScanCancel()
+	if err := a.picked.check(root); err != nil {
+		return nil, err
 	}
-	a.devScanCancel = cancel
-	a.devScanMu.Unlock()
+	ctx, done := a.leftoverJob.start(a.ctx)
+	defer done()
 
 	// the monthly reminder looks for old leftovers in the folder searched last
+	a.reminderMu.Lock()
 	if s := reminder.LoadSettings(); s.ProjectsRoot != root {
 		s.ProjectsRoot = root
 		reminder.SaveSettings(s)
 	}
+	a.reminderMu.Unlock()
 
 	return devcache.FindLeftovers(ctx, root, func(current string) {
 		if ctx.Err() == nil {
@@ -483,59 +503,45 @@ func (a *App) FindLeftovers(root string) ([]devcache.Item, error) {
 
 // CancelLeftoverSearch stops the running leftover search, if any
 func (a *App) CancelLeftoverSearch() {
-	a.devScanMu.Lock()
-	defer a.devScanMu.Unlock()
-	if a.devScanCancel != nil {
-		a.devScanCancel()
-		a.devScanCancel = nil
-	}
+	a.leftoverJob.stop()
 }
 
 // DeleteDevCaches removes the given caches or project leftovers; any other path is refused.
 // Progress is sent as "devcache-delete-progress" events.
 func (a *App) DeleteDevCaches(paths []string) *devcache.DeleteResult {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-
-	a.devScanMu.Lock()
-	if a.devDeleteCancel != nil {
-		a.devDeleteCancel()
+	var refused []string
+	allowed := paths[:0:0]
+	for _, p := range paths {
+		if a.picked.allowed(p) {
+			allowed = append(allowed, p)
+		} else {
+			refused = append(refused, p+": "+errNetworkPath.Error())
+		}
 	}
-	a.devDeleteCancel = cancel
-	a.devScanMu.Unlock()
+	ctx, done := a.devDeleteJob.start(a.ctx)
+	defer done()
 
-	return devcache.Delete(ctx, paths, func(p devcache.DeleteProgress) {
+	result := devcache.Delete(ctx, allowed, func(p devcache.DeleteProgress) {
 		runtime.EventsEmit(a.ctx, "devcache-delete-progress", p)
 	})
+	if result != nil {
+		result.Failed = append(result.Failed, refused...)
+	}
+	return result
 }
 
 // CancelDevCacheDelete stops a running DeleteDevCaches after the file it is on;
 // whatever was already removed stays removed
 func (a *App) CancelDevCacheDelete() {
-	a.devScanMu.Lock()
-	defer a.devScanMu.Unlock()
-	if a.devDeleteCancel != nil {
-		a.devDeleteCancel()
-		a.devDeleteCancel = nil
-	}
+	a.devDeleteJob.stop()
 }
 
 // SaveSystemReport writes an HTML report to Downloads and returns its path
 func (a *App) SaveSystemReport(html string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		homeDir = "."
-	}
-
-	downloadsDir := filepath.Join(homeDir, "Downloads")
-	if _, err := os.Stat(downloadsDir); os.IsNotExist(err) {
-		downloadsDir = homeDir
-	}
-
 	filename := fmt.Sprintf("SysInfo_Report_%s.html", time.Now().Format("2006-01-02_150405"))
-	targetPath := filepath.Join(downloadsDir, filename)
+	targetPath := filepath.Join(downloadsDir(), filename)
 
-	if err := os.WriteFile(targetPath, []byte(html), 0644); err != nil {
+	if err := os.WriteFile(targetPath, []byte(withCSP(html)), 0644); err != nil {
 		return "", fmt.Errorf("failed to write report: %w", err)
 	}
 	return targetPath, nil
@@ -561,11 +567,16 @@ func (a *App) GetPrivateTerms() []string {
 
 // PickFile opens the system file picker and returns the chosen path ("" if cancelled)
 func (a *App) PickFile(title string) (string, error) {
-	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{Title: title})
+	a.picked.add(path)
+	return path, err
 }
 
 // FindLockingProcesses lists the processes that hold a file, or files in a folder, open
 func (a *App) FindLockingProcesses(path string) (*locks.Result, error) {
+	if err := a.picked.check(path); err != nil {
+		return nil, err
+	}
 	return locks.Find(path)
 }
 
@@ -577,49 +588,11 @@ type WatchFolder struct {
 
 // GetWatchFolders suggests the folders where disk space usually disappears
 func (a *App) GetWatchFolders() []WatchFolder {
-	home, _ := os.UserHomeDir()
-	candidates := []WatchFolder{
-		{"Local app data", os.Getenv("LOCALAPPDATA")},
-		{"Roaming app data", os.Getenv("APPDATA")},
-		{"Temp", os.TempDir()},
-		{"Downloads", filepath.Join(home, "Downloads")},
-		{"User folder", home},
-	}
-
 	folders := []WatchFolder{}
-	for _, c := range candidates {
-		if info, err := os.Stat(c.Path); c.Path != "" && err == nil && info.IsDir() {
-			folders = append(folders, c)
-		}
+	for _, f := range storage.WatchFolders() {
+		folders = append(folders, WatchFolder{Label: f.Label, Path: f.Path})
 	}
 	return folders
-}
-
-// currentSnapshot records startup programs, installed software, listening ports and PATH
-func currentSnapshot() history.Snapshot {
-	// a list that cannot be read is left nil (unknown) rather than empty, so What
-	// changed never reports everything in it as removed
-	snapshot := history.Snapshot{
-		TakenAt: time.Now(),
-		Apps:    system.InstalledApps(),
-	}
-
-	if items, err := system.GetStartupItems(); err == nil {
-		snapshot.Startup = []string{}
-		for _, item := range items {
-			snapshot.Startup = append(snapshot.Startup, fmt.Sprintf("%s (%s)", item.Name, item.Location))
-		}
-	}
-	if ports, err := network.ListeningPorts(); err == nil {
-		snapshot.Ports = ports
-	}
-	if analysis, err := system.GetEnvPathAnalysis(); err == nil && analysis != nil {
-		snapshot.Path = []string{}
-		for _, entry := range analysis.PathEntries {
-			snapshot.Path = append(snapshot.Path, entry.Path)
-		}
-	}
-	return snapshot
 }
 
 // GetChanges compares the machine with the saved baseline. The first run saves a
@@ -630,7 +603,7 @@ func (a *App) GetChanges() (*history.Changes, error) {
 		return nil, fmt.Errorf("cannot open snapshot storage: %w", err)
 	}
 
-	current := currentSnapshot()
+	current := history.Take()
 	baseline, err := store.Latest()
 	if err != nil {
 		return nil, err
@@ -654,7 +627,7 @@ func (a *App) SaveChangesBaseline() error {
 	if err != nil {
 		return fmt.Errorf("cannot open snapshot storage: %w", err)
 	}
-	return store.Save(currentSnapshot())
+	return store.Save(history.Take())
 }
 
 // SetWidgetMode keeps the window visible through "Show desktop" (Win+D) while it is a widget
@@ -673,9 +646,16 @@ func (a *App) GetTopProcesses(limit int) ([]process.ProcessItem, error) {
 	return process.GetTopProcesses(limit)
 }
 
-// TerminateProcess kills a process by PID
+// TerminateProcess ends a process by PID; critical Windows processes and this
+// app are refused
 func (a *App) TerminateProcess(pid int32) error {
 	return process.TerminateProcess(pid)
+}
+
+// TerminateProcessChecked ends a process only if it still has the given name
+// and start time (Unix ms; 0 skips that check), so a reused PID is never ended
+func (a *App) TerminateProcessChecked(pid int32, name string, startedMs int64) error {
+	return process.TerminateProcessChecked(pid, name, startedMs)
 }
 
 // GetDriveHealth reports what each drive and Windows say about its condition
@@ -685,10 +665,19 @@ func (a *App) GetDriveHealth() ([]hardware.DriveHealth, error) {
 
 // GetDiagnosticReport returns system health report
 func (a *App) GetDiagnosticReport() (diagnostics.DiagnosticReport, error) {
-	cpuStats, _ := functions.GetCPUStats()
-	memStats, _ := functions.GetMemoryStats()
-	batDetails, _ := functions.GetBatteryDetails()
-	sysInfo, _ := functions.GetSystemInfo()
+	cpuStats := a.metrics.CPU()
+	memStats, err := a.metrics.Memory()
+	if err != nil {
+		slog.Warn("diagnostic report: memory reading failed", "err", err)
+	}
+	batDetails, err := functions.GetBatteryDetails()
+	if err != nil {
+		slog.Info("diagnostic report: no battery reading", "err", err)
+	}
+	sysInfo, err := functions.GetSystemInfo()
+	if err != nil {
+		slog.Warn("diagnostic report: system information failed", "err", err)
+	}
 
 	input := diagnostics.EvaluationInput{
 		NetworkConnected: functions.IsConnectedToInternet(),
@@ -760,14 +749,11 @@ func (a *App) CheckDevTools() []system.DevTool {
 // FindDuplicates looks for files with the same contents under root, sending
 // "dupes-progress" while it works; a new search cancels the previous one
 func (a *App) FindDuplicates(root string, minSize int64) (*dupes.Result, error) {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-	a.dupesMu.Lock()
-	if a.dupesCancel != nil {
-		a.dupesCancel()
+	if err := a.picked.check(root); err != nil {
+		return nil, err
 	}
-	a.dupesCancel = cancel
-	a.dupesMu.Unlock()
+	ctx, done := a.dupesJob.start(a.ctx)
+	defer done()
 
 	res, err := dupes.Find(ctx, root, minSize, func(p dupes.Progress) {
 		if ctx.Err() == nil {
@@ -790,12 +776,7 @@ func (a *App) GetDuplicateFolders() []dupes.Place {
 
 // CancelDuplicateSearch stops the running duplicate search, if any
 func (a *App) CancelDuplicateSearch() {
-	a.dupesMu.Lock()
-	defer a.dupesMu.Unlock()
-	if a.dupesCancel != nil {
-		a.dupesCancel()
-		a.dupesCancel = nil
-	}
+	a.dupesJob.stop()
 }
 
 type DuplicateRemoval struct {
@@ -814,22 +795,13 @@ func (a *App) RemoveDuplicates(paths []string) (DuplicateRemoval, error) {
 	if last == nil {
 		return out, fmt.Errorf("search again before removing files")
 	}
+	if err := a.picked.check(paths...); err != nil {
+		return out, err
+	}
 	if err := dupes.CheckKeepsOne(last.Groups, paths); err != nil {
 		return out, err
 	}
-	for _, p := range paths {
-		info, err := os.Stat(p)
-		if err != nil {
-			out.Failed = append(out.Failed, p)
-			continue
-		}
-		if err := dupes.ToRecycleBin(p); err != nil {
-			out.Failed = append(out.Failed, p)
-			continue
-		}
-		out.Removed++
-		out.Freed += info.Size()
-	}
+	out.Removed, out.Freed, out.Failed = dupes.Recycle(paths)
 	return out, nil
 }
 
@@ -853,14 +825,11 @@ func (a *App) GetBatteryReport() (*batteryreport.Report, error) {
 // FindGitRepos finds git projects under root and what in them exists only on
 // this PC, sending "gitsweep-progress"; a new search cancels the previous one
 func (a *App) FindGitRepos(root string) (*gitsweep.Result, error) {
-	ctx, cancel := context.WithCancel(a.ctx)
-	defer cancel()
-	a.gitMu.Lock()
-	if a.gitCancel != nil {
-		a.gitCancel()
+	if err := a.picked.check(root); err != nil {
+		return nil, err
 	}
-	a.gitCancel = cancel
-	a.gitMu.Unlock()
+	ctx, done := a.gitJob.start(a.ctx)
+	defer done()
 
 	return gitsweep.Find(ctx, root, func(p gitsweep.Progress) {
 		if ctx.Err() == nil {
@@ -871,12 +840,7 @@ func (a *App) FindGitRepos(root string) (*gitsweep.Result, error) {
 
 // CancelGitSweep stops the running project search, if any
 func (a *App) CancelGitSweep() {
-	a.gitMu.Lock()
-	defer a.gitMu.Unlock()
-	if a.gitCancel != nil {
-		a.gitCancel()
-		a.gitCancel = nil
-	}
+	a.gitJob.stop()
 }
 
 // ListVirtualDisks returns the virtual disks of WSL distributions and Docker Desktop
@@ -951,7 +915,7 @@ func (a *App) SetReminderEnabled(enabled bool) (reminder.Settings, error) {
 	err := reminder.SaveSettings(s)
 	a.reminderMu.Unlock()
 	if err == nil && enabled {
-		go a.runReminderCheck(a.ctx, true)
+		logging.Go("reminder check", func() { a.runReminderCheck(a.ctx, true) })
 	}
 	return s, err
 }

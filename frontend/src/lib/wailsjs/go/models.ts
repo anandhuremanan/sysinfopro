@@ -151,6 +151,7 @@ export namespace cleaner {
 	export class ScanResult {
 	    categories: Category[];
 	    total_bytes: number;
+	    refused: string[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ScanResult(source);
@@ -160,6 +161,7 @@ export namespace cleaner {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.categories = this.convertValues(source["categories"], Category);
 	        this.total_bytes = source["total_bytes"];
+	        this.refused = source["refused"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -498,6 +500,34 @@ export namespace dupes {
 
 export namespace functions {
 	
+	export class BatteryDetails {
+	    percentage: number;
+	    state: string;
+	    remaining: number;
+	    design_capacity: number;
+	    current_capacity: number;
+	    charge_now: number;
+	    degradation_pct: number;
+	    cycle_estimate: number;
+	    health_status: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BatteryDetails(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.percentage = source["percentage"];
+	        this.state = source["state"];
+	        this.remaining = source["remaining"];
+	        this.design_capacity = source["design_capacity"];
+	        this.current_capacity = source["current_capacity"];
+	        this.charge_now = source["charge_now"];
+	        this.degradation_pct = source["degradation_pct"];
+	        this.cycle_estimate = source["cycle_estimate"];
+	        this.health_status = source["health_status"];
+	    }
+	}
 	export class CPUStats {
 	    usage: number;
 	    timestamp: number;
@@ -516,6 +546,32 @@ export namespace functions {
 	        this.frequency_ghz = source["frequency_ghz"];
 	        this.is_throttling = source["is_throttling"];
 	        this.sustained_load = source["sustained_load"];
+	    }
+	}
+	export class InternetSpeedStat {
+	    download_speed: number;
+	    upload_speed: number;
+	    ping_latency_ms: number;
+	    jitter_ms: number;
+	    packet_loss_pct: number;
+	    download_error?: string;
+	    upload_error?: string;
+	    provider: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InternetSpeedStat(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.download_speed = source["download_speed"];
+	        this.upload_speed = source["upload_speed"];
+	        this.ping_latency_ms = source["ping_latency_ms"];
+	        this.jitter_ms = source["jitter_ms"];
+	        this.packet_loss_pct = source["packet_loss_pct"];
+	        this.download_error = source["download_error"];
+	        this.upload_error = source["upload_error"];
+	        this.provider = source["provider"];
 	    }
 	}
 	export class MemoryStats {
@@ -542,6 +598,50 @@ export namespace functions {
 	        this.swapTotalMB = source["swapTotalMB"];
 	        this.swapUsedMB = source["swapUsedMB"];
 	        this.pressureLevel = source["pressureLevel"];
+	    }
+	}
+	export class SystemInfo {
+	    cpu_model: string;
+	    cpu_vendor: string;
+	    cpu_cores: number;
+	    cpu_freq_ghz: number;
+	    logged_in_user: string;
+	    total_ram_mb: number;
+	    free_ram_mb: number;
+	    disk_type: string;
+	    total_disk_gb: number;
+	    free_disk_gb: number;
+	    total_disk_bytes: number;
+	    free_disk_bytes: number;
+	    disk_usage_percent: number;
+	    network_status: string;
+	    host_os: string;
+	    host_platform: string;
+	    host_platform_version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.cpu_model = source["cpu_model"];
+	        this.cpu_vendor = source["cpu_vendor"];
+	        this.cpu_cores = source["cpu_cores"];
+	        this.cpu_freq_ghz = source["cpu_freq_ghz"];
+	        this.logged_in_user = source["logged_in_user"];
+	        this.total_ram_mb = source["total_ram_mb"];
+	        this.free_ram_mb = source["free_ram_mb"];
+	        this.disk_type = source["disk_type"];
+	        this.total_disk_gb = source["total_disk_gb"];
+	        this.free_disk_gb = source["free_disk_gb"];
+	        this.total_disk_bytes = source["total_disk_bytes"];
+	        this.free_disk_bytes = source["free_disk_bytes"];
+	        this.disk_usage_percent = source["disk_usage_percent"];
+	        this.network_status = source["network_status"];
+	        this.host_os = source["host_os"];
+	        this.host_platform = source["host_platform"];
+	        this.host_platform_version = source["host_platform_version"];
 	    }
 	}
 
@@ -634,6 +734,7 @@ export namespace gitsweep {
 	    at_risk: number;
 	    with_changes: number;
 	    unreadable: number;
+	    skipped: number;
 	    duration_ms: number;
 	
 	    static createFrom(source: any = {}) {
@@ -648,6 +749,7 @@ export namespace gitsweep {
 	        this.at_risk = source["at_risk"];
 	        this.with_changes = source["with_changes"];
 	        this.unreadable = source["unreadable"];
+	        this.skipped = source["skipped"];
 	        this.duration_ms = source["duration_ms"];
 	    }
 	
@@ -1370,6 +1472,7 @@ export namespace process {
 	    cpu_percent: number;
 	    memory_mb: number;
 	    memory_percent: number;
+	    started_ms: number;
 	    energy_impact: number;
 	    energy_impact_label: string;
 	
@@ -1384,6 +1487,7 @@ export namespace process {
 	        this.cpu_percent = source["cpu_percent"];
 	        this.memory_mb = source["memory_mb"];
 	        this.memory_percent = source["memory_percent"];
+	        this.started_ms = source["started_ms"];
 	        this.energy_impact = source["energy_impact"];
 	        this.energy_impact_label = source["energy_impact_label"];
 	    }

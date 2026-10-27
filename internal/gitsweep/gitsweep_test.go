@@ -35,6 +35,9 @@ func TestCleanRemote(t *testing.T) {
 		{"https://ghp_abcdefghijklmnopqrstuvwxyz0123@github.com/me/app.git", "https://github.com/me/app.git", true},
 		{"https://me@dev.azure.com/org/p/_git/app", "https://dev.azure.com/org/p/_git/app", false},
 		{"git@github.com:me/app.git", "git@github.com:me/app.git", false},
+		{"ssh://git@github.com/me/app.git", "ssh://git@github.com/me/app.git", false},
+		{"ssh://me:hunter2@host.example/repo.git", "ssh://me@host.example/repo.git", true},
+		{"ftp://me:pw@files.example/repo", "ftp://me@files.example/repo", true},
 	}
 	for _, c := range cases {
 		got, secret := cleanRemote(c.in + "\n")

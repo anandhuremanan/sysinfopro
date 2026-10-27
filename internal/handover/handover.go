@@ -6,8 +6,10 @@ package handover
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -236,12 +238,18 @@ func firefoxProfiles(ini string) (paths []string, relative []bool) {
 
 // firefoxAccount reads signedInUser.json for the Firefox account email
 func firefoxAccount(data []byte) string {
+	return firefoxAccountFrom(bytes.NewReader(data))
+}
+
+// firefoxAccountFrom reads only accountData.email; the session tokens in the
+// same file are skipped by the decoder and never kept
+func firefoxAccountFrom(r io.Reader) string {
 	var s struct {
 		AccountData struct {
 			Email string `json:"email"`
 		} `json:"accountData"`
 	}
-	if json.Unmarshal(data, &s) != nil {
+	if json.NewDecoder(r).Decode(&s) != nil {
 		return ""
 	}
 	return s.AccountData.Email
@@ -250,13 +258,56 @@ func firefoxAccount(data []byte) string {
 // firefoxLogins counts the saved passwords in logins.json; the passwords
 // themselves are encrypted and are not looked at
 func firefoxLogins(data []byte) int {
-	var s struct {
-		Logins []json.RawMessage `json:"logins"`
-	}
-	if json.Unmarshal(data, &s) != nil {
+	return firefoxLoginsFrom(bytes.NewReader(data))
+}
+
+// firefoxLoginsFrom counts the entries of the "logins" list while reading the
+// file as a stream; each entry is skipped without being kept
+func firefoxLoginsFrom(r io.Reader) int {
+	dec := json.NewDecoder(r)
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
 		return 0
 	}
-	return len(s.Logins)
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return 0
+		}
+		if key != "logins" {
+			var skip json.RawMessage
+			if dec.Decode(&skip) != nil {
+				return 0
+			}
+			continue
+		}
+		if t, err := dec.Token(); err != nil || t != json.Delim('[') {
+			return 0
+		}
+		count := 0
+		for dec.More() {
+			var entry struct{}
+			if dec.Decode(&entry) != nil {
+				return count
+			}
+			count++
+		}
+		return count
+	}
+	return 0
+}
+
+// containsLine reports whether any line contains marker, reading line by line
+// and keeping nothing; used to tell whether a credentials file holds a token
+// without holding the file in memory
+func containsLine(r io.Reader, marker string) bool {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // licenceChannel reads the Description of Windows' SoftwareLicensingProduct

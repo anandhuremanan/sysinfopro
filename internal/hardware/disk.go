@@ -3,16 +3,11 @@ package hardware
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"strings"
 	"time"
 
-	"myproject/internal/storage"
-	"myproject/internal/winps"
+	"sysinfopro/internal/storage"
 )
-
-//go:embed disk.ps1
-var diskScript string
 
 // DriveHealth is what the drive and Windows report about a drive's condition.
 // Nothing here is estimated: fields the drive does not report are left empty.
@@ -41,12 +36,8 @@ func GetDriveHealth(ctx context.Context) ([]DriveHealth, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 
-	out, err := winps.Run(ctx, diskScript)
+	rows, err := readDiskRows(ctx)
 	if err != nil {
-		return nil, err
-	}
-	var rows []diskRow
-	if err := json.Unmarshal(out, &rows); err != nil {
 		return nil, err
 	}
 

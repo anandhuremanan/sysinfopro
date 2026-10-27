@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { GetCPUStats, GetUptimeSeconds } from '../../wailsjs/go/main/App';
+	import { onMount, untrack } from 'svelte';
+	import { GetUptimeSeconds } from '$lib/wailsjs/go/main/App';
+	import { live, startLiveStats } from '$lib/liveStats.svelte';
+	import type { functions } from '$lib/wailsjs/go/models';
 
 	let { onStress }: { onStress?: () => void } = $props();
 
@@ -16,14 +19,6 @@
 		uptimeSec = (await GetUptimeSeconds().catch(() => 0)) || 0;
 	}
 
-	interface CPUStats {
-		usage: number;
-		timestamp: number;
-		frequency_ghz?: number;
-		is_throttling?: boolean;
-		sustained_load?: boolean;
-	}
-
 	let cpuUsage = $state(0);
 	let freqGHz = $state(0);
 	let isThrottling = $state(false);
@@ -32,12 +27,11 @@
 	let timestamps = $state<string[]>([]);
 	let usageHistory = $state<number[]>([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 	const MAX_HISTORY_LENGTH = 30;
-	let unsubscribe = $state<(() => void) | undefined>(undefined);
 
 	let formattedCpuUsage = $derived(cpuUsage.toFixed(1));
 
 	let cpuColor = $derived(
-		cpuUsage > 80 ? 'text-red-500' : cpuUsage > 60 ? 'text-amber-500' : 'text-accent'
+		cpuUsage > 80 ? 'text-fail' : cpuUsage > 60 ? 'text-warn' : 'text-accent'
 	);
 
 	let sparklinePath = $derived.by(() => {
@@ -53,7 +47,7 @@
 		}, '');
 	});
 
-	function updateStats(stats: CPUStats) {
+	function updateStats(stats: functions.CPUStats) {
 		if (!stats) return;
 		cpuUsage = stats.usage || 0;
 		freqGHz = stats.frequency_ghz || 0;
@@ -72,36 +66,17 @@
 		}
 	}
 
-	async function init() {
-		try {
-			const initialStats = await GetCPUStats();
-			updateStats(initialStats);
-
-			// @ts-ignore
-			if (window.runtime) {
-				// @ts-ignore
-				unsubscribe = window.runtime.EventsOn('cpu-stats-update', (data: CPUStats) => {
-					updateStats(data);
-				});
-			}
-		} catch (error) {
-			console.error('Failed to get CPU stats:', error);
-		}
-	}
-
+	// each new reading from the shared store extends the sparkline
 	$effect(() => {
-		init();
+		const stats = live.cpu;
+		if (stats) untrack(() => updateStats(stats));
+	});
+
+	onMount(() => {
+		startLiveStats();
 		readUptime();
 		const timer = setInterval(readUptime, 60_000);
 		return () => clearInterval(timer);
-	});
-
-	$effect(() => {
-		return () => {
-			if (unsubscribe) {
-				unsubscribe();
-			}
-		};
 	});
 </script>
 
@@ -135,18 +110,20 @@
 	<div class="flex flex-col gap-0.5">
 		{#if isThrottling}
 			<span
-				class="font-semibold text-amber-600 dark:text-amber-400"
+				class="font-semibold text-warn"
 				title="Busy, yet running below its base speed: usually heat or a power-saving setting"
 				>Running below base speed</span
 			>
 		{:else if sustainedLoad}
-			<span class="font-semibold text-amber-600 dark:text-amber-400">Busy for a while now</span>
+			<span class="font-semibold text-warn">Busy for a while now</span>
+		{:else if cpuUsage > 80}
+			<span class="font-semibold text-warn">Busy right now</span>
 		{:else}
 			<span class="text-muted">Normal load</span>
 		{/if}
 		<span class="flex items-center justify-between gap-2 text-[11px]">
 			<span
-				class={longUptime ? 'text-amber-600 dark:text-amber-400' : 'text-muted'}
+				class={longUptime ? 'text-warn' : 'text-muted'}
 				title={longUptime
 					? 'A restart clears memory and finishes updates. With Fast Startup on, Shut down does not count as a restart.'
 					: 'Time since Windows last started'}

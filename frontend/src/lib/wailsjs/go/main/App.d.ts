@@ -11,9 +11,9 @@ import {gitsweep} from '../models';
 import {locks} from '../models';
 import {network} from '../models';
 import {alerts} from '../models';
+import {functions} from '../models';
 import {batteryreport} from '../models';
 import {cpuinfo} from '../models';
-import {functions} from '../models';
 import {history} from '../models';
 import {diagnostics} from '../models';
 import {vdisk} from '../models';
@@ -64,7 +64,7 @@ export function GetActiveSockets():Promise<Array<network.SocketItem>>;
 
 export function GetAlertSettings():Promise<alerts.Settings>;
 
-export function GetBatteryDetails():Promise<string>;
+export function GetBatteryDetails():Promise<functions.BatteryDetails>;
 
 export function GetBatteryReport():Promise<batteryreport.Report>;
 
@@ -75,6 +75,8 @@ export function GetCPUStats():Promise<functions.CPUStats>;
 export function GetChanges():Promise<history.Changes>;
 
 export function GetDiagnosticReport():Promise<diagnostics.DiagnosticReport>;
+
+export function GetDiagnosticsText():Promise<string>;
 
 export function GetDockerUsage():Promise<vdisk.DockerUsage>;
 
@@ -92,7 +94,7 @@ export function GetHotkeyCombos():Promise<Array<string>>;
 
 export function GetHotkeySettings():Promise<hotkey.Settings>;
 
-export function GetInterNetSpeed():Promise<string>;
+export function GetInterNetSpeed():Promise<functions.InternetSpeedStat>;
 
 export function GetMemoryStats():Promise<functions.MemoryStats>;
 
@@ -110,7 +112,7 @@ export function GetSoftwareHealthDetails():Promise<Array<system.SoftwareItem>>;
 
 export function GetStartupItems():Promise<Array<system.StartupItem>>;
 
-export function GetSysInfo():Promise<string>;
+export function GetSysInfo():Promise<functions.SystemInfo>;
 
 export function GetTopProcesses(arg1:number):Promise<Array<process.ProcessItem>>;
 
@@ -119,8 +121,6 @@ export function GetUptimeSeconds():Promise<number>;
 export function GetWatchFolders():Promise<Array<main.WatchFolder>>;
 
 export function GetWingetUpgrades():Promise<winget.Result>;
-
-export function Greet(arg1:string):Promise<string>;
 
 export function IsStoreApp():Promise<boolean>;
 
@@ -162,7 +162,11 @@ export function SetReminderEnabled(arg1:boolean):Promise<reminder.Settings>;
 
 export function SetWidgetMode(arg1:boolean):Promise<void>;
 
+export function SetWindowVisible(arg1:boolean):Promise<void>;
+
 export function TerminateProcess(arg1:number):Promise<void>;
+
+export function TerminateProcessChecked(arg1:number,arg2:string,arg3:number):Promise<void>;
 
 export function UndoPathChange():Promise<system.EnvPathAnalysis>;
 

@@ -9,12 +9,14 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+
+	"sysinfopro/internal/pdh"
+	"sysinfopro/internal/winexec"
 )
 
 const sampleFor = 2500 * time.Millisecond
@@ -27,13 +29,6 @@ var (
 	procGetProcessIoCounter = kernel32.NewProc("GetProcessIoCounters")
 	procGetProcessMemInfo   = kernel32.NewProc("K32GetProcessMemoryInfo")
 	procGetPowerStatus      = kernel32.NewProc("GetSystemPowerStatus")
-
-	pdh           = windows.NewLazySystemDLL("pdh.dll")
-	pdhOpenQuery  = pdh.NewProc("PdhOpenQueryW")
-	pdhAddEnglish = pdh.NewProc("PdhAddEnglishCounterW")
-	pdhCollect    = pdh.NewProc("PdhCollectQueryData")
-	pdhFormatted  = pdh.NewProc("PdhGetFormattedCounterValue")
-	pdhCloseQuery = pdh.NewProc("PdhCloseQuery")
 )
 
 func ft(f windows.Filetime) uint64 { return uint64(f.HighDateTime)<<32 | uint64(f.LowDateTime) }
@@ -81,65 +76,6 @@ type systemPowerStatus struct {
 	SystemStatusFlag    byte
 	BatteryLifeTime     uint32
 	BatteryFullLifeTime uint32
-}
-
-// --- PDH counters (performance counters Task Manager also reads) ---
-
-type pdhQuery struct {
-	handle   uintptr
-	counters map[string]uintptr
-}
-
-func openPDH(paths ...string) *pdhQuery {
-	q := &pdhQuery{counters: map[string]uintptr{}}
-	if pdhOpenQuery.Find() != nil {
-		return nil
-	}
-	if r, _, _ := pdhOpenQuery.Call(0, 0, uintptr(unsafe.Pointer(&q.handle))); r != 0 {
-		return nil
-	}
-	for _, p := range paths {
-		path, _ := windows.UTF16PtrFromString(p)
-		var counter uintptr
-		if r, _, _ := pdhAddEnglish.Call(q.handle, uintptr(unsafe.Pointer(path)), 0, uintptr(unsafe.Pointer(&counter))); r == 0 {
-			q.counters[p] = counter
-		}
-	}
-	pdhCollect.Call(q.handle)
-	return q
-}
-
-func (q *pdhQuery) collect() {
-	if q != nil {
-		pdhCollect.Call(q.handle)
-	}
-}
-
-// value reads a counter as a number; -1 when it could not be read
-func (q *pdhQuery) value(path string) float64 {
-	if q == nil {
-		return -1
-	}
-	counter, ok := q.counters[path]
-	if !ok {
-		return -1
-	}
-	const pdhFmtDouble = 0x00000200
-	var v struct {
-		Status uint32
-		_      uint32
-		Value  float64
-	}
-	if r, _, _ := pdhFormatted.Call(counter, pdhFmtDouble, 0, uintptr(unsafe.Pointer(&v))); r != 0 || v.Status > 1 {
-		return -1
-	}
-	return v.Value
-}
-
-func (q *pdhQuery) close() {
-	if q != nil {
-		pdhCloseQuery.Call(q.handle)
-	}
 }
 
 // --- processes ---
@@ -213,7 +149,7 @@ func activePowerPlan(ctx context.Context) string {
 	c, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(c, "powercfg", "/getactivescheme")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	winexec.Hide(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return ""
@@ -251,8 +187,8 @@ func collect(ctx context.Context) Sample {
 	plan := make(chan string, 1)
 	go func() { plan <- activePowerPlan(ctx) }()
 
-	q := openPDH(cpuPerfCounter, cpuUtility, diskIdle)
-	defer q.close()
+	q := pdh.Open(cpuPerfCounter, cpuUtility, diskIdle)
+	defer q.Close()
 	idle1, kernel1, user1, sysOK := systemTimes()
 	procs := openProcesses()
 	defer func() {
@@ -268,7 +204,7 @@ func collect(ctx context.Context) Sample {
 	}
 
 	elapsed := time.Since(start)
-	q.collect()
+	q.Collect()
 	idle2, kernel2, user2, sysOK2 := systemTimes()
 	if sysOK && sysOK2 {
 		// kernel time includes idle time
@@ -293,12 +229,12 @@ func collect(ctx context.Context) Sample {
 		}
 		s.Procs = append(s.Procs, pr)
 	}
-	if v := q.value(cpuPerfCounter); v >= 0 {
+	if v := q.Value(cpuPerfCounter); v >= 0 {
 		s.PerformancePct = v
 	}
 	// report use as Task Manager does, and scale each program's share the same
 	// way, so the numbers here match what people see there
-	if u := q.value(cpuUtility); u >= 0 {
+	if u := q.Value(cpuUtility); u >= 0 {
 		s.CPUTimePct = s.CPUPct
 		if s.CPUPct > 0.5 {
 			ratio := u / s.CPUPct
@@ -308,7 +244,7 @@ func collect(ctx context.Context) Sample {
 		}
 		s.CPUPct = max(0, min(100, u))
 	}
-	if v := q.value(diskIdle); v >= 0 {
+	if v := q.Value(diskIdle); v >= 0 {
 		s.DiskBusyPct = max(0, min(100, 100-v))
 	}
 

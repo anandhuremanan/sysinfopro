@@ -1,12 +1,10 @@
 package functions
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/mem"
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func GetMemoryStats() (*MemoryStats, error) {
@@ -41,20 +39,4 @@ func GetMemoryStats() (*MemoryStats, error) {
 		SwapUsedMB:    swapUsed,
 		PressureLevel: pressureLevel,
 	}, nil
-}
-
-// StartMemoryMonitoring begins periodic monitoring of RAM usage and emits events
-func StartMemoryMonitoring(ctx context.Context) {
-	ticker := time.NewTicker(2 * time.Second)
-
-	go func() {
-		defer ticker.Stop()
-
-		for range ticker.C {
-			stats, err := GetMemoryStats()
-			if err == nil {
-				runtime.EventsEmit(ctx, "ram-stats-update", stats)
-			}
-		}
-	}()
 }

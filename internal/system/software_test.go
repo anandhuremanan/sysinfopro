@@ -58,3 +58,21 @@ func TestSameProduct(t *testing.T) {
 		}
 	}
 }
+
+func TestWebLink(t *testing.T) {
+	cases := map[string]string{
+		"https://www.7-zip.org/":            "https://www.7-zip.org/",
+		"http://example.com/app":            "http://example.com/app",
+		"search-ms:query=x&crumb=location:": "",
+		"ms-msdt:/id PCWDiagnostic":         "",
+		"file:///C:/Windows":                "",
+		"javascript:alert(1)":               "",
+		"not a url":                         "",
+		"":                                  "",
+	}
+	for in, want := range cases {
+		if got := webLink(in); got != want {
+			t.Errorf("webLink(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

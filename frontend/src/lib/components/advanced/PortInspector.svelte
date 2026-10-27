@@ -1,25 +1,13 @@
 <script lang="ts">
+	import type { network } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { Status } from '$lib/status.svelte';
 	import { onMount } from 'svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import Modal from '../ui/Modal.svelte';
 	import { GetActiveSockets, TerminateProcess } from '$lib/wailsjs/go/main/App';
 
-	type SocketItem = {
-		pid: number;
-		process_name: string;
-		protocol: string;
-		local_port: number;
-		local_ip: string;
-		remote_ip: string;
-		remote_port: number;
-		status: string;
-		command_line: string;
-		working_dir: string;
-		project_name: string;
-		project_root: string;
-		git_branch: string;
-		started_at: number;
-	};
+	type SocketItem = network.SocketItem;
 
 	// "2h 10m", "35m", "just now"
 	function runningFor(startedAt: number) {
@@ -44,7 +32,7 @@
 
 	let sockets = $state<SocketItem[]>([]);
 	let isLoading = $state(true);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(4000);
 	let searchTerm = $state('');
 	let stopping = $state<SocketItem | null>(null);
 
@@ -85,12 +73,11 @@
 		if (!sock) return;
 		try {
 			await TerminateProcess(sock.pid);
-			statusMessage = `${sock.process_name} was stopped, so port ${sock.local_port} is free.`;
+			status.text = `${sock.process_name} was stopped, so port ${sock.local_port} is free.`;
 			await loadSockets();
 		} catch (err) {
-			statusMessage = `Could not stop ${sock.process_name}: ${err}`;
+			status.text = `Could not stop ${sock.process_name}: ${err}`;
 		}
-		setTimeout(() => (statusMessage = undefined), 4000);
 	}
 
 	onMount(() => {
@@ -124,29 +111,29 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Ports</div>
-			<div class="text-xs text-muted truncate">
-				{isLoading
-					? 'Which program is using each port'
-					: `${listening.length} ports open, and which program holds each`}
+	<ToolHeader title="Ports">
+		{#snippet sub()}
+			{isLoading
+				? 'Which program is using each port'
+				: `${listening.length} ports open, and which program holds each`}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<input
+					type="search"
+					placeholder="Port or program..."
+					aria-label="Search ports"
+					bind:value={searchTerm}
+					class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-40"
+				/>
+				<button class="btn btn-secondary" onclick={loadSockets} disabled={isLoading}>Refresh</button
+				>
 			</div>
-		</div>
-		<div class="flex items-center gap-2 shrink-0">
-			<input
-				type="search"
-				placeholder="Port or program..."
-				aria-label="Search ports"
-				bind:value={searchTerm}
-				class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-40"
-			/>
-			<button class="btn btn-secondary" onclick={loadSockets} disabled={isLoading}>Refresh</button>
-		</div>
-	</div>
+		{/snippet}
+	</ToolHeader>
 
-	{#if statusMessage}
-		<div class="text-xs font-semibold text-muted px-1 shrink-0">{statusMessage}</div>
+	{#if status.text}
+		<div class="text-xs font-semibold text-muted px-1 shrink-0">{status.text}</div>
 	{/if}
 
 	{#if isLoading}
@@ -158,7 +145,9 @@
 			{listening.length ? 'Nothing matches that search.' : 'No ports are open.'}
 		</div>
 	{:else}
-		<div class="flex-1 basis-0 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 basis-0 min-h-0 overflow-y-auto overscroll-contain pr-1.5 pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)]"
+		>
 			<table class="w-full text-xs text-left border-collapse">
 				<thead class="sticky top-0 z-10 bg-tile">
 					<tr class="border-b border-line text-muted text-[11px]">

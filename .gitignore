@@ -1,3 +1,37 @@
+# build output (wails build writes here; never use -clean, it wipes this folder)
 build/bin
-node_modules
 frontend/build
+frontend/dist/*
+!frontend/dist/gitkeep
+frontend/.svelte-kit
+frontend/package.json.md5
+
+# dependencies
+node_modules
+frontend/node_modules
+
+# Windows resource files the Go toolchain or wails leaves behind
+*.syso
+!build/windows/*.syso
+
+# test and coverage leftovers
+*.test
+*.out
+coverage.*
+*.prof
+
+# local scratch, logs and editor files
+*.log
+*.tmp
+.scratch/
+tmp/
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# local environment
+.env
+.env.*

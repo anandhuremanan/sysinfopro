@@ -141,3 +141,16 @@ func TestUndefinedVariableIsNotMissing(t *testing.T) {
 		t.Errorf("invalid = %d, want only the real missing folder", a.InvalidEntries)
 	}
 }
+
+func TestOnlyFixableIndicesAreRemoved(t *testing.T) {
+	a := &EnvPathAnalysis{PathEntries: []PathEntry{
+		{Scope: "user", Index: 0, Fixable: false},  // a working folder
+		{Scope: "user", Index: 1, Fixable: true},   // missing
+		{Scope: "system", Index: 2, Fixable: true}, // never the system list
+		{Scope: "user", Index: 3, Fixable: true},   // duplicate
+	}}
+	got := onlyFixable(a, []int{0, 1, 2, 3, 7})
+	if len(got) != 2 || got[0] != 1 || got[1] != 3 {
+		t.Errorf("got %v, want [1 3]", got)
+	}
+}

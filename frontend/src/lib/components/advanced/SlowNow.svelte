@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
 	import { formatBytes } from '$lib';
 	import { DiagnoseSlowness, TerminateProcess } from '$lib/wailsjs/go/main/App';
@@ -34,8 +35,8 @@
 	};
 
 	const LEVEL = {
-		high: { pill: 'bg-red-500/15 text-red-700 dark:text-red-400', label: 'Big effect' },
-		medium: { pill: 'bg-amber-500/15 text-amber-700 dark:text-amber-400', label: 'Some effect' },
+		high: { pill: 'bg-red-500/15 text-fail', label: 'Big effect' },
+		medium: { pill: 'bg-amber-500/15 text-warn', label: 'Some effect' },
 		info: { pill: 'bg-ground text-muted', label: 'Worth knowing' }
 	};
 
@@ -116,17 +117,13 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Why so slow</div>
-			<div class="text-xs text-muted truncate">
-				What is holding the PC back right now, in plain words
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isRunning} onclick={run}>
-			{isRunning ? 'Watching...' : 'Check again'}
-		</button>
-	</div>
+	<ToolHeader title="Why so slow" subtitle="What is holding the PC back right now, in plain words">
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isRunning} onclick={run}>
+				{isRunning ? 'Watching...' : 'Check again'}
+			</button>
+		{/snippet}
+	</ToolHeader>
 
 	{#if status}
 		<div class="text-xs font-semibold text-muted px-1 shrink-0">{status}</div>
@@ -141,10 +138,10 @@
 			class="mx-1 px-3 py-2 rounded-xl text-sm font-semibold shrink-0 transition-opacity {isRunning
 				? 'opacity-50'
 				: ''} {report.calm
-				? 'bg-green-500/10 text-green-700 dark:text-green-400'
+				? 'bg-green-500/10 text-ok'
 				: report.findings[0]?.level === 'high'
-					? 'bg-red-500/10 text-red-700 dark:text-red-400'
-					: 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}"
+					? 'bg-red-500/10 text-fail'
+					: 'bg-amber-500/10 text-warn'}"
 		>
 			{banner}
 		</div>
@@ -211,7 +208,7 @@
 							></div>
 						</div>
 						<ul class="mt-1.5 flex flex-col gap-0.5">
-							{#each m.top.slice(0, 3) as p (p.name)}
+							{#each m.top.slice(0, 3) as p, i (`${i}-${p.name}`)}
 								<li class="flex items-baseline gap-2 min-w-0">
 									<span class="text-ink truncate">{p.name.replace(/\.exe$/i, '')}</span>
 									{#if p.count > 1}<span class="text-[11px] text-muted shrink-0">×{p.count}</span

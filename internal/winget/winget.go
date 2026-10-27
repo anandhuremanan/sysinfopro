@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"sysinfopro/internal/winexec"
 )
 
 type Package struct {
@@ -35,7 +37,7 @@ const blockedByPolicy = 0x8A15003A
 
 func command(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "winget", args...)
-	hideWindow(cmd)
+	winexec.Hide(cmd)
 	return cmd
 }
 

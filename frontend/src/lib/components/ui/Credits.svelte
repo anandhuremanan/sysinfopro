@@ -14,12 +14,8 @@
 </script>
 
 <div class="text-xs text-muted flex space-x-4">
-	<button class="hover:text-ink cursor-pointer" onclick={() => setModal('About')}>
-		About</button
-	>
-	<button class="hover:text-ink cursor-pointer" onclick={() => setModal('Credits')}
-		>Credits</button
-	>
+	<button class="hover:text-ink cursor-pointer" onclick={() => setModal('About')}> About</button>
+	<button class="hover:text-ink cursor-pointer" onclick={() => setModal('Credits')}>Credits</button>
 	<button
 		class="hover:text-ink cursor-pointer"
 		onclick={() => {
@@ -53,7 +49,7 @@
 	{:else if modalTitle === 'Credits'}
 		<div class="flex justify-between items-center gap-4">
 			<div class="flex flex-col gap-1">
-				<p>SysInfo Pro version 3.2.0</p>
+				<p>SysInfo Pro version {__APP_VERSION__}</p>
 				<p>Author: Probably Fine Labs</p>
 				<p>Made with Wails, Go, Svelte and Tailwind</p>
 				<p class="mt-3 text-muted">sysinfopro.imanandhu.in</p>

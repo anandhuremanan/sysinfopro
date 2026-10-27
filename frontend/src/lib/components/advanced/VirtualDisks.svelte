@@ -1,4 +1,8 @@
 <script lang="ts">
+	import type { vdisk } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON } from '$lib/path';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount } from 'svelte';
 	import { formatBytes } from '$lib';
@@ -13,24 +17,8 @@
 	import Modal from '../ui/Modal.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	type Disk = {
-		name: string;
-		kind: 'wsl' | 'docker';
-		path: string;
-		default: boolean;
-		version: number;
-		size_bytes: number;
-		on_disk_bytes: number;
-		sparse: boolean;
-		missing: boolean;
-	};
-	type DockerUsage = {
-		installed: boolean;
-		running: boolean;
-		rows: { type: string; count: string; size: string; reclaimable: string }[];
-	};
-
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
+	type Disk = vdisk.Disk;
+	type DockerUsage = vdisk.DockerUsage;
 
 	let disks = $state<Disk[]>(recall('vdisks') ?? []);
 	let docker = $state<DockerUsage | null>(recall('docker') ?? null);
@@ -39,7 +27,7 @@
 	let copied = $state('');
 	let showPrune = $state(false);
 	let isPruning = $state(false);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(5000);
 
 	let selected = $derived(disks.find((d) => d.path === selectedPath) ?? disks[0]);
 
@@ -81,10 +69,10 @@
 		isPruning = true;
 		try {
 			const reclaimed = await PruneDocker();
-			statusMessage = `Docker freed ${reclaimed}. Shrink its disk to give the space back to Windows.`;
+			status.text = `Docker freed ${reclaimed}. Shrink its disk to give the space back to Windows.`;
 			await refresh(true);
 		} catch (err) {
-			statusMessage = `Docker cleanup failed: ${err}`;
+			status.text = `Docker cleanup failed: ${err}`;
 		} finally {
 			isPruning = false;
 			showPrune = false;
@@ -111,24 +99,20 @@
 {/snippet}
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">WSL & Docker</div>
-			<div class="text-xs text-muted truncate">
-				Their virtual disks grow as you use them and never give space back on their own
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
-			Refresh
-		</button>
-	</div>
+	<ToolHeader
+		title="WSL & Docker"
+		subtitle="Their virtual disks grow as you use them and never give space back on their own"
+	>
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
+				Refresh
+			</button>
+		{/snippet}
+	</ToolHeader>
 
-	{#if statusMessage}
-		<div
-			class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate"
-			title={statusMessage}
-		>
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs font-semibold text-ok px-1 shrink-0 truncate" title={status.text}>
+			{status.text}
 		</div>
 	{/if}
 
@@ -172,7 +156,7 @@
 							</span>
 							{#if disk.missing}
 								<span
-									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-warn font-semibold"
 								>
 									Disk missing
 								</span>
@@ -251,7 +235,7 @@
 					</div>
 
 					{#if selected.missing}
-						<p class="leading-snug text-amber-700 dark:text-amber-400 font-medium">
+						<p class="leading-snug text-warn font-medium">
 							WSL still lists this distribution, but its disk file is gone.
 						</p>
 						<p class="text-muted leading-snug">
@@ -326,7 +310,7 @@
 	</p>
 	{#snippet actions()}
 		{#if isPruning}
-			<span class="text-muted animate-pulse self-center">Docker is cleaning up...</span>
+			<span class="text-muted motion-safe:animate-pulse self-center">Docker is cleaning up...</span>
 		{:else}
 			<button class="btn btn-secondary" onclick={() => (showPrune = false)}>Cancel</button>
 			<button class="btn btn-danger" onclick={prune}>Remove</button>

@@ -45,10 +45,10 @@ func fixture(t *testing.T) (temp, browser string, locations []Location) {
 	os.Chtimes(filepath.Join(temp, "build-1234"), old, old)
 
 	return temp, browser, []Location{
-		{"Temporary files", temp},
-		{"Temporary files", temp + string(filepath.Separator)}, // same folder twice
-		{"Chrome cache", browser},
-		{"Edge cache", filepath.Join(root, "missing")},
+		{Category: "Temporary files", Path: temp},
+		{Category: "Temporary files", Path: temp + string(filepath.Separator)}, // same folder twice
+		{Category: "Chrome cache", Path: browser},
+		{Category: "Edge cache", Path: filepath.Join(root, "missing")},
 	}
 }
 
@@ -99,5 +99,38 @@ func TestCleanStops(t *testing.T) {
 	cancel()
 	if summary := Clean(ctx, locations, nil); !summary.Stopped || summary.FreedBytes != 0 {
 		t.Errorf("summary = %+v, want stopped with nothing freed", summary)
+	}
+}
+
+func TestTempDirProblem(t *testing.T) {
+	profile, windows := `C:\Users\dev`, `C:\Windows`
+	ok := []string{`C:\Users\dev\AppData\Local\Temp`, `D:\tmp`, `C:\Users\dev\AppData\Local\Temp\`}
+	for _, dir := range ok {
+		if p := tempDirProblem(dir, profile, windows); p != "" {
+			t.Errorf("%s should be fine, got %q", dir, p)
+		}
+	}
+	bad := []string{``, `D:\`, `D:`, `C:\Users\dev`, `c:\users\DEV\`, `C:\Windows`, `C:\Users\dev\Documents`, `C:\Users\dev\Downloads`, `D:\Work`}
+	for _, dir := range bad {
+		if p := tempDirProblem(dir, profile, windows); p == "" {
+			t.Errorf("%q must be refused", dir)
+		}
+	}
+}
+
+func TestRefusedLocationIsNotTouched(t *testing.T) {
+	dir := t.TempDir()
+	old := filepath.Join(dir, "keep.txt")
+	os.WriteFile(old, []byte("x"), 0o644)
+	past := time.Now().Add(-2 * time.Hour)
+	os.Chtimes(old, past, past)
+	locs := []Location{{Category: "Temporary files", Path: dir, Refused: "not a temp folder"}}
+	res := Scan(context.Background(), locs)
+	if res.TotalBytes != 0 || len(res.Refused) != 1 {
+		t.Fatalf("scan = %+v", res)
+	}
+	Clean(context.Background(), locs, nil)
+	if _, err := os.Stat(old); err != nil {
+		t.Fatal("a refused folder was cleaned")
 	}
 }

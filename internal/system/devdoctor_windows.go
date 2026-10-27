@@ -5,10 +5,11 @@ package system
 import (
 	"context"
 	"os/exec"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/registry"
+
+	"sysinfopro/internal/winexec"
 )
 
 // storedVar reads a variable as new terminals will see it: the user's value,
@@ -28,7 +29,7 @@ func runQuiet(exe string, args []string) (string, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	winexec.Hide(cmd)
 	out, err := cmd.CombinedOutput()
 	return string(out), err == nil
 }

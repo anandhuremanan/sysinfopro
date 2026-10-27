@@ -20,7 +20,7 @@
 		<span
 			class="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center {calm
 				? 'bg-accent/15 text-accent'
-				: 'bg-red-500/15 text-red-600 dark:text-red-400'}"
+				: 'bg-red-500/15 text-fail'}"
 		>
 			<StrokeIcon
 				d={calm

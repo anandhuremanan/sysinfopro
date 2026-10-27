@@ -17,6 +17,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"sysinfopro/internal/fsutil"
 )
 
 type Branch struct {
@@ -56,7 +58,9 @@ type Result struct {
 	AtRisk      int    `json:"at_risk"`
 	WithChanges int    `json:"with_changes"`
 	// projects git could not read; never counted as pushed
-	Unreadable int   `json:"unreadable"`
+	Unreadable int `json:"unreadable"`
+	// projects not opened because their git settings would start other programs
+	Skipped    int   `json:"skipped"`
 	DurationMs int64 `json:"duration_ms"`
 }
 
@@ -71,13 +75,9 @@ type Progress struct {
 type runner func(ctx context.Context, dir string, args ...string) (string, error)
 
 // folders never searched for projects: too big, or full of other people's clones
-var skipDirs = map[string]bool{
-	"windows": true, "program files": true, "program files (x86)": true, "programdata": true,
-	"$recycle.bin": true, "system volume information": true, "recovery": true, "appdata": true,
-	"node_modules": true, ".venv": true, "venv": true, "__pycache__": true, "site-packages": true,
-	".gradle": true, ".m2": true, ".nuget": true, ".cargo": true, ".rustup": true, "target": true,
-	"vendor": true, ".pnpm-store": true, ".npm": true, ".cache": true, "bin": true, "obj": true,
-	"dist": true, "build": true, ".next": true, ".nuxt": true, "scoop": true,
+// besides fsutil's common list: build output and package-manager installs
+var skipExtra = map[string]bool{
+	"bin": true, "dist": true, "build": true, ".next": true, ".nuxt": true, "scoop": true,
 }
 
 // Find walks root for git projects and checks each one
@@ -106,7 +106,7 @@ func find(ctx context.Context, root string, run runner, onProgress func(Progress
 			return nil
 		}
 		name := d.Name()
-		if path != root && (skipDirs[strings.ToLower(name)] || d.Type()&(fs.ModeSymlink|fs.ModeIrregular) != 0) {
+		if path != root && (fsutil.SkipFolder(name, skipExtra) || d.Type()&(fs.ModeSymlink|fs.ModeIrregular) != 0) {
 			return fs.SkipDir
 		}
 		if name == ".git" {
@@ -157,7 +157,7 @@ func find(ctx context.Context, root string, run runner, onProgress func(Progress
 		return nil, ctx.Err()
 	}
 
-	rank := map[string]int{"at-risk": 0, "changes": 1, "unreadable": 2, "clean": 3}
+	rank := map[string]int{"at-risk": 0, "changes": 1, "skipped": 2, "unreadable": 3, "clean": 4}
 	sort.SliceStable(repos, func(i, j int) bool {
 		if rank[repos[i].Status] != rank[repos[j].Status] {
 			return rank[repos[i].Status] < rank[repos[j].Status]
@@ -172,6 +172,8 @@ func find(ctx context.Context, root string, run runner, onProgress func(Progress
 			res.WithChanges++
 		case "unreadable":
 			res.Unreadable++
+		case "skipped":
+			res.Skipped++
 		}
 	}
 	res.Repos = repos
@@ -209,10 +211,18 @@ func parseStatus(out string, r *Repo) {
 func cleanRemote(raw string) (string, bool) {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
-	if err != nil || u.User == nil || (u.Scheme != "http" && u.Scheme != "https") {
+	if err != nil || u.User == nil || u.Scheme == "" {
 		return raw, false
 	}
 	_, hasPassword := u.User.Password()
+	if u.Scheme != "http" && u.Scheme != "https" {
+		// ssh://git@host is an ordinary user name and stays; a password never does
+		if !hasPassword {
+			return raw, false
+		}
+		u.User = url.User(u.User.Username())
+		return u.String(), true
+	}
 	// https://TOKEN@github.com: a bare user name over https is almost always a token
 	secret := hasPassword || len(u.User.Username()) >= 20
 	u.User = nil
@@ -222,7 +232,14 @@ func cleanRemote(raw string) (string, bool) {
 func check(ctx context.Context, dir string, run runner) Repo {
 	r := Repo{Path: dir, Name: filepath.Base(dir), Branches: []Branch{}}
 
-	out, err := run(ctx, dir, "status", "--porcelain=v2", "--branch")
+	// git is never started in a project whose own settings ask for other programs
+	if reason := skipReason(dir); reason != "" {
+		r.Status = "skipped"
+		r.Error = reason
+		return r
+	}
+
+	out, err := run(ctx, dir, "status", "--porcelain=v2", "--branch", "--ignore-submodules=all")
 	if err != nil {
 		r.Error = firstLine(out)
 		if r.Error == "" {
@@ -233,7 +250,7 @@ func check(ctx context.Context, dir string, run runner) Repo {
 	}
 	parseStatus(out, &r)
 
-	if out, err := run(ctx, dir, "log", "-1", "--format=%ct"); err == nil {
+	if out, err := run(ctx, dir, "log", "-1", "--no-show-signature", "--format=%ct"); err == nil {
 		if s, err := strconv.ParseInt(strings.TrimSpace(out), 10, 64); err == nil {
 			r.LastCommit = s * 1000
 		}

@@ -115,3 +115,18 @@ func TestSitePointedAtThisPC(t *testing.T) {
 		t.Errorf("got %+v", s)
 	}
 }
+
+func TestSiteTarget(t *testing.T) {
+	cases := []struct{ site, want string }{
+		{"github.com", "https://github.com/"},
+		{"https://github.com/me", "https://github.com/me"},
+		{"http://intranet.local/", "http://intranet.local/"},
+		{"ftp://files.example.com/x", "https://files.example.com/"},
+		{"file://server/share", "https://server/"},
+	}
+	for _, c := range cases {
+		if got := siteTarget(c.site, siteName(c.site)); got != c.want {
+			t.Errorf("siteTarget(%q) = %q, want %q", c.site, got, c.want)
+		}
+	}
+}

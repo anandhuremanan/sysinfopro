@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON } from '$lib/path';
 	import { onMount } from 'svelte';
 	import { CheckDevTools, RevealInExplorer } from '$lib/wailsjs/go/main/App';
 	import { load, recall } from '$lib/cache';
@@ -18,7 +20,6 @@
 		vars: { key: string; value: string }[];
 	};
 
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 	const MARK = {
 		ok: 'M5 12l5 5 9-10',
 		warn: 'M12 7v6M12 17h.01',
@@ -26,9 +27,9 @@
 		missing: 'M7 12h10'
 	};
 	const TONE = {
-		ok: 'text-green-700 dark:text-green-400',
-		warn: 'text-amber-700 dark:text-amber-400',
-		fail: 'text-red-700 dark:text-red-400',
+		ok: 'text-ok',
+		warn: 'text-warn',
+		fail: 'text-fail',
 		missing: 'text-muted'
 	};
 
@@ -66,24 +67,23 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Dev doctor</div>
-			<div class="text-xs text-muted truncate">
-				{#if isLoading}
-					Which copy of each tool runs when you type its name in a new terminal
-				{:else if problemCount}
-					{problemCount}
-					{problemCount === 1 ? 'tool needs' : 'tools need'} a look · {installed.length} found
-				{:else}
-					All {installed.length} tools found run the way you would expect
-				{/if}
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
-			Check again
-		</button>
-	</div>
+	<ToolHeader title="Dev doctor">
+		{#snippet sub()}
+			{#if isLoading}
+				Which copy of each tool runs when you type its name in a new terminal
+			{:else if problemCount}
+				{problemCount}
+				{problemCount === 1 ? 'tool needs' : 'tools need'} a look · {installed.length} found
+			{:else}
+				All {installed.length} tools found run the way you would expect
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
+				Check again
+			</button>
+		{/snippet}
+	</ToolHeader>
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">

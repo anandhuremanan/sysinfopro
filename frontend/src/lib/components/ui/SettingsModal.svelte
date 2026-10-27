@@ -3,6 +3,7 @@
 	import { enterWidget, toggleWidgetMetric, widget, widgetOptions } from '$lib/widget.svelte';
 	import {
 		GetAlertSettings,
+		GetDiagnosticsText,
 		GetHotkeyCombos,
 		GetHotkeySettings,
 		GetNotificationStatus,
@@ -20,7 +21,23 @@
 		type CardStyle
 	} from '$lib/utils/cardExporter';
 	import { fade } from 'svelte/transition';
+	// with Windows' "reduce motion" on, tabs switch without the fade
+	const reduceMotion =
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	import Credits from './Credits.svelte';
+	import { ClipboardSetText } from '$lib/wailsjs/runtime/runtime';
+
+	// version, Windows build and recent log lines, for a bug report
+	let diagnosticsCopied = $state(false);
+	async function copyDiagnostics() {
+		try {
+			await ClipboardSetText(await GetDiagnosticsText());
+			diagnosticsCopied = true;
+			setTimeout(() => (diagnosticsCopied = false), 2000);
+		} catch (err) {
+			console.error('Could not copy diagnostics:', err);
+		}
+	}
 	import Segmented from './Segmented.svelte';
 	import Modal from './Modal.svelte';
 	import Switch from './Switch.svelte';
@@ -161,7 +178,7 @@
 		</div>
 
 		{#key tab}
-			<div class="flex flex-col gap-5" in:fade={{ duration: 160 }}>
+			<div class="flex flex-col gap-5" in:fade={{ duration: reduceMotion ? 0 : 160 }}>
 				{#if tab === 'general'}
 					<div class="flex items-center justify-between gap-4">
 						<div>
@@ -224,6 +241,18 @@
 							<div class="text-muted">About, credits and source code</div>
 						</div>
 						<Credits />
+					</div>
+
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">Diagnostics</div>
+							<div class="text-muted">
+								Version, Windows build and recent log lines, to paste into a bug report
+							</div>
+						</div>
+						<button class="btn btn-secondary shrink-0" onclick={copyDiagnostics}>
+							{diagnosticsCopied ? 'Copied' : 'Copy diagnostics'}
+						</button>
 					</div>
 				{:else if tab === 'card'}
 					<div class="flex flex-col gap-2.5">
@@ -307,7 +336,7 @@
 							</div>
 							<div class="flex items-center justify-between gap-4">
 								{#if hotkeySettings.error}
-									<span class="text-amber-700 dark:text-amber-400 leading-snug">
+									<span class="text-warn leading-snug">
 										{hotkeySettings.error}. Pick another.
 									</span>
 								{:else}
@@ -327,7 +356,7 @@
 						</div>
 					{/if}
 				{:else if !alertSettings}
-					<div class="h-32 flex items-center justify-center text-muted animate-pulse">
+					<div class="h-32 flex items-center justify-center text-muted motion-safe:animate-pulse">
 						Loading...
 					</div>
 				{:else}
@@ -397,7 +426,7 @@
 						<p
 							class="leading-snug {notificationStatus === 'enabled' || !notificationStatus
 								? 'text-muted'
-								: 'text-amber-700 dark:text-amber-400'}"
+								: 'text-warn'}"
 						>
 							{notificationStatus
 								? NOTIFICATION_NOTE[notificationStatus]

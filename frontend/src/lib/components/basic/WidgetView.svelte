@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { storage } from '$lib/wailsjs/go/models';
 	import { formatBytes, isBatteryCharging, usageBarColor } from '$lib';
 	import {
 		GetBatteryDetails,
@@ -14,7 +15,7 @@
 		widget,
 		type WidgetMetric
 	} from '$lib/widget.svelte';
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import Logo from '../ui/Logo.svelte';
 	import { driveAlerts, isDriveAlerted } from '$lib/alerts.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
@@ -26,7 +27,7 @@
 	// smaller movements than this are normal background noise
 	const TREND_MIN_BYTES = 20 * 1024 * 1024;
 
-	type Drive = { path: string; free_bytes: number; total_bytes: number; used_pct: number };
+	type Drive = storage.DriveInfo;
 
 	let cpu = $state<number | undefined>(undefined);
 	let memory = $state<{ usagePercent: number; usedRAMMB: number; totalRAMMB: number } | undefined>(
@@ -111,9 +112,19 @@
 				id,
 				label: 'Battery',
 				value: battery ? `${pct.toFixed(0)}%` : batteryLoaded ? 'None' : '…',
-				detail: battery ? (isBatteryCharging(battery.state) ? 'Charging' : battery.state || '') : '',
+				detail: battery
+					? isBatteryCharging(battery.state)
+						? 'Charging'
+						: battery.state || ''
+					: '',
 				pct,
-				color: !battery ? 'bg-track' : pct <= 20 ? 'bg-red-500' : pct <= 40 ? 'bg-amber-500' : 'bg-accent',
+				color: !battery
+					? 'bg-track'
+					: pct <= 20
+						? 'bg-red-500'
+						: pct <= 40
+							? 'bg-amber-500'
+							: 'bg-accent',
 				trend: 0
 			};
 		})
@@ -146,7 +157,7 @@
 	async function refreshBattery() {
 		try {
 			const res = await GetBatteryDetails();
-			battery = res ? JSON.parse(res) : null;
+			battery = res ?? null;
 		} catch (err) {
 			console.error('Failed to get battery details:', err);
 		} finally {
@@ -168,7 +179,7 @@
 		if (stats) memory = stats;
 	});
 
-	$effect(() => {
+	onMount(() => {
 		refreshDrives();
 		refreshBattery();
 		const driveTimer = setInterval(refreshDrives, DISK_REFRESH_MS);
@@ -204,9 +215,7 @@
 	{#each rows as row (row.id)}
 		<div class="flex-1 min-h-0 flex items-center gap-2" title={row.detail || undefined}>
 			<span
-				class="w-[50px] shrink-0 font-medium truncate {row.alerted
-					? 'text-red-600 dark:text-red-400'
-					: 'text-muted'}"
+				class="w-[50px] shrink-0 font-medium truncate {row.alerted ? 'text-fail' : 'text-muted'}"
 				>{row.label}</span
 			>
 			<span class="flex-1 h-1 rounded-full bg-track">
@@ -215,19 +224,19 @@
 					style="width: {Math.min(100, Math.max(0, row.pct))}%"
 				></span>
 			</span>
-			<span class="w-[66px] shrink-0 flex items-center justify-end gap-1 font-semibold tabular-nums">
+			<span
+				class="w-[66px] shrink-0 flex items-center justify-end gap-1 font-semibold tabular-nums"
+			>
 				{#if row.trend < 0}
 					<span class="text-red-500" aria-label="free space falling">
 						<StrokeIcon d="M6 9l6 6 6-6" size={11} />
 					</span>
 				{:else if row.trend > 0}
-					<span class="text-green-600 dark:text-green-400" aria-label="free space rising">
+					<span class="text-ok" aria-label="free space rising">
 						<StrokeIcon d="M6 15l6-6 6 6" size={11} />
 					</span>
 				{/if}
-				<span class="whitespace-nowrap {row.alerted ? 'text-red-600 dark:text-red-400' : ''}"
-					>{row.value}</span
-				>
+				<span class="whitespace-nowrap {row.alerted ? 'text-fail' : ''}">{row.value}</span>
 			</span>
 		</div>
 	{/each}

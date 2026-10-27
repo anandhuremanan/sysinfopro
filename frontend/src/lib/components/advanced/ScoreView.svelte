@@ -1,6 +1,6 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
-	import { formatBytes } from '$lib';
 	import { computeScore, deductions, scoreTone, scoreWord, type Score } from '$lib/healthScore';
 	import { loadScoreInput } from '$lib/scoreData';
 	import { getTool, type ToolId } from '$lib/tools';
@@ -62,7 +62,7 @@
 	async function refresh() {
 		isLoading = true;
 		try {
-			scored = computeScore(await loadScoreInput(), formatBytes);
+			scored = computeScore(await loadScoreInput());
 		} finally {
 			isLoading = false;
 		}
@@ -74,17 +74,16 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Health score</div>
-			<div class="text-xs text-muted truncate">
-				Worked out only from what this PC reports right now. Nothing is guessed.
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={refresh}
-			>Check again</button
-		>
-	</div>
+	<ToolHeader
+		title="Health score"
+		subtitle="Worked out only from what this PC reports right now. Nothing is guessed."
+	>
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={refresh}
+				>Check again</button
+			>
+		{/snippet}
+	</ToolHeader>
 
 	<div class="flex-1 min-h-0 grid grid-cols-[180px_1fr] gap-4 pt-1">
 		<!-- the score -->

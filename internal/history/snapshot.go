@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"sysinfopro/internal/settings"
 )
 
 const snapshotsKept = 20
@@ -122,11 +124,11 @@ type Store struct {
 
 // DefaultStore keeps snapshots in the user's app-settings folder
 func DefaultStore() (*Store, error) {
-	base, err := os.UserConfigDir()
+	dir, err := settings.Dir()
 	if err != nil {
 		return nil, err
 	}
-	return &Store{Dir: filepath.Join(base, "SysInfoPro", "snapshots")}, nil
+	return &Store{Dir: filepath.Join(dir, "snapshots")}, nil
 }
 
 func (s *Store) files() []string {
@@ -162,7 +164,7 @@ func (s *Store) Save(snapshot Snapshot) error {
 		return err
 	}
 	name := fmt.Sprintf("snapshot-%020d.json", snapshot.TakenAt.UnixNano())
-	if err := os.WriteFile(filepath.Join(s.Dir, name), data, 0o644); err != nil {
+	if err := settings.WriteFileAtomic(filepath.Join(s.Dir, name), data); err != nil {
 		return err
 	}
 

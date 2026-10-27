@@ -1,14 +1,11 @@
 <script lang="ts">
+	import type { system } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { GetStartupItems } from '$lib/wailsjs/go/main/App';
 
-	type StartupItem = {
-		name: string;
-		command: string;
-		location: string;
-		is_enabled: boolean;
-	};
+	type StartupItem = system.StartupItem;
 
 	let items = $state<StartupItem[]>([]);
 	let isLoading = $state(true);
@@ -59,26 +56,26 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Startup</div>
-			<div class="text-xs text-muted truncate">
-				{isLoading
-					? 'Programs that start when you sign in'
-					: `${items.length} ${items.length === 1 ? 'program starts' : 'programs start'} when you sign in`}
+	<ToolHeader title="Startup">
+		{#snippet sub()}
+			{isLoading
+				? 'Programs that start when you sign in'
+				: `${items.length} ${items.length === 1 ? 'program starts' : 'programs start'} when you sign in`}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<input
+					type="search"
+					placeholder="Search..."
+					aria-label="Search startup programs"
+					bind:value={searchTerm}
+					class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-40"
+				/>
+				<button class="btn btn-secondary" onclick={loadStartup} disabled={isLoading}>Refresh</button
+				>
 			</div>
-		</div>
-		<div class="flex items-center gap-2 shrink-0">
-			<input
-				type="search"
-				placeholder="Search..."
-				aria-label="Search startup programs"
-				bind:value={searchTerm}
-				class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-40"
-			/>
-			<button class="btn btn-secondary" onclick={loadStartup} disabled={isLoading}>Refresh</button>
-		</div>
-	</div>
+		{/snippet}
+	</ToolHeader>
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">

@@ -1,5 +1,8 @@
 import { formatBytes, mbToGb } from '$lib';
 import { SaveSystemReport } from '$lib/wailsjs/go/main/App';
+import { makeRedactor, type Redactor } from '$lib/redact';
+
+export { makeRedactor };
 
 type Row = [label: string, value: string];
 type Section = { title: string; rows: Row[] };
@@ -19,32 +22,22 @@ export type ReportInput = {
 	privateTerms?: string[];
 };
 
-// set while a report is being written: hides personal details in every value
-let redact: (text: string) => string = (t) => t;
+type Esc = (value: unknown) => string;
+const keepAll: Redactor = (t) => t;
 
-function makeRedactor(terms: string[]): (text: string) => string {
-	const words = terms
-		.filter((t) => t && t.length >= 3)
-		.sort((a, b) => b.length - a.length)
-		.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-	const named = words.length ? new RegExp(words.join('|'), 'gi') : null;
-	return (text) => {
-		let out = text
-			.replace(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g, '(email hidden)')
-			.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '(hidden)')
-			.replace(/\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b/gi, '(hidden)');
-		if (named) out = out.replace(named, '(hidden)');
-		return out;
-	};
-}
-
-function escapeHtml(value: unknown): string {
-	return redact(String(value ?? ''))
+export function escapeHtml(value: unknown): string {
+	return String(value ?? '')
 		.replace(/&/g, '&amp;')
 		.replace(/</g, '&lt;')
 		.replace(/>/g, '&gt;')
 		.replace(/"/g, '&quot;');
 }
+
+// every value in the report passes through this: redacted first, then escaped
+const escaper =
+	(redact: Redactor): Esc =>
+	(value) =>
+		escapeHtml(redact(String(value ?? '')));
 
 // "Intel(R) Core(TM) i5" -> "Intel Core i5"
 export const tidyName = (name: string) =>
@@ -165,21 +158,17 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function generateReportHTML(input: ReportInput): string {
-	redact = input.hidePersonal
+	const redact = input.hidePersonal
 		? makeRedactor([...(input.privateTerms ?? []), input.specs?.bios?.serial ?? ''])
-		: (t) => t;
-	try {
-		return writeReport(input);
-	} finally {
-		redact = (t) => t;
-	}
+		: keepAll;
+	return writeReport(input, escaper(redact));
 }
 
 // a row whose value carries an OK / Review / Problem label
-const statusCell = (status: string, text: string, advice = '') =>
-	`<span class="status ${escapeHtml(status)}">${STATUS_LABEL[status] ?? escapeHtml(status)}</span> ${escapeHtml(text)}${advice ? `<div class="advice">${escapeHtml(advice)}</div>` : ''}`;
-const statusTable = (rows: [label: string, cell: string][]) =>
-	`<table>${rows.map(([label, cell]) => `<tr><th>${escapeHtml(label)}</th><td>${cell}</td></tr>`).join('')}</table>`;
+const statusCell = (esc: Esc, status: string, text: string, advice = '') =>
+	`<span class="status ${esc(status)}">${STATUS_LABEL[status] ?? esc(status)}</span> ${esc(text)}${advice ? `<div class="advice">${esc(advice)}</div>` : ''}`;
+const statusTable = (esc: Esc, rows: [label: string, cell: string][]) =>
+	`<table>${rows.map(([label, cell]) => `<tr><th>${esc(label)}</th><td>${cell}</td></tr>`).join('')}</table>`;
 const LEVEL_STATUS: Record<string, string> = {
 	ok: 'pass',
 	warn: 'warn',
@@ -191,16 +180,21 @@ const LEVEL_STATUS: Record<string, string> = {
 	missing: 'unknown'
 };
 
-function extraSections({ driveHealth, battery, network, devTools, slow }: ReportInput): string {
+function extraSections(
+	{ driveHealth, battery, network, devTools, slow }: ReportInput,
+	esc: Esc
+): string {
 	const out: string[] = [];
 	const minutes = (m: number) => (m ? `${Math.floor(m / 60)} h ${m % 60} min` : 'n/a');
 
 	if (driveHealth?.length) {
 		out.push(
 			`<section><h2>Drive health</h2>${statusTable(
+				esc,
 				driveHealth.map((d: any) => [
 					`${d.drive} ${d.model ?? ''}`.trim(),
 					statusCell(
+						esc,
 						d.status === 'Healthy'
 							? 'pass'
 							: d.status === 'Unknown'
@@ -243,17 +237,18 @@ function extraSections({ driveHealth, battery, network, devTools, slow }: Report
 						: `recorded since ${battery.tracked_since || 'today'}`
 				]
 			]
-				.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(v)}</td></tr>`)
+				.map(([l, v]) => `<tr><th>${esc(l)}</th><td>${esc(v)}</td></tr>`)
 				.join('')}</table></section>`
 		);
 	}
 
 	if (network?.steps?.length) {
 		out.push(
-			`<section><h2>Network doctor</h2><p class="lead">${escapeHtml(network.summary)}</p>${statusTable(
+			`<section><h2>Network doctor</h2><p class="lead">${esc(network.summary)}</p>${statusTable(
+				esc,
 				network.steps.map((s: any) => [
 					s.name,
-					statusCell(LEVEL_STATUS[s.status] ?? 'unknown', s.detail || 'Not checked', s.fix)
+					statusCell(esc, LEVEL_STATUS[s.status] ?? 'unknown', s.detail || 'Not checked', s.fix)
 				])
 			)}</section>`
 		);
@@ -263,9 +258,11 @@ function extraSections({ driveHealth, battery, network, devTools, slow }: Report
 	if (installed.length) {
 		out.push(
 			`<section><h2>Developer tools</h2>${statusTable(
+				esc,
 				installed.map((t: any) => [
 					t.name,
 					statusCell(
+						esc,
 						LEVEL_STATUS[t.status] ?? 'unknown',
 						`${t.version || 'no version'} · ${t.copies[0]?.path ?? ''}${t.copies.length > 1 ? ` (+${t.copies.length - 1} more)` : ''}`,
 						t.issues.map((i: any) => i.text).join(' ')
@@ -282,12 +279,13 @@ function extraSections({ driveHealth, battery, network, devTools, slow }: Report
 			['Drive', slow.disk.busy_pct >= 0 ? `${Math.round(slow.disk.busy_pct)}% busy` : 'n/a']
 		];
 		out.push(
-			`<section class="wide"><h2>Slowness check</h2><p class="lead">${escapeHtml(slow.calm ? 'Nothing was slowing the PC down when this report was made.' : slow.summary)}</p>${statusTable(
+			`<section class="wide"><h2>Slowness check</h2><p class="lead">${esc(slow.calm ? 'Nothing was slowing the PC down when this report was made.' : slow.summary)}</p>${statusTable(
+				esc,
 				[
-					...rows.map(([l, v]): [string, string] => [l, escapeHtml(v)]),
+					...rows.map(([l, v]): [string, string] => [l, esc(v)]),
 					...slow.findings.map((f: any): [string, string] => [
 						f.title,
-						statusCell(LEVEL_STATUS[f.level] ?? 'unknown', f.detail, f.fix)
+						statusCell(esc, LEVEL_STATUS[f.level] ?? 'unknown', f.detail, f.fix)
 					])
 				]
 			)}</section>`
@@ -296,7 +294,7 @@ function extraSections({ driveHealth, battery, network, devTools, slow }: Report
 	return out.join('');
 }
 
-function writeReport(input: ReportInput): string {
+function writeReport(input: ReportInput, esc: Esc): string {
 	const { systemInfo, specs, security, drives } = input;
 	const sections = buildSpecSections(specs).map((s) => ({
 		...s,
@@ -317,13 +315,11 @@ function writeReport(input: ReportInput): string {
 
 	const table = (rows: Row[]) =>
 		`<table>${rows
-			.map(
-				([label, value]) => `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`
-			)
+			.map(([label, value]) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`)
 			.join('')}</table>`;
 
 	const specHtml = sections
-		.map((s) => `<section><h2>${escapeHtml(s.title)}</h2>${table(s.rows)}</section>`)
+		.map((s) => `<section><h2>${esc(s.title)}</h2>${table(s.rows)}</section>`)
 		.join('');
 
 	const driveHtml =
@@ -342,7 +338,7 @@ function writeReport(input: ReportInput): string {
 		? `<section class="wide"><h2>Security check: ${security.passed} of ${security.checks.length} passed</h2><table>${security.checks
 				.map(
 					(c: any) =>
-						`<tr><th>${escapeHtml(c.title)}</th><td><span class="status ${escapeHtml(c.status)}">${STATUS_LABEL[c.status] ?? escapeHtml(c.status)}</span> ${escapeHtml(c.detail)}${c.advice ? `<div class="advice">${escapeHtml(c.advice)}</div>` : ''}</td></tr>`
+						`<tr><th>${esc(c.title)}</th><td><span class="status ${esc(c.status)}">${STATUS_LABEL[c.status] ?? esc(c.status)}</span> ${esc(c.detail)}${c.advice ? `<div class="advice">${esc(c.advice)}</div>` : ''}</td></tr>`
 				)
 				.join('')}</table></section>`
 		: '';
@@ -356,8 +352,9 @@ function writeReport(input: ReportInput): string {
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>System report: ${escapeHtml(title)}</title>
+<title>System report: ${esc(title)}</title>
 <style>
 :root { --ground: #eceef1; --tile: #fff; --ink: #15171a; --muted: #5e6570; --line: #dde0e5; --accent: #0f766e; }
 @media (prefers-color-scheme: dark) {
@@ -390,8 +387,8 @@ footer { margin-top: 20px; color: var(--muted); font-size: 12px; }
 </head>
 <body>
 <main>
-<header><h1>${escapeHtml(title)}</h1><p>System report · ${escapeHtml(generated)}</p></header>
-<div class="grid">${specHtml}${driveHtml}${extraSections(input)}${securityHtml}</div>
+<header><h1>${esc(title)}</h1><p>System report · ${esc(generated)}</p></header>
+<div class="grid">${specHtml}${driveHtml}${extraSections(input, esc)}${securityHtml}</div>
 <footer>Generated by SysInfo Pro. ${input.hidePersonal ? "Serial numbers, the PC's name, the user name, network addresses and emails are left out." : 'This report contains your device serial number and PC name; remove them before sharing publicly.'}</footer>
 </main>
 </body>

@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"sysinfopro/internal/winexec"
 )
 
 // Disk is one virtual disk file
@@ -115,7 +117,7 @@ type DockerUsage struct {
 
 func dockerCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "docker", args...)
-	hideWindow(cmd)
+	winexec.Hide(cmd)
 	return cmd
 }
 

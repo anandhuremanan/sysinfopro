@@ -15,6 +15,8 @@ import (
 	"math"
 	"sync"
 
+	"sysinfopro/internal/pdh"
+
 	"github.com/shirou/gopsutil/v4/cpu"
 )
 
@@ -49,6 +51,9 @@ var (
 	baseMHz  float64
 )
 
+// BaseMHz is the processor's base speed, read from Windows once and then kept
+func BaseMHz() float64 { return base() }
+
 func base() float64 {
 	baseOnce.Do(func() {
 		if info, err := cpu.Info(); err == nil && len(info) > 0 {
@@ -62,7 +67,7 @@ type Sampler struct {
 	mu      sync.Mutex
 	started bool
 	logical int
-	perf    *counters
+	perf    *pdh.Query
 }
 
 // Sample reads the processor now
@@ -76,21 +81,21 @@ func (s *Sampler) Sample() Detail {
 		for i := 0; i < s.logical; i++ {
 			paths = append(paths, corePath(i))
 		}
-		s.perf = openCounters(paths...)
+		s.perf = pdh.Open(paths...)
 		cpu.Percent(0, true) // prime the fallback's "since last call" reading
 	}
-	s.perf.collect()
+	s.perf.Collect()
 
 	d := Detail{BaseMHz: base(), PerCore: []float64{}, Processes: -1, Threads: -1}
 	timeShare, _ := cpu.Percent(0, true) // the fallback: share of time not idle
 	for i := 0; i < s.logical; i++ {
-		v := s.perf.value(corePath(i))
+		v := s.perf.Value(corePath(i))
 		if v < 0 && i < len(timeShare) {
 			v = timeShare[i]
 		}
 		d.PerCore = append(d.PerCore, round1(clamp(v)))
 	}
-	if u := s.perf.value(utilityPath); u >= 0 {
+	if u := s.perf.Value(utilityPath); u >= 0 {
 		d.Usage = round1(clamp(u))
 	} else if len(d.PerCore) > 0 {
 		total := 0.0
@@ -101,42 +106,14 @@ func (s *Sampler) Sample() Detail {
 	}
 	// "% Processor Performance" is the current speed as a share of base speed;
 	// above 100 means turbo boost
-	if p := s.perf.value(perfPath); p > 0 && d.BaseMHz > 0 {
+	if p := s.perf.Value(perfPath); p > 0 && d.BaseMHz > 0 {
 		d.CurrentMHz = math.Round(d.BaseMHz * p / 100)
 	}
-	if v := s.perf.value(processesPath); v >= 0 {
+	if v := s.perf.Value(processesPath); v >= 0 {
 		d.Processes = int(v)
 	}
-	if v := s.perf.value(threadsPath); v >= 0 {
+	if v := s.perf.Value(threadsPath); v >= 0 {
 		d.Threads = int(v)
 	}
 	return d
-}
-
-// Meter is the lightweight reading behind the home screen's CPU card: total use
-// (as Task Manager shows it) and the current speed, since the previous Read
-type Meter struct {
-	mu   sync.Mutex
-	open bool
-	c    *counters
-}
-
-// Read returns use (0-100) and the current speed in MHz; ok is false when
-// Windows' counters are not available, so the caller can fall back
-func (m *Meter) Read() (usage, currentMHz float64, ok bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if !m.open {
-		m.open = true
-		m.c = openCounters(utilityPath, perfPath)
-	}
-	m.c.collect()
-	u := m.c.value(utilityPath)
-	if u < 0 {
-		return 0, 0, false
-	}
-	if p := m.c.value(perfPath); p > 0 && base() > 0 {
-		currentMHz = math.Round(base() * p / 100)
-	}
-	return round1(clamp(u)), currentMHz, true
 }

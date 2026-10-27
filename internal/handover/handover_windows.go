@@ -3,7 +3,6 @@
 package handover
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"io/fs"
@@ -13,12 +12,14 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf16"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+
+	"sysinfopro/internal/winexec"
+	"sysinfopro/internal/winps"
 )
 
 // sizing folders stops after this long and reports "at least"
@@ -56,7 +57,7 @@ func output(ctx context.Context, name string, args ...string) string {
 	c, cancel := context.WithTimeout(ctx, 8*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(c, name, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	winexec.Hide(cmd)
 	out, _ := cmd.Output()
 	return decode(out)
 }
@@ -165,11 +166,13 @@ func browsers() []browser {
 			if relative[i] {
 				dir = filepath.Join(ffDir, dir)
 			}
-			if data, err := os.ReadFile(filepath.Join(dir, "signedInUser.json")); err == nil {
-				b.accounts = append(b.accounts, firefoxAccount(data))
+			if f, err := os.Open(filepath.Join(dir, "signedInUser.json")); err == nil {
+				b.accounts = append(b.accounts, firefoxAccountFrom(f))
+				f.Close()
 			}
-			if data, err := os.ReadFile(filepath.Join(dir, "logins.json")); err == nil {
-				b.logins += firefoxLogins(data)
+			if f, err := os.Open(filepath.Join(dir, "logins.json")); err == nil {
+				b.logins += firefoxLoginsFrom(f)
+				f.Close()
 			}
 		}
 		if len(paths) > 0 {
@@ -188,9 +191,14 @@ func devSecrets() []string {
 	}
 	in := func(parts ...string) string { return filepath.Join(append([]string{home}, parts...)...) }
 	exists := func(p string) bool { info, err := os.Stat(p); return err == nil && info.Size() > 0 }
+	// read line by line, so a file of tokens is never held in memory
 	contains := func(p, s string) bool {
-		data, err := os.ReadFile(p)
-		return err == nil && bytes.Contains(data, []byte(s))
+		f, err := os.Open(p)
+		if err != nil {
+			return false
+		}
+		defer f.Close()
+		return containsLine(f, s)
 	}
 
 	var found []string
@@ -242,7 +250,15 @@ $lic = Get-CimInstance -ClassName SoftwareLicensingProduct -Filter "ApplicationI
 [pscustomobject]@{ bitlocker = $bl; licence = [string]$lic.Description } | ConvertTo-Json -Compress`
 
 func deviceState(ctx context.Context) (*int, string) {
-	out := output(ctx, "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", deviceScript)
+	// through winps, like every other PowerShell query: the script arrives on
+	// standard input, so execution policy does not apply and nothing is bypassed
+	c, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	b, err := winps.Run(c, deviceScript)
+	if err != nil {
+		return nil, ""
+	}
+	out := string(b)
 	var v struct {
 		BitLocker *int   `json:"bitlocker"`
 		Licence   string `json:"licence"`

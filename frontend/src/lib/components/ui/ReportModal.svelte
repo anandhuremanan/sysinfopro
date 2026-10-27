@@ -146,13 +146,11 @@
 			</span>
 		</label>
 		{#if savedPath}
-			<p
-				class="text-xs font-semibold col-span-2 text-green-700 dark:text-green-400 px-1 pt-2 break-all"
-			>
+			<p class="text-xs font-semibold col-span-2 text-ok px-1 pt-2 break-all">
 				Saved to {savedPath}
 			</p>
 		{:else if error}
-			<p class="text-xs font-semibold col-span-2 text-red-700 dark:text-red-400 px-1 pt-2">
+			<p class="text-xs font-semibold col-span-2 text-fail px-1 pt-2">
 				{error}
 			</p>
 		{:else if step}

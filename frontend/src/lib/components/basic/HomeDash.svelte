@@ -6,12 +6,13 @@
 		GetBatteryDetails,
 		GetDriveHealth,
 		GetDrives,
-		GetMemoryStats,
 		GetBatteryReport,
 		GetSecurityReport,
 		GetTopProcesses
 	} from '$lib/wailsjs/go/main/App';
+	import { onMount } from 'svelte';
 	import { load } from '$lib/cache';
+	import { live, startLiveStats } from '$lib/liveStats.svelte';
 	import { computeScore, deductions, scoreTone, scoreWord } from '$lib/healthScore';
 	import BatteryGauge from '../ui/BatteryGauge.svelte';
 	import ToolTile from '../ui/ToolTile.svelte';
@@ -40,7 +41,8 @@
 	async function checkOnline() {
 		online = await CheckInternetConnection().catch(() => null);
 	}
-	let memoryUsedPct = $state<number | undefined>(undefined);
+	// from the shared live store, pushed by the backend; no polling of its own
+	let memoryUsedPct = $derived(live.memory?.usagePercent);
 	let driveHealth = $state<any[] | null>(null);
 	let security = $state<any>(null);
 
@@ -76,17 +78,14 @@
 	// security checks (20). Processor load is left out because it changes every second.
 
 	let scored = $derived(
-		computeScore(
-			{
-				freeBytes: diskFreeBytes,
-				totalBytes: diskTotalBytes,
-				memoryUsedPct,
-				drive: driveHealth?.find((d) => /^c:/i.test(d.drive ?? '')) ?? driveHealth?.[0] ?? null,
-				batteryHealthPct: batteryHealth,
-				security
-			},
-			formatBytes
-		)
+		computeScore({
+			freeBytes: diskFreeBytes,
+			totalBytes: diskTotalBytes,
+			memoryUsedPct,
+			drive: driveHealth?.find((d) => /^c:/i.test(d.drive ?? '')) ?? driveHealth?.[0] ?? null,
+			batteryHealthPct: batteryHealth,
+			security
+		})
 	);
 	let lost = $derived(deductions(scored));
 	// what lowers the score most, in two or three words
@@ -101,7 +100,7 @@
 	async function loadBattery() {
 		try {
 			const res = await GetBatteryDetails();
-			battery = res ? JSON.parse(res) : null;
+			battery = res ?? null;
 		} catch (err) {
 			console.error('Failed to get battery details:', err);
 		} finally {
@@ -115,14 +114,6 @@
 			topProcess = res?.[0];
 		} catch (err) {
 			console.error('Failed to get processes:', err);
-		}
-	}
-
-	async function refreshMemory() {
-		try {
-			memoryUsedPct = (await GetMemoryStats())?.usagePercent;
-		} catch (err) {
-			console.error('Failed to read memory:', err);
 		}
 	}
 
@@ -151,21 +142,15 @@
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
+		startLiveStats();
 		loadBattery();
 		loadSlowChecks();
 		loadTopProcess();
-	});
-
-	$effect(() => {
 		refreshDisk();
-		refreshMemory();
 		checkOnline();
 		const netTimer = setInterval(checkOnline, 30_000);
-		const timer = setInterval(() => {
-			refreshDisk();
-			refreshMemory();
-		}, DISK_REFRESH_MS);
+		const timer = setInterval(refreshDisk, DISK_REFRESH_MS);
 		return () => {
 			clearInterval(timer);
 			clearInterval(netTimer);

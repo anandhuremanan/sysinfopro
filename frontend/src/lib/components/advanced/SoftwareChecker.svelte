@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount, untrack } from 'svelte';
 	import {
@@ -127,36 +128,35 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Software</div>
-			<div class="text-xs text-muted truncate">
-				{tab === 'dev'
-					? 'Developer tools compared with their latest official releases'
-					: 'Apps that Windows Package Manager (winget) can update'}
+	<ToolHeader title="Software">
+		{#snippet sub()}
+			{tab === 'dev'
+				? 'Developer tools compared with their latest official releases'
+				: 'Apps that Windows Package Manager (winget) can update'}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<Segmented
+					options={[
+						{ id: 'dev', label: 'Developer tools' },
+						{ id: 'apps', label: 'All apps' }
+					]}
+					value={tab}
+					onchange={(t) => (tab = t as 'dev' | 'apps')}
+					label="Software lists"
+					tabs
+					size="sm"
+				/>
+				<button
+					class="btn btn-secondary"
+					disabled={(tab === 'dev' ? isLoading : isLoadingWinget) || anyUpdating}
+					onclick={refresh}
+				>
+					Refresh
+				</button>
 			</div>
-		</div>
-		<div class="flex items-center gap-2 shrink-0">
-			<Segmented
-				options={[
-					{ id: 'dev', label: 'Developer tools' },
-					{ id: 'apps', label: 'All apps' }
-				]}
-				value={tab}
-				onchange={(t) => (tab = t as 'dev' | 'apps')}
-				label="Software lists"
-				tabs
-				size="sm"
-			/>
-			<button
-				class="btn btn-secondary"
-				disabled={(tab === 'dev' ? isLoading : isLoadingWinget) || anyUpdating}
-				onclick={refresh}
-			>
-				Refresh
-			</button>
-		</div>
-	</div>
+		{/snippet}
+	</ToolHeader>
 
 	{#if tab === 'dev'}
 		{#if isLoading}
@@ -167,7 +167,7 @@
 			<div class="flex items-center justify-between gap-3 shrink-0">
 				<span class="text-muted">
 					{items.length} tools ·
-					<span class={outdatedCount > 0 ? 'text-amber-700 dark:text-amber-400 font-semibold' : ''}>
+					<span class={outdatedCount > 0 ? 'text-warn font-semibold' : ''}>
 						{outdatedCount} outdated
 					</span>
 				</span>
@@ -182,7 +182,7 @@
 			<div
 				class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
 			>
-				{#each filteredItems as item (item.name)}
+				{#each filteredItems as item, i (`${i}-${item.name}`)}
 					<div class="flex items-center gap-3 h-10 border-b border-line">
 						<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={item.name}
 							>{item.name}</span
@@ -199,7 +199,7 @@
 						<span class="w-16 shrink-0 text-right">
 							{#if item.is_outdated}
 								<span
-									class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+									class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-warn font-semibold"
 								>
 									Outdated
 								</span>
@@ -290,20 +290,16 @@
 					<span class="w-20 shrink-0 flex justify-end">
 						{#if u?.state === 'updating'}
 							<span
-								class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"
+								class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full motion-safe:animate-spin"
 								aria-label="Updating"
 							></span>
 						{:else if u?.state === 'done'}
-							<span
-								class="flex items-center gap-1 text-green-700 dark:text-green-400 font-semibold text-[11px]"
-							>
+							<span class="flex items-center gap-1 text-ok font-semibold text-[11px]">
 								<StrokeIcon d="M5 12.5l4.5 4.5L19 7.5" size={12} /> Updated
 							</span>
 						{:else}
 							<button
-								class="btn btn-secondary h-6 px-2.5 {u?.state === 'failed'
-									? 'text-red-600 dark:text-red-400'
-									: ''}"
+								class="btn btn-secondary h-6 px-2.5 {u?.state === 'failed' ? 'text-fail' : ''}"
 								disabled={pkg.truncated || anyUpdating}
 								title={pkg.truncated
 									? 'winget shortened this app’s ID; update it from a terminal with: winget upgrade'

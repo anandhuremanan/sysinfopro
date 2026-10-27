@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { onMount } from 'svelte';
 	import { buildSpecSections, exportSystemReport, specsToText } from '$lib/utils/reportExporter';
@@ -12,16 +14,9 @@
 	let isLoading = $state(false);
 	let isExporting = $state(false);
 	let loadError = $state<string | undefined>(undefined);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(5000);
 
 	let sections = $derived(buildSpecSections(specs));
-
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => {
-			statusMessage = undefined;
-		}, 5000);
-	}
 
 	async function loadSpecs() {
 		isLoading = !specs;
@@ -39,9 +34,9 @@
 	async function copySpecs() {
 		try {
 			await navigator.clipboard.writeText(specsToText(specs));
-			showStatus('Specs copied to clipboard');
+			status.show('Specs copied to clipboard');
 		} catch (err) {
-			showStatus(`Failed to copy: ${err}`);
+			status.show(`Failed to copy: ${err}`);
 		}
 	}
 
@@ -54,7 +49,7 @@
 				load('security', GetSecurityReport, 5 * 60_000).catch(() => undefined)
 			]);
 			const savedPath = await exportSystemReport({ systemInfo, specs, security, drives });
-			showStatus(savedPath ? `Report saved: ${savedPath}` : 'Failed to save the report.');
+			status.show(savedPath ? `Report saved: ${savedPath}` : 'Failed to save the report.');
 		} finally {
 			isExporting = false;
 		}
@@ -68,30 +63,25 @@
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Specs</div>
-			<div class="text-xs text-muted truncate">
-				{specs
-					? `${specs.system.manufacturer} ${specs.system.model}`
-					: 'Full inventory of this machine'}
+	<ToolHeader title="Specs">
+		{#snippet sub()}
+			{specs
+				? `${specs.system.manufacturer} ${specs.system.model}`
+				: 'Full inventory of this machine'}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<button class="btn btn-secondary" onclick={copySpecs} disabled={!specs}>Copy</button>
+				<button class="btn btn-primary" onclick={exportReport} disabled={!specs || isExporting}>
+					{isExporting ? 'Building report...' : 'Export report'}
+				</button>
 			</div>
-		</div>
+		{/snippet}
+	</ToolHeader>
 
-		<div class="flex items-center gap-2 shrink-0">
-			<button class="btn btn-secondary" onclick={copySpecs} disabled={!specs}>Copy</button>
-			<button class="btn btn-primary" onclick={exportReport} disabled={!specs || isExporting}>
-				{isExporting ? 'Building report...' : 'Export report'}
-			</button>
-		</div>
-	</div>
-
-	{#if statusMessage}
-		<div
-			class="text-xs text-green-700 dark:text-green-400 font-semibold px-1 shrink-0 truncate"
-			title={statusMessage}
-		>
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs text-ok font-semibold px-1 shrink-0 truncate" title={status.text}>
+			{status.text}
 		</div>
 	{/if}
 

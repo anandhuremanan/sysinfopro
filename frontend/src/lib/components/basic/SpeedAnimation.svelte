@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { Status } from '$lib/status.svelte';
 	import { checkInternetConnection } from '$lib';
 	import { GetInterNetSpeed } from '$lib/wailsjs/go/main/App';
 	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
@@ -22,23 +24,16 @@
 	let showPrivacy = $state(false);
 	let speedTestResult: any = $state(undefined);
 
-	let logMessage = $state<string | undefined>(undefined);
+	const log = new Status(3000);
 
 	// Bumped on every start/cancel so a cancelled run's late result is ignored
 	let runId = 0;
-
-	function showLog(message: string) {
-		logMessage = message;
-		setTimeout(() => {
-			logMessage = undefined;
-		}, 3000);
-	}
 
 	async function getInternetSpeed() {
 		const isConnected = await checkInternetConnection();
 
 		if (!isConnected) {
-			showLog('No internet connection detected!');
+			log.show('No internet connection detected!');
 			return false;
 		}
 
@@ -80,12 +75,12 @@
 		try {
 			const res = await GetInterNetSpeed();
 			if (id !== runId) return;
-			speedTestResult = JSON.parse(res);
+			speedTestResult = res;
 			phase = 'complete';
 		} catch (err) {
 			if (id !== runId) return;
 			console.error('Error fetching internet speed: ', err);
-			showLog(`Speed test failed: ${err}`);
+			log.show(`Speed test failed: ${err}`);
 			phase = 'idle';
 		} finally {
 			if (id === runId) {
@@ -133,24 +128,23 @@
 </script>
 
 <div class="w-full h-full flex flex-col min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Speed test</div>
-			<div class="text-xs text-muted truncate">
-				How fast this connection downloads and uploads, in under 30 seconds
-			</div>
-		</div>
-		{#if isRunning}
-			<button class="btn btn-secondary shrink-0" onclick={resetTest}>Cancel</button>
-		{:else}
-			<button class="btn btn-primary shrink-0" onclick={startTest}>
-				{phase === 'complete' ? 'Test again' : 'Start test'}
-			</button>
-		{/if}
-	</div>
-	{#if logMessage}
-		<div class="text-xs font-semibold text-red-700 dark:text-red-400 px-1 shrink-0">
-			{logMessage}
+	<ToolHeader
+		title="Speed test"
+		subtitle="How fast this connection downloads and uploads, in under 30 seconds"
+	>
+		{#snippet actions()}
+			{#if isRunning}
+				<button class="btn btn-secondary shrink-0" onclick={resetTest}>Cancel</button>
+			{:else}
+				<button class="btn btn-primary shrink-0" onclick={startTest}>
+					{phase === 'complete' ? 'Test again' : 'Start test'}
+				</button>
+			{/if}
+		{/snippet}
+	</ToolHeader>
+	{#if log.text}
+		<div class="text-xs font-semibold text-fail px-1 shrink-0">
+			{log.text}
 		</div>
 	{/if}
 	<div class="flex-1 min-h-0 flex flex-col">
@@ -221,8 +215,8 @@
 						<span
 							class="font-bold text-sm font-mono mt-0.5 whitespace-nowrap {speedTestResult.packet_loss_pct >
 							0
-								? 'text-amber-700 dark:text-amber-400'
-								: 'text-green-700 dark:text-green-400'}"
+								? 'text-warn'
+								: 'text-ok'}"
 						>
 							{speedTestResult.packet_loss_pct}%
 						</span>
@@ -230,9 +224,7 @@
 				</div>
 
 				{#if resultNote}
-					<div
-						class="text-xs font-semibold text-amber-700 dark:text-amber-400 text-center max-w-[480px]"
-					>
+					<div class="text-xs font-semibold text-warn text-center max-w-[480px]">
 						{resultNote}
 					</div>
 				{:else}
@@ -248,7 +240,7 @@
 						<div class="absolute inset-0">
 							{#each Array(11) as _, i}
 								<div
-									class="absolute w-0.5 h-3 bg-line"
+									class="absolute w-0.5 h-3 bg-muted/50"
 									style="left: calc(50% - 0.5px); top: 8px; transform: rotate({-120 +
 										i * 24}deg); transform-origin: center 104px;"
 								></div>

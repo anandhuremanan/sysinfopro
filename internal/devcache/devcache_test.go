@@ -269,3 +269,25 @@ func TestNodeModulesOwnership(t *testing.T) {
 		t.Error("a project folder is not an installed program")
 	}
 }
+
+func TestGoCacheMustLookRight(t *testing.T) {
+	root := t.TempDir()
+	mod := filepath.Join(root, "go", "pkg", "mod")
+	build := filepath.Join(root, "go-build")
+	odd := filepath.Join(root, "Projects")
+	marked := filepath.Join(root, "custom-cache")
+	for _, d := range []string{mod, build, odd, marked} {
+		os.MkdirAll(d, 0o755)
+	}
+	os.WriteFile(filepath.Join(marked, "trim.txt"), []byte("1"), 0o644)
+
+	if !goCache("go-mod", "m", mod, "").deletable || !goCache("go-build", "b", build, "").deletable || !goCache("go-build", "b", marked, "").deletable {
+		t.Error("real Go cache folders should be deletable")
+	}
+	if goCache("go-mod", "m", odd, "").deletable || goCache("go-build", "b", odd, "").deletable {
+		t.Error("a folder that does not look like a Go cache must not be deletable")
+	}
+	if goCache("go-mod", "m", filepath.VolumeName(root)+`\`, "").deletable {
+		t.Error("a whole drive must not be deletable")
+	}
+}

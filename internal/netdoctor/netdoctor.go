@@ -325,10 +325,7 @@ func siteStep(ctx context.Context, site string, p Proxy, hosts []HostsEntry) Ste
 		return s
 	}
 
-	target := "https://" + host + "/"
-	if u, err := url.Parse(site); err == nil && u.Scheme != "" && u.Host != "" {
-		target = site
-	}
+	target := siteTarget(site, host)
 	// ask like a browser: many sites refuse bare requests or HEAD with 403/405,
 	// which would wrongly look like the site blocking this network
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
@@ -474,4 +471,16 @@ func parseWinHTTP(out string) string {
 		}
 	}
 	return ""
+}
+
+// siteTarget is the address the site check opens: https unless the user typed
+// an http:// address themselves. Any other kind of address is tested as https.
+func siteTarget(site, host string) string {
+	if u, err := url.Parse(strings.TrimSpace(site)); err == nil && u.Host != "" {
+		switch strings.ToLower(u.Scheme) {
+		case "https", "http":
+			return u.String()
+		}
+	}
+	return "https://" + host + "/"
 }

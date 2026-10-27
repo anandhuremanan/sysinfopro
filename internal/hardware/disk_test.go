@@ -3,7 +3,7 @@ package hardware
 import (
 	"testing"
 
-	"myproject/internal/storage"
+	"sysinfopro/internal/storage"
 )
 
 func TestJudgeHealth(t *testing.T) {

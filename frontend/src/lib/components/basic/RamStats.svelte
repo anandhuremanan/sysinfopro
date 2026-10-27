@@ -1,28 +1,16 @@
 <script lang="ts">
 	import { usageBarColor } from '$lib';
-	import { GetMemoryStats, GetMemoryVelocity } from '$lib/wailsjs/go/main/App';
-
-	type MemoryStats = {
-		totalRAMMB: number;
-		freeRAMMB: number;
-		usedRAMMB: number;
-		usagePercent: number;
-		timestamp: number;
-		swapTotalMB?: number;
-		swapUsedMB?: number;
-		pressureLevel?: string;
-	};
+	import { onMount } from 'svelte';
+	import { GetMemoryVelocity } from '$lib/wailsjs/go/main/App';
+	import { live, startLiveStats } from '$lib/liveStats.svelte';
 
 	type VelocitySample = {
 		velocity_mbps: number;
 		status_text: string;
-		estimated_oom_sec: number;
 	};
 
-	let memStats: MemoryStats | null = $state(null);
+	let memStats = $derived(live.memory);
 	let velocitySample: VelocitySample | null = $state(null);
-	let unsubscribe: (() => void) | null = $state(null);
-	let velocityInterval: any = $state();
 
 	function formatRAM(mb: number): string {
 		if (!mb) return '0 MB';
@@ -32,13 +20,8 @@
 		return mb.toFixed(0) + ' MB';
 	}
 
-	function updateStats(data: MemoryStats) {
-		memStats = data;
-	}
-
 	async function pollVelocity() {
 		try {
-			// @ts-ignore
 			const res = await GetMemoryVelocity();
 			if (res) {
 				velocitySample = res;
@@ -48,43 +31,15 @@
 		}
 	}
 
-	async function init() {
-		try {
-			const initialStats = await GetMemoryStats();
-			updateStats(initialStats);
-			await pollVelocity();
-
-			// @ts-ignore
-			if (window.runtime) {
-				// @ts-ignore
-				unsubscribe = window.runtime.EventsOn('ram-stats-update', (data: MemoryStats) => {
-					updateStats(data);
-				});
-			}
-
-			velocityInterval = setInterval(pollVelocity, 3000);
-		} catch (error) {
-			console.error('Failed to get RAM stats:', error);
-		}
-	}
-
-	$effect(() => {
-		init();
-	});
-
-	$effect(() => {
-		return () => {
-			if (unsubscribe) {
-				unsubscribe();
-			}
-			if (velocityInterval) {
-				clearInterval(velocityInterval);
-			}
-		};
+	onMount(() => {
+		startLiveStats();
+		pollVelocity();
+		const timer = setInterval(pollVelocity, 3000);
+		return () => clearInterval(timer);
 	});
 
 	let swapTitle = $derived.by(() => {
-		const stats = memStats as MemoryStats | null;
+		const stats = memStats;
 		return stats?.swapTotalMB && stats.swapTotalMB > 0
 			? `Swap: ${formatRAM(stats.swapUsedMB || 0)} / ${formatRAM(stats.swapTotalMB)}`
 			: undefined;
@@ -100,7 +55,7 @@
 				<!-- a burst of growth says little about the future, so no "full in N s" countdown -->
 				{#if velocitySample.velocity_mbps > 50}
 					<span
-						class="text-amber-600 dark:text-amber-400 truncate"
+						class="text-warn truncate"
 						title="Memory use is growing by {Math.round(
 							velocitySample.velocity_mbps
 						)} MB a second right now"

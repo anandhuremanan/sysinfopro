@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"sysinfopro/internal/winexec"
 )
 
 // goEnvDirs asks the Go toolchain where its module and build caches really are.
@@ -15,7 +17,7 @@ func goEnvDirs() (modCache, buildCache string) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "go", "env", "GOMODCACHE", "GOCACHE")
-	hideWindow(cmd)
+	winexec.Hide(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return "", ""

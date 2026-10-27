@@ -1,4 +1,6 @@
 <script lang="ts">
+	import type { cpuinfo } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
 	import { shortCpuName } from '$lib';
 	import { load } from '$lib/cache';
@@ -6,14 +8,7 @@
 
 	let { systemInfo, onOpen }: { systemInfo: any; onOpen: (view: string) => void } = $props();
 
-	type Detail = {
-		usage: number;
-		per_core: number[];
-		base_mhz: number;
-		current_mhz: number;
-		processes: number;
-		threads: number;
-	};
+	type Detail = cpuinfo.Detail;
 
 	const SECONDS = 60;
 	let usage = $state<number[]>([]); // one reading a second, oldest first
@@ -102,16 +97,17 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Processor</div>
-			<div class="text-xs text-muted truncate">{model || 'Live use, speed and activity'}</div>
-		</div>
-		<div class="flex items-center gap-2 shrink-0">
-			<button class="btn btn-secondary" onclick={() => onOpen('stress')}>Stress test</button>
-			<button class="btn btn-primary" onclick={() => onOpen('slow')}>Why so slow?</button>
-		</div>
-	</div>
+	<ToolHeader title="Processor">
+		{#snippet sub()}
+			{model || 'Live use, speed and activity'}
+		{/snippet}
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<button class="btn btn-secondary" onclick={() => onOpen('stress')}>Stress test</button>
+				<button class="btn btn-primary" onclick={() => onOpen('slow')}>Why so slow?</button>
+			</div>
+		{/snippet}
+	</ToolHeader>
 
 	<div class="flex-1 min-h-0 grid grid-cols-[1fr_210px] gap-3">
 		<!-- live usage, last minute -->
@@ -250,11 +246,7 @@
 			</div>
 			<div class="rounded-xl bg-ground px-3 py-1.5">
 				<div class="text-[11px] text-muted">Running since last restart</div>
-				<div
-					class="font-semibold tabular-nums {uptimeSec > 14 * 86400
-						? 'text-amber-600 dark:text-amber-400'
-						: 'text-ink'}"
-				>
+				<div class="font-semibold tabular-nums {uptimeSec > 14 * 86400 ? 'text-warn' : 'text-ink'}">
 					{uptimeSec ? uptimeText : '–'}
 				</div>
 			</div>

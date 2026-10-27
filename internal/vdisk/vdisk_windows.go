@@ -3,9 +3,7 @@
 package vdisk
 
 import (
-	"os/exec"
 	"strings"
-	"syscall"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -75,8 +73,4 @@ func allocated(path string, size int64) (int64, bool) {
 		return size, sparse
 	}
 	return int64(high)<<32 | int64(uint32(low)), sparse
-}
-
-func hideWindow(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 }

@@ -1,36 +1,13 @@
-import { endTask, startTask, updateTask } from '$lib/tasks.svelte';
+import { createJob, errorText } from '$lib/job';
+import { folderName } from '$lib/path';
 import { CancelGitSweep, FindGitRepos } from '$lib/wailsjs/go/main/App';
-import { EventsOn } from '$lib/wailsjs/runtime/runtime';
+import type { gitsweep } from '$lib/wailsjs/go/models';
 
-export type GitBranch = { name: string; local_only: number; upstream: boolean };
-export type GitRepo = {
-	path: string;
-	name: string;
-	branch: string;
-	changed: number;
-	untracked: number;
-	conflicts: number;
-	local_only: number;
-	branches: GitBranch[];
-	behind: number;
-	stashes: number;
-	remote: string;
-	no_remote: boolean;
-	secret_in_url: boolean;
-	empty: boolean;
-	last_commit: number;
-	status: 'at-risk' | 'changes' | 'clean' | 'unreadable';
-	error: string;
-};
-export type GitResult = {
-	root: string;
-	repos: GitRepo[];
-	git_missing: boolean;
-	at_risk: number;
-	with_changes: number;
-	unreadable: number;
-	duration_ms: number;
-};
+// the shapes come from the Go structs, so a renamed field breaks the build, not the screen
+export type GitBranch = gitsweep.Branch;
+export type GitRepo = gitsweep.Repo;
+export type GitResult = gitsweep.Result;
+// progress events are not part of a binding, so this one is written by hand
 type Progress = { phase: 'finding' | 'checking'; found: number; done: number; current: string };
 
 // The project search lives here rather than in its screen, so it keeps going
@@ -43,62 +20,45 @@ export const gitSweep = $state<{
 	error: string;
 }>({ root: '', result: null, isSearching: false, progress: null, error: '' });
 
-const TASK = 'git-sweep';
-let searchId = 0;
-let listening = false;
-
-const folderName = (path: string) =>
-	path
-		.replace(/[\\/]$/, '')
-		.split(/[\\/]/)
-		.pop() || path;
-
-function listen() {
-	if (listening) return;
-	listening = true;
-	EventsOn('gitsweep-progress', (p: Progress) => {
-		if (!gitSweep.isSearching) return;
-		gitSweep.progress = p;
-		updateTask(
-			TASK,
-			p.phase === 'finding' ? `${p.found} found` : `checking ${p.done} of ${p.found}`
-		);
-	});
-}
+const job = createJob<Progress>({
+	id: 'git-sweep',
+	view: 'gitsweep',
+	event: 'gitsweep-progress',
+	isRunning: () => gitSweep.isSearching,
+	onProgress: (p) => (gitSweep.progress = p),
+	detail: (p) => (p.phase === 'finding' ? `${p.found} found` : `checking ${p.done} of ${p.found}`),
+	cancelBackend: CancelGitSweep
+});
 
 export async function sweepRepos(root: string) {
-	listen();
-	const id = ++searchId;
 	gitSweep.root = root;
 	gitSweep.result = null;
 	gitSweep.progress = null;
 	gitSweep.error = '';
 	gitSweep.isSearching = true;
-	startTask({ id: TASK, label: `Git projects in ${folderName(root)}`, view: 'gitsweep' });
+	const id = job.start(`Git projects in ${folderName(root)}`);
 
 	try {
-		const result = (await FindGitRepos(root)) as GitResult;
-		if (id !== searchId) return;
+		const result = await FindGitRepos(root);
+		if (!job.isCurrent(id)) return;
 		gitSweep.result = result;
-		endTask(TASK, {
+		job.finish(id, {
 			title: 'Git project search finished',
 			body: result.at_risk
 				? `${result.at_risk} of ${result.repos.length} projects have work that exists only on this PC.`
 				: `${result.repos.length} projects found; all work is pushed.`
 		});
 	} catch (err) {
-		if (id !== searchId) return;
-		gitSweep.error = `${err}`.includes('canceled') ? '' : `${err}`;
-		endTask(TASK);
+		if (!job.isCurrent(id)) return;
+		gitSweep.error = errorText(err);
+		job.finish(id);
 	} finally {
-		if (id === searchId) gitSweep.isSearching = false;
+		if (job.isCurrent(id)) gitSweep.isSearching = false;
 	}
 }
 
 export function cancelGitSweep() {
 	if (!gitSweep.isSearching) return;
-	searchId++;
 	gitSweep.isSearching = false;
-	CancelGitSweep();
-	endTask(TASK);
+	job.cancel();
 }

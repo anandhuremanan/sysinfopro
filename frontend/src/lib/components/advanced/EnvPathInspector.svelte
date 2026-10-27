@@ -1,4 +1,8 @@
 <script lang="ts">
+	import type { system } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { onMount } from 'svelte';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import {
 		GetEnvPathAnalysis,
@@ -7,27 +11,8 @@
 	} from '$lib/wailsjs/go/main/App';
 	import Modal from '../ui/Modal.svelte';
 
-	type PathEntry = {
-		path: string;
-		raw: string;
-		scope: 'system' | 'user' | 'process';
-		index: number;
-		is_valid: boolean;
-		is_duplicate: boolean;
-		status_text: string;
-		fixable: boolean;
-	};
-	type Analysis = {
-		total_entries: number;
-		valid_entries: number;
-		invalid_entries: number;
-		duplicates_count: number;
-		path_entries: PathEntry[];
-		key_variables: { key: string; value: string }[];
-		user_path_raw: string;
-		can_undo: boolean;
-		editable: boolean;
-	};
+	type PathEntry = system.PathEntry;
+	type Analysis = system.EnvPathAnalysis;
 
 	const SCOPES = [
 		{ id: 'user', label: 'Your PATH', note: 'Yours to change' },
@@ -51,17 +36,12 @@
 	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let showConfirm = $state(false);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(6000);
 	let selected = $state<Record<number, boolean>>({});
 
 	let fixable = $derived(analysis?.path_entries.filter((e) => e.fixable) ?? []);
 	let chosen = $derived(fixable.filter((e) => selected[e.index]));
 	let problems = $derived((analysis?.invalid_entries ?? 0) + (analysis?.duplicates_count ?? 0));
-
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => (statusMessage = undefined), 6000);
-	}
 
 	// every fixable entry starts ticked, so one click fixes everything that can be fixed
 	function useAnalysis(next: Analysis) {
@@ -76,7 +56,7 @@
 		try {
 			useAnalysis((await GetEnvPathAnalysis()) as Analysis);
 		} catch (err) {
-			showStatus(`Failed to read PATH: ${err}`);
+			status.show(`Failed to read PATH: ${err}`);
 		} finally {
 			isLoading = false;
 		}
@@ -92,11 +72,11 @@
 				chosen.map((e) => e.index)
 			)) as Analysis;
 			useAnalysis(next);
-			showStatus(
+			status.show(
 				`Removed ${count} ${count === 1 ? 'entry' : 'entries'}. Terminals opened from now on use the new PATH.`
 			);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 			await load();
 		} finally {
 			isSaving = false;
@@ -108,54 +88,51 @@
 		isSaving = true;
 		try {
 			useAnalysis((await UndoPathChange()) as Analysis);
-			showStatus('Your PATH is back as it was.');
+			status.show('Your PATH is back as it was.');
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		} finally {
 			isSaving = false;
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		load();
 	});
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">PATH</div>
-			<div class="text-xs text-muted truncate">
-				Folders Windows searches for programs, checked for missing folders and repeats
-			</div>
-		</div>
-		<div class="flex items-center gap-2 shrink-0">
-			{#if analysis?.can_undo}
-				<button class="btn btn-secondary" disabled={isSaving} onclick={undo}>Undo last fix</button>
-			{/if}
-			{#if fixable.length > 0}
-				<!-- removal can be undone, so it is the main action, not a red one -->
-				<button
-					class="btn btn-primary"
-					disabled={chosen.length === 0 || isSaving}
-					onclick={() => (showConfirm = true)}
+	<ToolHeader
+		title="PATH"
+		subtitle="Folders Windows searches for programs, checked for missing folders and repeats"
+	>
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				{#if analysis?.can_undo}
+					<button class="btn btn-secondary" disabled={isSaving} onclick={undo}>Undo last fix</button
+					>
+				{/if}
+				{#if fixable.length > 0}
+					<!-- removal can be undone, so it is the main action, not a red one -->
+					<button
+						class="btn btn-primary"
+						disabled={chosen.length === 0 || isSaving}
+						onclick={() => (showConfirm = true)}
+					>
+						Remove {chosen.length}
+						{chosen.length === 1 ? 'entry' : 'entries'}
+					</button>
+				{/if}
+				<button class="btn btn-secondary" disabled={isLoading || isSaving} onclick={load}
+					>Refresh</button
 				>
-					Remove {chosen.length}
-					{chosen.length === 1 ? 'entry' : 'entries'}
-				</button>
-			{/if}
-			<button class="btn btn-secondary" disabled={isLoading || isSaving} onclick={load}
-				>Refresh</button
-			>
-		</div>
-	</div>
+			</div>
+		{/snippet}
+	</ToolHeader>
 
-	{#if statusMessage}
-		<div
-			class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate"
-			title={statusMessage}
-		>
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs font-semibold text-ok px-1 shrink-0 truncate" title={status.text}>
+			{status.text}
 		</div>
 	{/if}
 
@@ -167,9 +144,9 @@
 		<div class="text-muted shrink-0">
 			{analysis.total_entries} entries ·
 			{#if problems === 0}
-				<span class="text-green-700 dark:text-green-400 font-semibold">all good</span>
+				<span class="text-ok font-semibold">all good</span>
 			{:else}
-				<span class="text-amber-700 dark:text-amber-400 font-semibold">
+				<span class="text-warn font-semibold">
 					{analysis.invalid_entries} missing, {analysis.duplicates_count} repeated
 				</span>
 				{#if fixable.length < problems && analysis.editable}
@@ -212,7 +189,7 @@
 							{:else if isProblem(entry)}
 								<!-- a problem that needs administrator rights to fix -->
 								<span
-									class="size-4 shrink-0 grid place-items-center text-amber-600 dark:text-amber-400 font-bold"
+									class="size-4 shrink-0 grid place-items-center text-warn font-bold"
 									title="Needs administrator rights to remove"
 									aria-hidden="true">!</span
 								>
@@ -229,14 +206,12 @@
 							</span>
 							{#if entry.is_duplicate}
 								<span
-									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-warn font-semibold"
 								>
 									Repeated
 								</span>
 							{:else if !entry.is_valid}
-								<span
-									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-700 dark:text-red-400 font-semibold"
-								>
+								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md pill-warn font-semibold">
 									Missing folder
 								</span>
 							{/if}

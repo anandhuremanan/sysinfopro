@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes } from '$lib';
 	import { load, recall } from '$lib/cache';
@@ -35,9 +36,9 @@
 	};
 
 	const STATUS_STYLE: Record<Drive['status'], string> = {
-		Healthy: 'bg-green-500/15 text-green-700 dark:text-green-400',
-		Warning: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-		Unhealthy: 'bg-red-500/15 text-red-700 dark:text-red-400',
+		Healthy: 'bg-green-500/15 text-ok',
+		Warning: 'bg-amber-500/15 text-warn',
+		Unhealthy: 'bg-red-500/15 text-fail',
 		Unknown: 'bg-line text-muted'
 	};
 
@@ -54,7 +55,7 @@
 	}
 
 	const cachedHealth = recall<Drive[]>('drive-health');
-	const cachedJunk = recall<{ categories: Category[]; total_bytes: number }>('junk');
+	const cachedJunk = recall<{ categories: Category[]; total_bytes: number; refused?: string[] }>('junk');
 
 	let disks = $state<Disk[]>(groupByDisk(cachedHealth ?? []));
 	let healthState = $state<'loading' | 'ready' | 'failed'>(cachedHealth ? 'ready' : 'loading');
@@ -63,6 +64,8 @@
 		(cachedJunk?.categories ?? []).filter((c) => c.size_bytes > 0)
 	);
 	let totalBytes = $state(cachedJunk?.total_bytes ?? 0);
+	// folders left alone because they did not look like real temporary folders
+	let refused = $state<string[]>(cachedJunk?.refused ?? []);
 	let scanState = $state<'scanning' | 'ready' | 'failed'>(cachedJunk ? 'ready' : 'scanning');
 
 	let showConfirm = $state(false);
@@ -98,6 +101,7 @@
 			const found = await load('junk', ScanJunk, 60_000, force);
 			categories = (found.categories || []).filter((c) => c.size_bytes > 0);
 			totalBytes = found.total_bytes;
+			refused = found.refused ?? [];
 			scanState = 'ready';
 		} catch (err) {
 			console.error('Failed to scan for junk files:', err);
@@ -156,14 +160,10 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Disk &amp; health</div>
-			<div class="text-xs text-muted truncate">
-				How your drives are holding up, and temporary files you can clear
-			</div>
-		</div>
-	</div>
+	<ToolHeader
+		title="Disk &amp; health"
+		subtitle="How your drives are holding up, and temporary files you can clear"
+	/>
 
 	<div class="flex-1 min-h-0 grid grid-cols-2 gap-4 pt-1">
 		<!-- Drive health -->
@@ -187,7 +187,7 @@
 				<div class="h-16 flex items-center text-muted">Windows did not report drive health.</div>
 			{:else}
 				<div class="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pr-1">
-					{#each disks as disk (disk.model + disk.type)}
+					{#each disks as disk, i (`${i}-${disk.model}-${disk.type}`)}
 						<div class="flex flex-col gap-1.5">
 							<div class="flex items-center gap-2 min-w-0">
 								<div class="flex-1 min-w-0 leading-tight">
@@ -226,7 +226,7 @@
 							{/if}
 
 							{#if disk.reason}
-								<p class="text-[11px] font-medium text-amber-700 dark:text-amber-400 leading-snug">
+								<p class="text-[11px] font-medium text-warn leading-snug">
 									{disk.reason}
 								</p>
 							{/if}
@@ -283,11 +283,12 @@
 
 			<div class="flex items-center justify-between gap-3 shrink-0">
 				{#if result}
-					<span
-						class="text-[11px] font-semibold text-green-700 dark:text-green-400 truncate"
-						title={result}
-					>
+					<span class="text-[11px] font-semibold text-ok truncate" title={result}>
 						{result}
+					</span>
+				{:else if refused.length}
+					<span class="text-[11px] text-warn truncate" title={refused.join(' · ')}>
+						{refused[0]}
 					</span>
 				{:else}
 					<span

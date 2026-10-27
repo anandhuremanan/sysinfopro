@@ -1,3 +1,5 @@
+//go:build integration
+
 package functions
 
 import (
@@ -6,8 +8,6 @@ import (
 
 func TestGetSystemInfo(t *testing.T) {
 	info, err := GetSystemInfo()
-	t.Logf("LoggedInUser: %v", info.LoggedInUser)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got: %v", err)
 	}

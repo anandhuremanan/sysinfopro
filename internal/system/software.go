@@ -2,17 +2,21 @@ package system
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"golang.org/x/sys/windows/registry"
+
+	"sysinfopro/internal/winexec"
 )
 
 type SoftwareItem struct {
@@ -130,7 +134,8 @@ func scanRegistryInstalledApps() []SoftwareItem {
 
 			name, _, _ := subKey.GetStringValue("DisplayName")
 			version, _, _ := subKey.GetStringValue("DisplayVersion")
-			url, _, _ := subKey.GetStringValue("URLInfoAbout")
+			about, _, _ := subKey.GetStringValue("URLInfoAbout")
+			link := webLink(about)
 			systemComponent, _, _ := subKey.GetIntegerValue("SystemComponent")
 			parentKeyName, _, _ := subKey.GetStringValue("ParentKeyName")
 
@@ -155,8 +160,8 @@ func scanRegistryInstalledApps() []SoftwareItem {
 					version = "Detected"
 				}
 
-				if url == "" {
-					url = "https://www.google.com/search?q=" + strings.ReplaceAll(nameClean, " ", "+") + "+official+download"
+				if link == "" {
+					link = "https://www.google.com/search?q=" + url.QueryEscape(nameClean+" official download")
 				}
 
 				appMap[keyLower] = SoftwareItem{
@@ -165,7 +170,7 @@ func scanRegistryInstalledApps() []SoftwareItem {
 					LatestVersion:    "Vendor Managed",
 					IsOutdated:       false,
 					ReleaseDate:      "Installed",
-					OfficialDownload: url,
+					OfficialDownload: link,
 				}
 			}
 		}
@@ -326,11 +331,12 @@ func fetchLatestVersion(client *http.Client, url string, parseFn func([]byte) (s
 		return "", ""
 	}
 
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(resp.Body); err != nil {
+	// a release note is a few kilobytes; never read more than 1 MB
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
 		return "", ""
 	}
-	return parseFn(buf.Bytes())
+	return parseFn(data)
 }
 
 func parseGitHubRelease(data []byte) (string, string) {
@@ -353,11 +359,11 @@ func parseGitHubRelease(data []byte) (string, string) {
 }
 
 func checkCommandVersion(cmdName string, args []string, regexPattern string) string {
-	cmd := exec.Command(cmdName, args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-	}
+	// a tool that hangs when asked its version must not hang this check
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, cmdName, args...)
+	winexec.Hide(cmd)
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -411,4 +417,19 @@ func isVersionOlder(current, latest string) bool {
 		return false
 	}
 	return compareVersions(current, latest) < 0
+}
+
+// webLink returns the address only when it is an ordinary web page (http or
+// https). Any program can write an "about" address into its uninstall entry,
+// and other kinds (search-ms:, ms-msdt:, file: and the like) would open
+// something other than a web page when clicked.
+func webLink(raw string) string {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	if scheme := strings.ToLower(u.Scheme); scheme != "http" && scheme != "https" {
+		return ""
+	}
+	return u.String()
 }

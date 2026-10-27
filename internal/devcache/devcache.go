@@ -7,12 +7,13 @@ import (
 	"io/fs"
 	"os"
 
-	"myproject/internal/fsutil"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"sysinfopro/internal/fsutil"
 )
 
 const nodeModules = "node_modules"
@@ -85,8 +86,8 @@ func knownCaches() []knownCache {
 		{"gradle", "Gradle caches", filepath.Join(home, ".gradle", "caches"), "Rebuilt on the next Gradle build, which will be slower once", true},
 		{"maven", "Maven repository", filepath.Join(home, ".m2", "repository"), "Dependencies are downloaded again on the next build", true},
 		{"cargo", "Cargo registry", filepath.Join(home, ".cargo", "registry"), "Crates are downloaded again on the next build", true},
-		{"go-build", "Go build cache", goBuildCache, "Rebuilt on the next go build, which will be slower once", true},
-		{"go-mod", "Go module cache", goModCache, "Modules are downloaded again when needed", true},
+		goCache("go-build", "Go build cache", goBuildCache, "Rebuilt on the next go build, which will be slower once"),
+		goCache("go-mod", "Go module cache", goModCache, "Modules are downloaded again when needed"),
 		{"docker", "Docker Desktop data", filepath.Join(local, "Docker", "wsl"), "Images and containers. Clean these from Docker itself (docker system prune)", false},
 	}
 }
@@ -298,4 +299,38 @@ func deletePaths(ctx context.Context, paths []string, caches []knownCache, progr
 func isLeftover(path string) bool {
 	_, ok := matchLeftover(path)
 	return ok
+}
+
+// goCache lists a Go cache, but only offers it for deletion when the folder
+// really looks like one. Its location comes from the Go settings, and a
+// mistaken GOMODCACHE, GOCACHE or GOPATH could otherwise point "delete the
+// cache" at a folder full of other files.
+func goCache(id, name, path, note string) knownCache {
+	if !goCacheLooksRight(id, path) {
+		return knownCache{id, name, path, "This folder does not look like Go's own cache, so it is not offered for deletion", false}
+	}
+	return knownCache{id, name, path, note, true}
+}
+
+func goCacheLooksRight(id, path string) bool {
+	clean := strings.TrimRight(filepath.Clean(path), `\/`)
+	if clean == "" || filepath.Dir(clean) == clean {
+		return false // empty or a whole drive
+	}
+	if home, err := os.UserHomeDir(); err == nil && strings.EqualFold(clean, strings.TrimRight(filepath.Clean(home), `\/`)) {
+		return false
+	}
+	exists := func(rel string) bool {
+		_, err := os.Stat(filepath.Join(clean, rel))
+		return err == nil
+	}
+	switch id {
+	case "go-mod":
+		// .../pkg/mod, holding Go's download cache
+		return strings.EqualFold(filepath.Base(clean), "mod") || exists(filepath.Join("cache", "download"))
+	case "go-build":
+		// go-build, or a folder with the marker files Go writes into its build cache
+		return strings.EqualFold(filepath.Base(clean), "go-build") || exists("trim.txt") || exists("README")
+	}
+	return false
 }

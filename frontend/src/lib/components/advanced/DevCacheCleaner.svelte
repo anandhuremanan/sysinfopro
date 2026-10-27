@@ -1,4 +1,8 @@
 <script lang="ts">
+	import type { devcache } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON } from '$lib/path';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes } from '$lib';
 	import { load, recall } from '$lib/cache';
@@ -21,20 +25,7 @@
 	import Modal from '../ui/Modal.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	type Item = {
-		id: string;
-		name: string;
-		kind: 'cache' | 'leftover';
-		// leftovers only: what kind of folder ('Rust build') and its name ('target')
-		label: string;
-		folder: string;
-		path: string;
-		size_bytes: number;
-		files: number;
-		note: string;
-		deletable: boolean;
-		last_used: string;
-	};
+	type Item = devcache.Item;
 
 	// "Unused for" choices, in months
 	const AGE_OPTIONS = [
@@ -52,8 +43,6 @@
 		files_deleted: number;
 	};
 
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
-
 	let caches = $state<Item[]>(recall('devcaches') ?? []);
 	// the project search lives in a store: it keeps running, and its result stays,
 	// when you leave this screen
@@ -69,12 +58,9 @@
 	// bytes expected to be freed, fixed when the delete starts
 	let deleteTotal = $state(0);
 	let showConfirm = $state(false);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(6000);
 	let selected = $state<Record<string, boolean>>({});
 	let unusedMonths = $state(3);
-
-	// Bumped on every search/cancel so a superseded search's result is ignored
-	let searchId = 0;
 
 	let allItems = $derived([...caches, ...leftovers]);
 	let selectedItems = $derived(allItems.filter((item) => item.deletable && selected[item.path]));
@@ -124,13 +110,6 @@
 		showConfirm = true;
 	}
 
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => {
-			statusMessage = undefined;
-		}, 6000);
-	}
-
 	// measuring caches reads many files, so sizes are reused for five minutes; Rescan measures again
 	async function loadCaches(force = false) {
 		isScanningCaches = force || caches.length === 0;
@@ -138,7 +117,7 @@
 			caches = ((await load('devcaches', ScanDevCaches, 5 * 60_000, force)) || []) as Item[];
 		} catch (err) {
 			console.error('Failed to scan caches:', err);
-			showStatus(`Failed to scan caches: ${err}`);
+			status.show(`Failed to scan caches: ${err}`);
 		} finally {
 			isScanningCaches = false;
 		}
@@ -149,23 +128,15 @@
 		try {
 			folder = await PickFolder('Choose a folder to search for project leftovers');
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 			return;
 		}
 		if (!folder) return;
-		await searchModules(folder);
-	}
-
-	function searchModules(folder: string) {
-		searchLeftovers(folder);
-	}
-
-	function cancelSearch() {
-		cancelLeftoverSearch();
+		await searchLeftovers(folder);
 	}
 
 	$effect(() => {
-		if (leftoverSearch.error) showStatus(leftoverSearch.error);
+		if (leftoverSearch.error) status.show(leftoverSearch.error);
 	});
 
 	function itemLabel(item: Item) {
@@ -192,7 +163,7 @@
 			const failed = result.failed ?? [];
 			const stopped = failed.some((line) => /: (stopped|cancelled)$/.test(line));
 			const broken = failed.filter((line) => !/: (stopped|cancelled)$/.test(line));
-			showStatus(
+			status.show(
 				(stopped ? 'Stopped. ' : '') +
 					`Freed ${formatBytes(result.freed_bytes)}` +
 					(broken.length > 0
@@ -206,11 +177,11 @@
 			const gone = new Set(result.deleted ?? []);
 			removeLeftovers(gone);
 			// folders that were only partly deleted are smaller now
-			if (failed.length > 0 && searchRoot) searchModules(searchRoot);
+			if (failed.length > 0 && searchRoot) searchLeftovers(searchRoot);
 			await loadCaches(true);
 		} catch (err) {
 			finishDelete();
-			showStatus(`Failed to delete: ${err}`);
+			status.show(`Failed to delete: ${err}`);
 		}
 	}
 
@@ -231,7 +202,7 @@
 		try {
 			await RevealInExplorer(path);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		}
 	}
 
@@ -250,84 +221,77 @@
 </script>
 
 {#snippet row(item: Item, title: string, subtitle: string, isStale = false)}
-	<label
-		class="flex items-center gap-2.5 h-10 border-b border-line {item.deletable
-			? 'cursor-pointer'
-			: ''}"
-		title={item.note}
-	>
-		<input
-			type="checkbox"
-			class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent disabled:opacity-30"
-			disabled={!item.deletable || isDeleting}
-			bind:checked={selected[item.path]}
-		/>
-		<span class="flex-1 min-w-0 flex flex-col leading-tight">
-			<span class="font-semibold text-ink truncate">{title}</span>
-			<span
-				class="text-[11px] truncate {isStale
-					? 'text-amber-700 dark:text-amber-400 font-medium'
-					: 'text-muted'}"
-				title={item.last_used ? `${item.path}\nProject last changed ${item.last_used}` : item.path}
-				>{subtitle}</span
-			>
-		</span>
-		<span class="shrink-0 font-mono font-bold text-ink">{formatBytes(item.size_bytes)}</span>
+	<!-- the row: a label for the checkbox, with the reveal button beside it (not inside it) -->
+	<div class="flex items-center gap-2.5 h-10 border-b border-line" title={item.note}>
+		<label
+			class="flex-1 min-w-0 h-full flex items-center gap-2.5 {item.deletable
+				? 'cursor-pointer'
+				: ''}"
+		>
+			<input
+				type="checkbox"
+				class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent disabled:opacity-30"
+				disabled={!item.deletable || isDeleting}
+				bind:checked={selected[item.path]}
+			/>
+			<span class="flex-1 min-w-0 flex flex-col leading-tight">
+				<span class="font-semibold text-ink truncate">{title}</span>
+				<span
+					class="text-[11px] truncate {isStale ? 'text-warn font-medium' : 'text-muted'}"
+					title={item.last_used
+						? `${item.path}\nProject last changed ${item.last_used}`
+						: item.path}>{subtitle}</span
+				>
+			</span>
+			<span class="shrink-0 font-mono font-bold text-ink">{formatBytes(item.size_bytes)}</span>
+		</label>
 		<button
 			aria-label="Show {title} in file manager"
 			title="Show in file manager"
 			class="shrink-0 w-6 h-6 rounded-md flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-ground"
-			onclick={(event) => {
-				event.preventDefault();
-				reveal(item.path);
-			}}
+			onclick={() => reveal(item.path)}
 		>
 			<StrokeIcon d={REVEAL_ICON} size={13} />
 		</button>
-	</label>
+	</div>
 {/snippet}
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Dev caches</div>
-			<div class="text-xs text-muted truncate">
-				Reclaim space from package caches and old project folders
+	<ToolHeader
+		title="Dev caches"
+		subtitle="Reclaim space from package caches and old project folders"
+	>
+		{#snippet actions()}
+			<div class="flex items-center gap-3 shrink-0">
+				{#if totalBytes > 0}
+					<span class="text-muted">{formatBytes(totalBytes)} found</span>
+				{/if}
+				<button
+					class="btn btn-primary disabled:bg-track disabled:text-muted disabled:opacity-100"
+					disabled={selectedItems.length === 0 || isDeleting}
+					onclick={() => (showConfirm = true)}
+				>
+					{isDeleting
+						? `Deleting ${deletePercent}%`
+						: selectedItems.length > 0
+							? `Free ${formatBytes(selectedBytes)}`
+							: 'Free selected'}
+				</button>
 			</div>
-		</div>
+		{/snippet}
+	</ToolHeader>
 
-		<div class="flex items-center gap-3 shrink-0">
-			{#if totalBytes > 0}
-				<span class="text-muted">{formatBytes(totalBytes)} found</span>
-			{/if}
-			<button
-				class="btn btn-primary disabled:bg-track disabled:text-muted disabled:opacity-100"
-				disabled={selectedItems.length === 0 || isDeleting}
-				onclick={() => (showConfirm = true)}
-			>
-				{isDeleting
-					? `Deleting ${deletePercent}%`
-					: selectedItems.length > 0
-						? `Free ${formatBytes(selectedBytes)}`
-						: 'Free selected'}
-			</button>
-		</div>
-	</div>
-
-	{#if statusMessage}
-		<div
-			class="text-xs text-green-700 dark:text-green-400 font-semibold px-1 shrink-0 truncate"
-			title={statusMessage}
-		>
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs text-ok font-semibold px-1 shrink-0 truncate" title={status.text}>
+			{status.text}
 		</div>
 	{/if}
 
 	<div class="flex-1 min-h-0 grid grid-cols-2 gap-4">
 		<!-- Package manager and build caches -->
 		<div class="min-h-0 flex flex-col">
-			<div class="flex items-center justify-between pb-1 shrink-0">
+			<div class="flex items-center justify-between h-7 pb-1 shrink-0">
 				<span class="text-[10px] uppercase tracking-wider font-semibold text-muted">
 					Package and build caches
 				</span>
@@ -360,7 +324,7 @@
 
 		<!-- project leftovers: node_modules, build output, virtual environments -->
 		<div class="min-h-0 flex flex-col">
-			<div class="flex items-center justify-between gap-2 pb-1 shrink-0">
+			<div class="flex items-center justify-between gap-2 h-7 pb-1 shrink-0">
 				<span
 					class="text-[10px] uppercase tracking-wider font-semibold text-muted truncate"
 					title={searchRoot}
@@ -370,7 +334,7 @@
 				{#if isSearching}
 					<button
 						class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-						onclick={cancelSearch}
+						onclick={cancelLeftoverSearch}
 					>
 						Cancel
 					</button>
@@ -520,7 +484,7 @@
 							</span>
 						{:else if isCurrent}
 							<span
-								class="shrink-0 w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin"
+								class="shrink-0 w-3 h-3 border-2 border-accent border-t-transparent rounded-full motion-safe:animate-spin"
 								aria-label="Deleting"
 							></span>
 						{/if}

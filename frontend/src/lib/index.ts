@@ -1,4 +1,5 @@
-import { CheckInternetConnection } from './wailsjs/go/main/App';
+import { CheckInternetConnection, GetPrivateTerms } from './wailsjs/go/main/App';
+import { makeRedactor } from './redact';
 
 export async function checkInternetConnection() {
 	const result = await CheckInternetConnection();
@@ -53,12 +54,15 @@ export function formatBytes(bytes: number): string {
 	return `${value >= 100 || i === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[i]}`;
 }
 
+// Copies the system details as text, with the PC's name, the user name and
+// addresses hidden, since copied stats usually end up pasted somewhere public
 export async function copyStat(systemInfo: any): Promise<string> {
-	const stats = JSON.stringify(systemInfo, null, 2);
+	const terms = ((await GetPrivateTerms().catch(() => [])) ?? []) as string[];
+	const stats = makeRedactor(terms)(JSON.stringify(systemInfo, null, 2));
 
 	try {
 		await navigator.clipboard.writeText(stats);
-		return 'Stats copied to clipboard!';
+		return 'Stats copied to clipboard (personal details hidden)';
 	} catch (err) {
 		return `Failed to copy: ${err}`;
 	}

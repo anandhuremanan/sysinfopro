@@ -1,20 +1,10 @@
-import { endTask, startTask, updateTask } from '$lib/tasks.svelte';
+import { createJob } from '$lib/job';
+import { folderName } from '$lib/path';
 import { CancelLeftoverSearch, FindLeftovers } from '$lib/wailsjs/go/main/App';
-import { EventsOn } from '$lib/wailsjs/runtime/runtime';
+import type { devcache } from '$lib/wailsjs/go/models';
 
-export type LeftoverItem = {
-	id: string;
-	name: string;
-	kind: 'cache' | 'leftover';
-	label: string;
-	folder: string;
-	path: string;
-	size_bytes: number;
-	files: number;
-	note: string;
-	deletable: boolean;
-	last_used: string;
-};
+// the shape comes from the Go struct, so a renamed field breaks the build, not the screen
+export type LeftoverItem = devcache.Item;
 
 // The Dev caches project search lives here rather than in its screen, so it keeps
 // going (and its result stays) when you move to another screen.
@@ -26,58 +16,48 @@ export const leftoverSearch = $state<{
 	error: string;
 }>({ root: '', items: [], isSearching: false, current: '', error: '' });
 
-const TASK = 'leftover-search';
-let searchId = 0;
-let listening = false;
-
-function listen() {
-	if (listening) return;
-	listening = true;
-	EventsOn('devcache-progress', (current: string) => {
-		if (!leftoverSearch.isSearching || !current) return;
-		leftoverSearch.current = current;
-		updateTask(TASK, current.split(/[\\/]/).filter(Boolean).pop() ?? '');
-	});
-}
-
-const folderName = (path: string) => path.replace(/[\\/]$/, '').split(/[\\/]/).pop() || path;
+const job = createJob<string>({
+	id: 'leftover-search',
+	view: 'devcache',
+	event: 'devcache-progress',
+	isRunning: () => leftoverSearch.isSearching,
+	onProgress: (current) => (leftoverSearch.current = current),
+	detail: (current) => folderName(current),
+	cancelBackend: CancelLeftoverSearch
+});
 
 export async function searchLeftovers(root: string) {
-	listen();
-	const id = ++searchId;
 	leftoverSearch.root = root;
 	leftoverSearch.current = root;
 	leftoverSearch.items = [];
 	leftoverSearch.error = '';
 	leftoverSearch.isSearching = true;
-	startTask({ id: TASK, label: `Searching ${folderName(root)}`, view: 'devcache' });
+	const id = job.start(`Searching ${folderName(root)}`);
 
 	try {
-		const found = ((await FindLeftovers(root)) || []) as LeftoverItem[];
-		if (id !== searchId) return;
+		const found = (await FindLeftovers(root)) || [];
+		if (!job.isCurrent(id)) return;
 		leftoverSearch.items = found;
 		const total = found.reduce((sum, item) => sum + item.size_bytes, 0);
-		endTask(TASK, {
+		job.finish(id, {
 			title: 'Project search finished',
 			body: found.length
 				? `${found.length} leftover ${found.length === 1 ? 'folder' : 'folders'} in ${folderName(root)}, ${(total / 1024 ** 3).toFixed(1)} GB in all.`
 				: `No leftovers found in ${folderName(root)}.`
 		});
 	} catch (err) {
-		if (id !== searchId) return;
+		if (!job.isCurrent(id)) return;
 		leftoverSearch.error = `${err}`;
-		endTask(TASK);
+		job.finish(id);
 	} finally {
-		if (id === searchId) leftoverSearch.isSearching = false;
+		if (job.isCurrent(id)) leftoverSearch.isSearching = false;
 	}
 }
 
 export function cancelLeftoverSearch() {
 	if (!leftoverSearch.isSearching) return;
-	searchId++;
 	leftoverSearch.isSearching = false;
-	CancelLeftoverSearch();
-	endTask(TASK);
+	job.cancel();
 }
 
 // drop folders that were deleted from the shown result

@@ -46,27 +46,38 @@ var (
 	stop chan struct{}
 )
 
-// mainWindow finds this process's visible top-level window with the given title
-func mainWindow(title string) windows.HWND {
-	var found windows.HWND
-	pid := windows.GetCurrentProcessId()
+// The window search uses one callback for the life of the app: Windows allows
+// only a limited number of Go callbacks per process and never frees them, so
+// creating a new one on every switch would eventually crash the app.
+var (
+	enumMu    sync.Mutex
+	enumPID   uint32
+	enumTitle string
+	enumFound windows.HWND
 
-	callback := windows.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
+	enumCallback = windows.NewCallback(func(hwnd windows.HWND, _ uintptr) uintptr {
 		var owner uint32
 		windows.GetWindowThreadProcessId(hwnd, &owner)
-		if owner != pid || !windows.IsWindowVisible(hwnd) {
+		if owner != enumPID || !windows.IsWindowVisible(hwnd) {
 			return 1 // keep looking
 		}
 		buf := make([]uint16, 128)
 		procGetWindowTextW.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&buf[0])), uintptr(len(buf)))
-		if windows.UTF16ToString(buf) == title {
-			found = hwnd
+		if windows.UTF16ToString(buf) == enumTitle {
+			enumFound = hwnd
 			return 0 // stop
 		}
 		return 1
 	})
-	windows.EnumWindows(callback, nil)
-	return found
+)
+
+// mainWindow finds this process's visible top-level window with the given title
+func mainWindow(title string) windows.HWND {
+	enumMu.Lock()
+	defer enumMu.Unlock()
+	enumPID, enumTitle, enumFound = windows.GetCurrentProcessId(), title, 0
+	windows.EnumWindows(enumCallback, nil)
+	return enumFound
 }
 
 func setMinimizable(hwnd windows.HWND, allowed bool) {

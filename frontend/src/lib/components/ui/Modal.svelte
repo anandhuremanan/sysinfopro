@@ -1,5 +1,11 @@
+<script lang="ts" module>
+	// open dialogs, newest last: only the top one answers Escape
+	const openStack: symbol[] = [];
+	let nextId = 0;
+</script>
+
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import StrokeIcon from './StrokeIcon.svelte';
 
 	let {
@@ -22,12 +28,61 @@
 		actions?: Snippet;
 	} = $props();
 
+	const me = Symbol('modal');
+	const uid = `modal-${nextId++}`;
+	let dialog = $state<HTMLDivElement | undefined>(undefined);
+	// where focus was before the dialog opened, to return it on close
+	let returnTo: HTMLElement | null = null;
+
+	const FOCUSABLE =
+		'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 	function close() {
 		if (showClose) showModal = false;
 	}
 
+	// opening: remember focus, join the stack, focus the first control (or the dialog);
+	// closing: leave the stack and put focus back
+	$effect(() => {
+		if (!showModal) return;
+		returnTo = document.activeElement as HTMLElement | null;
+		openStack.push(me);
+		tick().then(() => {
+			const first = dialog?.querySelector<HTMLElement>(FOCUSABLE);
+			(first ?? dialog)?.focus();
+		});
+		return () => {
+			const at = openStack.indexOf(me);
+			if (at >= 0) openStack.splice(at, 1);
+			returnTo?.focus?.();
+		};
+	});
+
 	function onKeydown(event: KeyboardEvent) {
-		if (showModal && event.key === 'Escape') close();
+		if (!showModal || openStack[openStack.length - 1] !== me) return;
+		if (event.key === 'Escape') {
+			event.stopPropagation();
+			close();
+			return;
+		}
+		// keep Tab inside the dialog
+		if (event.key === 'Tab' && dialog) {
+			const items = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
+			if (items.length === 0) {
+				event.preventDefault();
+				dialog.focus();
+				return;
+			}
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (event.shiftKey && document.activeElement === first) {
+				event.preventDefault();
+				last.focus();
+			} else if (!event.shiftKey && document.activeElement === last) {
+				event.preventDefault();
+				first.focus();
+			}
+		}
 	}
 </script>
 
@@ -42,19 +97,23 @@
 		}}
 	>
 		<div
+			bind:this={dialog}
 			role="dialog"
 			aria-modal="true"
-			aria-label={title || 'Dialog'}
-			class="w-full {width} max-h-full flex flex-col bg-tile text-ink text-xs rounded-2xl border border-line shadow-2xl"
+			tabindex="-1"
+			aria-labelledby={title ? `${uid}-title` : undefined}
+			aria-describedby={description ? `${uid}-desc` : undefined}
+			aria-label={title ? undefined : 'Dialog'}
+			class="w-full {width} max-h-full flex flex-col bg-tile text-ink text-xs rounded-2xl border border-line shadow-2xl outline-none"
 		>
 			{#if title || showClose}
 				<div class="flex items-start justify-between gap-3 pl-5 pr-3 pt-4 shrink-0">
 					<div class="min-w-0 pt-0.5">
 						{#if title}
-							<div class="text-sm font-bold">{title}</div>
+							<div id="{uid}-title" class="text-sm font-bold">{title}</div>
 						{/if}
 						{#if description}
-							<div class="text-muted mt-0.5">{description}</div>
+							<div id="{uid}-desc" class="text-muted mt-0.5">{description}</div>
 						{/if}
 					</div>
 					{#if showClose}

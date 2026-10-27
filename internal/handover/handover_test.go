@@ -218,3 +218,24 @@ func TestSuspendedBitLockerIsNotProtection(t *testing.T) {
 	}
 	t.Error("no encryption item")
 }
+
+func TestStreamedFirefoxAndTokenChecks(t *testing.T) {
+	logins := `{"nextId":4,"logins":[{"id":1,"encryptedPassword":"x"},{"id":2},{"id":3}],"potentiallyVulnerablePasswords":[]}`
+	if n := firefoxLoginsFrom(strings.NewReader(logins)); n != 3 {
+		t.Errorf("logins = %d, want 3", n)
+	}
+	if n := firefoxLoginsFrom(strings.NewReader(`{"logins":[]}`)); n != 0 {
+		t.Errorf("empty logins = %d", n)
+	}
+	if n := firefoxLoginsFrom(strings.NewReader(`not json`)); n != 0 {
+		t.Errorf("broken file = %d", n)
+	}
+	account := `{"version":1,"accountData":{"email":"a@example.com","sessionToken":"secret"}}`
+	if e := firefoxAccountFrom(strings.NewReader(account)); e != "a@example.com" {
+		t.Errorf("email = %q", e)
+	}
+	npmrc := "registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=npm_abc\n"
+	if !containsLine(strings.NewReader(npmrc), "_authToken") || containsLine(strings.NewReader("registry=x\n"), "_authToken") {
+		t.Error("token marker detection")
+	}
+}

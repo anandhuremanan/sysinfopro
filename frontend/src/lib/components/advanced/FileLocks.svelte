@@ -1,4 +1,7 @@
 <script lang="ts">
+	import type { locks } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { Status } from '$lib/status.svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import {
 		FindLockingProcesses,
@@ -7,25 +10,12 @@
 		TerminateProcess
 	} from '$lib/wailsjs/go/main/App';
 
-	type LockingProcess = { pid: number; name: string; kind: string };
-	type LockResult = {
-		path: string;
-		is_dir: boolean;
-		files_checked: number;
-		truncated: boolean;
-		processes: LockingProcess[];
-	};
+	type LockingProcess = locks.LockingProcess;
+	type LockResult = locks.Result;
 
 	let result = $state<LockResult | undefined>(undefined);
 	let isChecking = $state(false);
-	let statusMessage = $state<string | undefined>(undefined);
-
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => {
-			statusMessage = undefined;
-		}, 5000);
-	}
+	const status = new Status(5000);
 
 	async function check(path: string) {
 		isChecking = true;
@@ -33,7 +23,7 @@
 			result = (await FindLockingProcesses(path)) as LockResult;
 		} catch (err) {
 			result = undefined;
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		} finally {
 			isChecking = false;
 		}
@@ -47,17 +37,17 @@
 					: await PickFolder('Choose the folder that will not delete or move');
 			if (path) await check(path);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		}
 	}
 
 	async function endProcess(proc: LockingProcess) {
 		try {
 			await TerminateProcess(proc.pid);
-			showStatus(`Ended ${proc.name} (PID ${proc.pid})`);
+			status.show(`Ended ${proc.name} (PID ${proc.pid})`);
 			if (result) await check(result.path);
 		} catch (err) {
-			showStatus(`Failed to end ${proc.name}: ${err}`);
+			status.show(`Failed to end ${proc.name}: ${err}`);
 		}
 	}
 
@@ -69,30 +59,25 @@
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">File locks</div>
-			<div class="text-xs text-muted truncate">
-				Find the program that stops a file or folder being deleted, moved or saved
+	<ToolHeader
+		title="File locks"
+		subtitle="Find the program that stops a file or folder being deleted, moved or saved"
+	>
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				<button class="btn btn-secondary" onclick={() => choose('file')} disabled={isChecking}>
+					Choose file
+				</button>
+				<button class="btn btn-primary" onclick={() => choose('folder')} disabled={isChecking}>
+					Choose folder
+				</button>
 			</div>
-		</div>
+		{/snippet}
+	</ToolHeader>
 
-		<div class="flex items-center gap-2 shrink-0">
-			<button class="btn btn-secondary" onclick={() => choose('file')} disabled={isChecking}>
-				Choose file
-			</button>
-			<button class="btn btn-primary" onclick={() => choose('folder')} disabled={isChecking}>
-				Choose folder
-			</button>
-		</div>
-	</div>
-
-	{#if statusMessage}
-		<div
-			class="text-xs text-amber-700 dark:text-amber-400 font-semibold px-1 shrink-0 truncate"
-			title={statusMessage}
-		>
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs text-warn font-semibold px-1 shrink-0 truncate" title={status.text}>
+			{status.text}
 		</div>
 	{/if}
 
@@ -158,7 +143,7 @@
 				{result.processes.length === 1 ? 'program' : 'programs'} holding it
 			</span>
 			{#if result.truncated}
-				<span class="shrink-0 text-amber-700 dark:text-amber-400">
+				<span class="shrink-0 text-warn">
 					Large folder: only the first {result.files_checked.toLocaleString()} files were checked
 				</span>
 			{/if}

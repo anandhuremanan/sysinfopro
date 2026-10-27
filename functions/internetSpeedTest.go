@@ -3,9 +3,9 @@ package functions
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"io"
 	"math"
-	"math/rand"
 	"net/http"
 	"sort"
 	"strconv"
@@ -102,7 +102,7 @@ func GetInterNetSpeedWithProgress(progress SpeedProgressFunc) (*InternetSpeedSta
 
 	// 3. Measure Upload Speed (Multi-stream parallel HTTP POST)
 	payload := make([]byte, uploadPayloadSize)
-	rand.Read(payload)
+	cryptorand.Read(payload) // random bytes, so nothing on the way can compress the upload
 	upload := &speedRun{}
 	speedStat.UploadSpeed = measureThroughput("upload", progress, upload, func(ctx context.Context, client *http.Client, run *speedRun) {
 		uploadWorker(ctx, client, payload, run)

@@ -3,8 +3,10 @@ package process
 import (
 	"fmt"
 	"math"
+	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,6 +19,8 @@ type ProcessItem struct {
 	CPUPercent    float64 `json:"cpu_percent"` // share of the whole processor since the previous list
 	MemoryMB      float64 `json:"memory_mb"`
 	MemoryPercent float32 `json:"memory_percent"`
+	// when the process started (Unix ms; 0 when unknown), for TerminateProcessChecked
+	StartedMs int64 `json:"started_ms"`
 	// Kept for older screens; no longer calculated (it was an invented score)
 	EnergyImpact      float64 `json:"energy_impact"`
 	EnergyImpactLabel string  `json:"energy_impact_label"`
@@ -79,12 +83,14 @@ func GetTopProcesses(limit int) ([]ProcessItem, error) {
 			}
 		}
 
+		started, _ := p.CreateTime()
 		items = append(items, ProcessItem{
 			PID:           p.Pid,
 			Name:          name,
 			CPUPercent:    round1(cpuPct),
 			MemoryMB:      round1(float64(memInfo.RSS) / 1024 / 1024),
 			MemoryPercent: memPct,
+			StartedMs:     started,
 		})
 	}
 	lastCPU = nowCPU
@@ -107,16 +113,55 @@ func GetTopProcesses(limit int) ([]ProcessItem, error) {
 
 // TerminateProcess safely terminates a process by PID
 func TerminateProcess(pid int32) error {
-	// Security check to avoid terminating critical system processes
-	if pid <= 4 {
-		return fmt.Errorf("refusing to terminate system process PID %d", pid)
-	}
+	return terminate(pid, "", 0)
+}
 
+// TerminateProcessChecked ends a process only if it is still the one the user
+// was shown: same name and, when given, the same start time (Unix ms). A
+// process id is reused once its program exits, so without this check a list
+// that is a few seconds old could end an unrelated program.
+func TerminateProcessChecked(pid int32, name string, startedMs int64) error {
+	return terminate(pid, name, startedMs)
+}
+
+// processes Windows needs to keep running; ending one crashes or locks the PC
+var critical = map[string]bool{
+	"system": true, "registry": true, "memcompression": true, "secure system": true,
+	"smss.exe": true, "csrss.exe": true, "wininit.exe": true, "winlogon.exe": true,
+	"services.exe": true, "lsass.exe": true, "lsaiso.exe": true, "svchost.exe": true,
+	"fontdrvhost.exe": true, "dwm.exe": true,
+}
+
+// refuseReason says why a process must not be ended, or "" when it may be
+func refuseReason(pid int32, name string, self int32) string {
+	switch {
+	case pid <= 4:
+		return "it is part of Windows"
+	case pid == self:
+		return "it is SysInfo Pro itself"
+	case critical[strings.ToLower(name)]:
+		return name + " is part of Windows; ending it would crash or lock the PC"
+	}
+	return ""
+}
+
+func terminate(pid int32, wantName string, wantStartedMs int64) error {
 	p, err := process.NewProcess(pid)
 	if err != nil {
-		return fmt.Errorf("process with PID %d not found: %w", pid, err)
+		return fmt.Errorf("process %d is no longer running", pid)
 	}
-
+	name, _ := p.Name()
+	if why := refuseReason(pid, name, int32(os.Getpid())); why != "" {
+		return fmt.Errorf("not ended: %s", why)
+	}
+	if wantName != "" && !strings.EqualFold(name, wantName) {
+		return fmt.Errorf("not ended: process %d is now %s, not %s; refresh the list", pid, name, wantName)
+	}
+	if wantStartedMs > 0 {
+		if started, err := p.CreateTime(); err == nil && started != wantStartedMs {
+			return fmt.Errorf("not ended: %s was restarted since the list was made; refresh the list", wantName)
+		}
+	}
 	return p.Kill()
 }
 

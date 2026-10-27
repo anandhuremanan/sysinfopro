@@ -2,13 +2,12 @@
 package reminder
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
+
+	"sysinfopro/internal/settings"
 )
 
 const (
@@ -93,32 +92,10 @@ func capitalise(s string) string {
 
 // --- settings file ---
 
-func settingsPath() (string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "SysInfoPro", "reminder.json"), nil
-}
-
 func LoadSettings() Settings {
-	var s Settings
-	if path, err := settingsPath(); err == nil {
-		if data, err := os.ReadFile(path); err == nil {
-			json.Unmarshal(data, &s)
-		}
-	}
-	return s
+	return settings.Load("reminder.json", Settings{})
 }
 
 func SaveSettings(s Settings) error {
-	path, err := settingsPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, _ := json.MarshalIndent(s, "", "  ")
-	return os.WriteFile(path, data, 0o644)
+	return settings.Save("reminder.json", s)
 }

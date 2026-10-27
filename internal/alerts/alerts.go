@@ -3,13 +3,12 @@
 package alerts
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
-	"os"
-	"path/filepath"
 	"sync"
 	"time"
+
+	"sysinfopro/internal/settings"
 )
 
 const gb = 1 << 30
@@ -167,37 +166,11 @@ func plural(n int, word string) string {
 
 // --- settings file ---
 
-func settingsPath() (string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "SysInfoPro", "alerts.json"), nil
-}
-
 // LoadSettings reads the saved settings, or the defaults if there are none
 func LoadSettings() Settings {
-	s := DefaultSettings()
-	path, err := settingsPath()
-	if err != nil {
-		return s
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return s
-	}
-	json.Unmarshal(data, &s)
-	return s
+	return settings.Load("alerts.json", DefaultSettings())
 }
 
 func SaveSettings(s Settings) error {
-	path, err := settingsPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, _ := json.MarshalIndent(s, "", "  ")
-	return os.WriteFile(path, data, 0o644)
+	return settings.Save("alerts.json", s)
 }

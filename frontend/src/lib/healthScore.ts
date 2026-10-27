@@ -31,7 +31,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 const ramp = (x: number, x0: number, y0: number, x1: number, y1: number) =>
 	y0 + (y1 - y0) * clamp((x - x0) / (x1 - x0), 0, 1);
 
-export function computeScore(input: ScoreInput, formatBytes: (b: number) => string): Score {
+export function computeScore(input: ScoreInput): Score {
 	const factors: Factor[] = [];
 	const missing: string[] = [];
 

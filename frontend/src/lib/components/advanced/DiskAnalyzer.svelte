@@ -1,4 +1,9 @@
 <script lang="ts">
+	import type { storage } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON, driveRoot } from '$lib/path';
+	import { Status } from '$lib/status.svelte';
+	import { onMount } from 'svelte';
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes, usageBarColor } from '$lib';
 	import { GetDrives, RevealInExplorer } from '$lib/wailsjs/go/main/App';
@@ -13,24 +18,17 @@
 	} from '$lib/diskScan.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	type Drive = {
-		path: string;
-		fs_type: string;
-		total_bytes: number;
-		free_bytes: number;
-		used_bytes: number;
-		used_pct: number;
-	};
+	type Drive = storage.DriveInfo;
 
 	const FOLDER_ICON = 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z';
 	const FILE_ICON = 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5';
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
-	// open on this drive ("C:") when given, for example from a low-space alert
-	let { drive: initialDrive }: { drive?: string } = $props();
+	// open on this drive ("C:") when given, for example from a low-space alert; it is
+	// used once when the screen opens, then the parent is told so it can forget it
+	let { drive: initialDrive, onDriveUsed }: { drive?: string; onDriveUsed?: () => void } = $props();
 
 	let drives = $state<Drive[]>([]);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(4000);
 
 	// the scan itself lives in a store, so it keeps running when you leave this screen
 	let selectedDrive = $derived(drives.find((d) => d.path === diskScan.drivePath));
@@ -39,15 +37,10 @@
 	let isScanning = $derived(diskScan.isScanning);
 	let scanProgress = $derived<ScanProgress | undefined>(diskScan.progress);
 
-	// "C:" would mean the current directory on C, so drive roots always end in a separator
-	function driveRoot(drive: Drive) {
-		return /^[A-Za-z]:$/.test(drive.path) ? drive.path + '\\' : drive.path;
-	}
-
 	// Clickable path from the drive root down to the folder being shown
 	let crumbs = $derived.by(() => {
 		if (!selectedDrive || !currentPath) return [];
-		const root = driveRoot(selectedDrive);
+		const root = driveRoot(selectedDrive.path);
 		const sep = root.includes('\\') ? '\\' : '/';
 		const result = [{ label: root.replace(/[\\/]$/, '') || root, path: root }];
 		let acc = root;
@@ -60,48 +53,39 @@
 
 	let largestEntry = $derived(usage?.entries[0]?.size_bytes || 0);
 
-	function showStatus(message: string) {
-		statusMessage = message;
-		setTimeout(() => {
-			statusMessage = undefined;
-		}, 4000);
-	}
-
-	async function loadDrives() {
+	// applyAsked: only on opening, so a later refresh never undoes the user's own choice
+	async function loadDrives(applyAsked = false) {
 		try {
 			drives = (await GetDrives()) || [];
-			const wanted = initialDrive?.toUpperCase();
+			const wanted = applyAsked ? initialDrive?.toUpperCase() : undefined;
 			const asked = wanted
 				? drives.find((d) => d.path.toUpperCase().startsWith(wanted))
 				: undefined;
+			if (applyAsked && initialDrive) onDriveUsed?.();
 			// an alert can ask for a drive; otherwise keep the drive chosen before, or the first
 			if (asked && asked.path !== diskScan.drivePath && !diskScan.isScanning) selectDrive(asked);
 			else if (!drives.some((d) => d.path === diskScan.drivePath) && drives.length > 0)
 				selectDrive(drives[0]);
 		} catch (err) {
 			console.error('Failed to list drives:', err);
-			showStatus(`Failed to list drives: ${err}`);
+			status.show(`Failed to list drives: ${err}`);
 		}
 	}
 
 	function selectDrive(drive: Drive) {
 		cancelScan();
-		showPath(drive.path, driveRoot(drive));
-	}
-
-	function scan(path: string, force = false) {
-		scanPath(path, force);
+		showPath(drive.path, driveRoot(drive.path));
 	}
 
 	$effect(() => {
-		if (diskScan.error) showStatus(diskScan.error);
+		if (diskScan.error) status.show(diskScan.error);
 	});
 
 	async function reveal(path: string) {
 		try {
 			await RevealInExplorer(path);
 		} catch (err) {
-			showStatus(`${err}`);
+			status.show(`${err}`);
 		}
 	}
 
@@ -111,49 +95,45 @@
 		return pct > 0 && pct < 0.1 ? '<0.1%' : `${pct.toFixed(1)}%`;
 	}
 
-	$effect(() => {
-		loadDrives();
+	onMount(() => {
+		loadDrives(true);
 		// free space changes while the tool is open (downloads, builds, clean-ups)
-		const timer = setInterval(loadDrives, 5000);
+		const timer = setInterval(() => loadDrives(), 5000);
 		return () => clearInterval(timer);
 	});
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar: drives -->
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Disk usage</div>
-			<div class="text-xs text-muted truncate">
-				See which folders and files take up space on each drive
+	<ToolHeader title="Disk usage" subtitle="See which folders and files take up space on each drive">
+		{#snippet actions()}
+			<div class="flex items-center gap-2 shrink-0">
+				{#each drives as drive (drive.path)}
+					<button
+						class="w-[132px] px-2.5 py-1.5 rounded-lg border text-left cursor-pointer transition-colors {selectedDrive?.path ===
+						drive.path
+							? 'border-ink/40 bg-ground'
+							: 'border-line hover:bg-ground'}"
+						aria-pressed={selectedDrive?.path === drive.path}
+						onclick={() => selectDrive(drive)}
+					>
+						<span class="flex justify-between items-baseline gap-2">
+							<span class="font-bold text-ink">{drive.path.replace(/[\\/]$/, '')}</span>
+							<span class="text-[10px] text-muted truncate"
+								>{formatBytes(drive.free_bytes)} free</span
+							>
+						</span>
+						<span class="block h-1 mt-1 rounded-full bg-track">
+							<span
+								class="block h-1 rounded-full {usageBarColor(drive.used_pct)}"
+								style="width: {Math.min(100, drive.used_pct)}%"
+							></span>
+						</span>
+					</button>
+				{/each}
 			</div>
-		</div>
-
-		<div class="flex items-center gap-2 shrink-0">
-			{#each drives as drive (drive.path)}
-				<button
-					class="w-[132px] px-2.5 py-1.5 rounded-lg border text-left cursor-pointer transition-colors {selectedDrive?.path ===
-					drive.path
-						? 'border-ink/40 bg-ground'
-						: 'border-line hover:bg-ground'}"
-					aria-pressed={selectedDrive?.path === drive.path}
-					onclick={() => selectDrive(drive)}
-				>
-					<span class="flex justify-between items-baseline gap-2">
-						<span class="font-bold text-ink">{drive.path.replace(/[\\/]$/, '')}</span>
-						<span class="text-[10px] text-muted truncate">{formatBytes(drive.free_bytes)} free</span
-						>
-					</span>
-					<span class="block h-1 mt-1 rounded-full bg-track">
-						<span
-							class="block h-1 rounded-full {usageBarColor(drive.used_pct)}"
-							style="width: {Math.min(100, drive.used_pct)}%"
-						></span>
-					</span>
-				</button>
-			{/each}
-		</div>
-	</div>
+		{/snippet}
+	</ToolHeader>
 
 	<!-- Path bar: only once there is somewhere to go back to (the drive name alone repeats the chosen drive) -->
 	{#if selectedDrive && (usage || crumbs.length > 1)}
@@ -168,7 +148,7 @@
 					{:else}
 						<button
 							class="text-muted font-medium cursor-pointer hover:text-ink shrink-0 max-w-[120px] truncate"
-							onclick={() => scan(crumb.path)}
+							onclick={() => scanPath(crumb.path)}
 						>
 							{crumb.label}
 						</button>
@@ -176,16 +156,16 @@
 				{/each}
 			</nav>
 			{#if usage}
-				<button class="btn btn-secondary shrink-0" onclick={() => scan(currentPath, true)}>
+				<button class="btn btn-secondary shrink-0" onclick={() => scanPath(currentPath, true)}>
 					Rescan
 				</button>
 			{/if}
 		</div>
 	{/if}
 
-	{#if statusMessage}
-		<div class="text-xs text-amber-700 dark:text-amber-400 font-semibold px-1 shrink-0 truncate">
-			{statusMessage}
+	{#if status.text}
+		<div class="text-xs text-warn font-semibold px-1 shrink-0 truncate">
+			{status.text}
 		</div>
 	{/if}
 
@@ -224,7 +204,7 @@
 								<button
 									class="flex-1 min-w-0 text-left font-semibold text-ink truncate cursor-pointer hover:underline"
 									title="Open {entry.path}"
-									onclick={() => scan(entry.path)}
+									onclick={() => scanPath(entry.path)}
 								>
 									{entry.name}
 								</button>
@@ -302,7 +282,7 @@
 			</span>
 			{#if usage.skipped > 0}
 				<span
-					class="shrink-0 text-amber-700 dark:text-amber-400"
+					class="shrink-0 text-warn"
 					title="Usually protected system folders. Run SysInfo Pro as administrator to include them."
 				>
 					{usage.skipped.toLocaleString()} items could not be read
@@ -321,7 +301,7 @@
 			</p>
 			<button
 				class="mt-1 px-4 py-1.5 text-xs bg-accent hover:opacity-90 text-on-accent font-medium rounded-lg cursor-pointer"
-				onclick={() => scan(currentPath)}
+				onclick={() => scanPath(currentPath)}
 			>
 				Analyse {currentPath}
 			</button>

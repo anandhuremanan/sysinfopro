@@ -1,26 +1,12 @@
+import type { storage } from '$lib/wailsjs/go/models';
 import { formatBytes } from '$lib';
 import { endTask, startTask, updateTask } from '$lib/tasks.svelte';
 import { AnalyzeDiskUsage, CancelDiskScan } from '$lib/wailsjs/go/main/App';
 import { EventsOn } from '$lib/wailsjs/runtime/runtime';
 
-export type UsageEntry = {
-	name: string;
-	path: string;
-	is_dir: boolean;
-	size_bytes: number;
-	files: number;
-};
+export type UsageEntry = storage.UsageEntry;
 
-export type FolderUsage = {
-	path: string;
-	total_bytes: number;
-	files: number;
-	skipped: number;
-	entries: UsageEntry[];
-	largest_files: UsageEntry[];
-	duration_ms: number;
-	cancelled: boolean;
-};
+export type FolderUsage = storage.FolderUsage;
 
 export type ScanProgress = { files: number; bytes: number; current: string };
 
@@ -33,7 +19,14 @@ export const diskScan = $state<{
 	isScanning: boolean;
 	progress: ScanProgress | undefined;
 	error: string;
-}>({ drivePath: '', currentPath: '', usage: undefined, isScanning: false, progress: undefined, error: '' });
+}>({
+	drivePath: '',
+	currentPath: '',
+	usage: undefined,
+	isScanning: false,
+	progress: undefined,
+	error: ''
+});
 
 const TASK = 'disk-scan';
 // finished scans, so going back up a level is instant
@@ -76,7 +69,11 @@ export async function scanPath(path: string, force = false) {
 	diskScan.progress = undefined;
 	diskScan.usage = undefined;
 	const where = path.replace(/[\\/]$/, '');
-	startTask({ id: TASK, label: `Analysing ${where.length > 18 ? '…' + where.slice(-16) : where}`, view: 'space' });
+	startTask({
+		id: TASK,
+		label: `Analysing ${where.length > 18 ? '…' + where.slice(-16) : where}`,
+		view: 'space'
+	});
 
 	try {
 		const result = (await AnalyzeDiskUsage(path)) as FolderUsage;

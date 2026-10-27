@@ -1,31 +1,15 @@
 <script lang="ts">
+	import type { batteryreport } from '$lib/wailsjs/go/models';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
 	import { GetBatteryReport } from '$lib/wailsjs/go/main/App';
 	import { load, recall } from '$lib/cache';
 	import BusyArt from '../ui/BusyArt.svelte';
 
-	type Battery = {
-		name: string;
-		chemistry: string;
-		design_mwh: number;
-		full_mwh: number;
-		health_pct: number;
-		cycles: number;
-	};
-	type Point = { date: string; full_mwh: number; design_mwh: number; health_pct: number };
-	type Session = { start: string; minutes: number; used_pct: number; full_charge_minutes: number };
-	type Report = {
-		has_battery: boolean;
-		batteries: Battery[];
-		health_pct: number;
-		runtime_now_min: number;
-		runtime_new_min: number;
-		history: Point[];
-		sessions: Session[];
-		tracked_since: string;
-		loss_per_year: number;
-		summary: string;
-	};
+	type Battery = batteryreport.Battery;
+	type Point = batteryreport.Point;
+	type Session = batteryreport.Session;
+	type Report = batteryreport.Report;
 
 	let report = $state<Report | null>(recall('battery-report') ?? null);
 	let isLoading = $state(!recall('battery-report'));
@@ -107,19 +91,18 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Battery</div>
-			<div class="text-xs text-muted truncate">
-				Real capacity, as the battery reports it to Windows{report?.tracked_since
-					? `, recorded since ${dateText(report.tracked_since)}`
-					: ''}
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
-			Refresh
-		</button>
-	</div>
+	<ToolHeader title="Battery">
+		{#snippet sub()}
+			Real capacity, as the battery reports it to Windows{report?.tracked_since
+				? `, recorded since ${dateText(report.tracked_since)}`
+				: ''}
+		{/snippet}
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
+				Refresh
+			</button>
+		{/snippet}
+	</ToolHeader>
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">

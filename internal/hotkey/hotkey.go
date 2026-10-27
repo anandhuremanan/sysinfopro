@@ -2,11 +2,10 @@
 package hotkey
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
+
+	"sysinfopro/internal/settings"
 )
 
 // Combos the user can pick from; each is tried with Windows, which refuses one
@@ -60,23 +59,8 @@ func DefaultSettings() Settings {
 	return Settings{Enabled: true, Combo: Combos[0]}
 }
 
-func settingsPath() (string, error) {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "SysInfoPro", "hotkey.json"), nil
-}
-
 func LoadSettings() Settings {
-	s := DefaultSettings()
-	path, err := settingsPath()
-	if err != nil {
-		return s
-	}
-	if data, err := os.ReadFile(path); err == nil {
-		json.Unmarshal(data, &s)
-	}
+	s := settings.Load("hotkey.json", DefaultSettings())
 	s.Error = ""
 	if _, _, err := parseCombo(s.Combo); err != nil {
 		s.Combo = Combos[0]
@@ -85,14 +69,6 @@ func LoadSettings() Settings {
 }
 
 func SaveSettings(s Settings) error {
-	path, err := settingsPath()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	s.Error = ""
-	data, _ := json.MarshalIndent(s, "", "  ")
-	return os.WriteFile(path, data, 0o644)
+	return settings.Save("hotkey.json", s)
 }

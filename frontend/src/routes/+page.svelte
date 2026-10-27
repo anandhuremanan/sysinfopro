@@ -1,9 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { checkInternetConnection, copyStat, mbToGb, shortCpuName } from '$lib';
-	import AdvancedDash from '$lib/components/advanced/AdvancedDash.svelte';
 	import HomeDash from '$lib/components/basic/HomeDash.svelte';
-	import ProcessView from '$lib/components/basic/ProcessView.svelte';
-	import SpeedAnimation from '$lib/components/basic/SpeedAnimation.svelte';
 	import ToolsView from '$lib/components/basic/ToolsView.svelte';
 	import WidgetView from '$lib/components/basic/WidgetView.svelte';
 	import Logo from '$lib/components/ui/Logo.svelte';
@@ -13,15 +11,14 @@
 	import RatingPrompt from '$lib/components/ui/RatingPrompt.svelte';
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
 	import ReportModal from '$lib/components/ui/ReportModal.svelte';
-	import ScoreView from '$lib/components/advanced/ScoreView.svelte';
-	import CpuView from '$lib/components/advanced/CpuView.svelte';
-	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
-	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
+	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
+	import { type ToolStatus } from '$lib/tools';
+	import { isView, popView, pushView, screens, viewTitle, type View } from '$lib/screens';
+	import { Status } from '$lib/status.svelte';
 	import { exportSpecCardPNG } from '$lib/utils/cardExporter';
 	import { enterWidget, initWidget, toggleWidget, widget } from '$lib/widget.svelte';
 	import {
-		GetActiveSockets,
 		GetDriveHealth,
 		GetEnvPathAnalysis,
 		GetHardwareSpecs,
@@ -29,6 +26,7 @@
 		GetStartupItems,
 		GetSysInfo
 	} from '$lib/wailsjs/go/main/App';
+	import { EventsOn, Quit, WindowMinimise } from '$lib/wailsjs/runtime/runtime';
 	import { prefetch, remember } from '$lib/cache';
 	import { setActiveView, tasks } from '$lib/tasks.svelte';
 	import { cubicOut } from 'svelte/easing';
@@ -39,9 +37,6 @@
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 			? 0
 			: 160;
-	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
-
-	type View = 'home' | 'processes' | 'tools' | 'score' | 'cpu' | ToolId;
 
 	const WIDGET_ICON = 'M3 5h18v14H3zM12 12h7v5h-7z';
 	const SHARE_ICON = 'M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5';
@@ -50,16 +45,16 @@
 
 	let systemInfo: any = $state(undefined);
 	let error = $state('');
-	let view = $state<View>('home');
-	// Where Back returns to: a tool opened from the tools list goes back to the list
-	// where Back returns to: home, or the screen a tool was opened from
-	let parentView = $state<'home' | 'tools' | 'score' | 'cpu'>('home');
+	// the screens visited, most recent last; Back steps down it
+	let stack = $state<View[]>(['home']);
+	let view = $derived(stack[stack.length - 1]);
+	let previous = $derived(stack.length > 1 ? stack[stack.length - 2] : 'home');
 	let showQuitConfirm = $state(false);
 	let showSettings = $state(false);
 	let isLoading = $state(false);
-	let logMessage = $state<string | undefined>(undefined);
+	const toast = new Status(2000);
 	let toolStatus = $state<Record<string, ToolStatus>>({});
-	// the drive Disk usage opens on when reached from an alert
+	// the drive Disk usage opens on when reached from an alert; cleared once used
 	let usageDrive = $state<string | undefined>(undefined);
 	let showQuickSearch = $state(false);
 
@@ -75,29 +70,7 @@
 	function quickAction(id: 'settings' | 'widget' | 'processes' | 'home') {
 		if (id === 'settings') showSettings = true;
 		else if (id === 'widget') enterWidget();
-		else if (id === 'home') view = 'home';
-		else openView('processes');
-	}
-
-	let viewTitle = $derived(
-		view === 'processes'
-			? 'Processes'
-			: view === 'tools'
-				? 'All tools'
-				: view === 'score'
-					? 'Health score'
-					: view === 'cpu'
-						? 'Processor'
-						: view === 'home'
-							? ''
-							: getTool(view).name
-	);
-
-	function showLog(message: string, duration = 2000) {
-		logMessage = message;
-		setTimeout(() => {
-			logMessage = undefined;
-		}, duration);
+		else openView(id);
 	}
 
 	function openView(target: string) {
@@ -105,25 +78,19 @@
 			openSpeedTest();
 			return;
 		}
-		parentView = view === 'tools' || view === 'score' || view === 'cpu' ? view : 'home';
-		view = target as View;
+		if (isView(target)) stack = pushView(stack, target);
 	}
 
 	async function openSpeedTest() {
-		const isConnected = await checkInternetConnection();
-
-		if (!isConnected) {
-			showLog('No internet connection detected!');
+		if (!(await checkInternetConnection())) {
+			toast.show('No internet connection detected!');
 			return;
 		}
-
-		parentView = view === 'tools' || view === 'score' || view === 'cpu' ? view : 'home';
-		view = 'speed';
+		stack = pushView(stack, 'speed');
 	}
 
 	function goBack() {
-		view = view === 'tools' ? 'home' : parentView;
-		parentView = 'home';
+		stack = popView(stack);
 	}
 
 	function toggleQuitModal() {
@@ -141,13 +108,13 @@
 
 	async function copyStatHandler() {
 		showShare = false;
-		showLog(await copyStat(systemInfo));
+		toast.show(await copyStat(systemInfo));
 	}
 
 	async function exportSpecCardHandler() {
 		showShare = false;
 		const savedPath = await exportSpecCardPNG(systemInfo);
-		showLog(savedPath ? `Spec Card saved: ${savedPath}` : 'Failed to export spec card.', 4000);
+		toast.show(savedPath ? `Spec Card saved: ${savedPath}` : 'Failed to export spec card.', 4000);
 	}
 
 	async function getSysInfo() {
@@ -155,7 +122,7 @@
 		try {
 			const result = await GetSysInfo();
 			if (result) {
-				systemInfo = JSON.parse(result);
+				systemInfo = result;
 				remember('sysinfo', systemInfo);
 			}
 		} catch (err) {
@@ -184,16 +151,22 @@
 			.catch((err) => console.error('Failed to analyse PATH:', err));
 	}
 
-	$effect(() => {
+	onMount(() => {
 		getSysInfo();
 		loadToolStatus();
+		initWidget();
+		listenForAlerts();
+		const offHotkey = EventsOn('widget-hotkey', toggleWidget);
 		// fetch the slower screens' data once the window has settled, so they open at once
 		const timer = setTimeout(() => {
 			prefetch('specs', GetHardwareSpecs);
 			prefetch('security', GetSecurityReport);
 			prefetch('drive-health', GetDriveHealth);
 		}, 3000);
-		return () => clearTimeout(timer);
+		return () => {
+			clearTimeout(timer);
+			offHotkey();
+		};
 	});
 
 	// jobs still running elsewhere show as chips in the header
@@ -201,12 +174,6 @@
 		setActiveView(view);
 	});
 	let backgroundTasks = $derived(tasks.running.filter((t) => t.view !== view));
-
-	$effect(() => {
-		initWidget();
-		listenForAlerts();
-		return EventsOn('widget-hotkey', toggleWidget);
-	});
 
 	function openForAlert(alert: DriveAlert) {
 		if (alert.kind === 'task' && alert.view) {
@@ -263,16 +230,10 @@
 							onclick={goBack}
 						>
 							<StrokeIcon d="M15 6l-6 6 6 6" size={14} />
-							{view === 'tools' || parentView === 'home'
-								? 'Home'
-								: parentView === 'score'
-									? 'Health score'
-									: parentView === 'cpu'
-										? 'Processor'
-										: 'Tools'}
+							{viewTitle(previous)}
 						</button>
 						<span class="text-muted">/</span>
-						<span aria-current="page" class="font-bold truncate">{viewTitle}</span>
+						<span aria-current="page" class="font-bold truncate">{viewTitle(view)}</span>
 					</nav>
 				{/if}
 			</div>
@@ -287,7 +248,7 @@
 						<span class="relative shrink-0 w-3.5 h-3.5">
 							<span class="absolute inset-0 rounded-full border-2 border-accent/30"></span>
 							<span
-								class="absolute inset-0 rounded-full border-2 border-accent border-t-transparent animate-spin"
+								class="absolute inset-0 rounded-full border-2 border-accent border-t-transparent motion-safe:animate-spin"
 							></span>
 						</span>
 						<span class="font-semibold truncate">{task.label}</span>
@@ -348,6 +309,14 @@
 					<StrokeIcon d={SETTINGS_ICON} />
 				</button>
 				<button
+					aria-label="Minimise"
+					title="Minimise"
+					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
+					onclick={WindowMinimise}
+				>
+					<StrokeIcon d="M6 12h12" />
+				</button>
+				<button
 					aria-label="Close"
 					title="Close"
 					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
@@ -361,7 +330,7 @@
 		<!-- Main Content -->
 		<main class="flex-1 min-h-0">
 			{#if error && !systemInfo}
-				<div class="h-full flex items-center justify-center text-red-500">{error}</div>
+				<div class="h-full flex items-center justify-center text-fail">{error}</div>
 			{:else if systemInfo}
 				<!-- the new screen eases in; the old one goes at once, so a click never waits -->
 				{#key view}
@@ -371,20 +340,14 @@
 						{:else if view === 'tools'}
 							<ToolsView {toolStatus} onOpen={openView} />
 						{:else}
+							{@const Screen = screens[view]}
 							<div class="h-full bg-tile rounded-2xl p-4">
-								{#if view === 'speed'}
-									<div class="h-full flex items-center justify-center">
-										<SpeedAnimation />
-									</div>
-								{:else if view === 'processes'}
-									<ProcessView />
-								{:else if view === 'score'}
-									<ScoreView onOpen={openView} />
-								{:else if view === 'cpu'}
-									<CpuView {systemInfo} onOpen={openView} />
-								{:else}
-									<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
-								{/if}
+								<Screen
+									{systemInfo}
+									onOpen={openView}
+									drive={view === 'space' ? usageDrive : undefined}
+									onDriveUsed={() => (usageDrive = undefined)}
+								/>
 							</div>
 						{/if}
 					</div>
@@ -393,13 +356,14 @@
 		</main>
 
 		<!-- Floating Toast Badge -->
-		{#if logMessage}
+		{#if toast.text}
 			<div
-				class="absolute bottom-5 left-6 z-30 bg-slate-900/95 text-green-400 border border-green-500/40 px-3.5 py-2 rounded-xl shadow-2xl backdrop-blur-md text-xs font-semibold flex items-center gap-2 max-w-[420px]"
-				title={logMessage}
+				class="absolute bottom-5 left-6 z-30 bg-tile text-ink border border-ok/40 px-3.5 py-2 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2 max-w-[420px]"
+				title={toast.text}
+				role="status"
 			>
-				<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
-				<span class="truncate">{logMessage}</span>
+				<span class="w-2 h-2 rounded-full bg-ok shrink-0"></span>
+				<span class="truncate">{toast.text}</span>
 			</div>
 		{/if}
 

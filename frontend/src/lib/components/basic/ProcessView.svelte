@@ -1,15 +1,10 @@
 <script lang="ts">
-	import { GetTopProcesses, TerminateProcess } from '$lib/wailsjs/go/main/App';
+	import type { process } from '$lib/wailsjs/go/models';
+	import { onMount } from 'svelte';
+	import { Status } from '$lib/status.svelte';
+	import { GetTopProcesses, TerminateProcessChecked } from '$lib/wailsjs/go/main/App';
 
-	type ProcessItem = {
-		pid: number;
-		name: string;
-		cpu_percent: number;
-		memory_mb: number;
-		memory_percent: number;
-		energy_impact?: number;
-		energy_impact_label?: string;
-	};
+	type ProcessItem = process.ProcessItem;
 
 	const REFRESH_MS = 5000;
 	const GROWTH_WINDOW_MS = 60000;
@@ -18,7 +13,7 @@
 
 	let processes = $state<ProcessItem[]>([]);
 	let isLoading = $state(false);
-	let statusMessage = $state<string | undefined>(undefined);
+	const status = new Status(5000);
 	let searchTerm = $state('');
 	let sortBy = $state<'memory' | 'growth'>('memory');
 
@@ -67,22 +62,18 @@
 		}
 	}
 
-	async function handleKill(pid: number, name: string) {
+	// ends the program only if it is still the one shown: same id, name and start time
+	async function handleKill(pid: number, name: string, startedMs: number) {
 		try {
-			// @ts-ignore
-			await TerminateProcess(pid);
-			statusMessage = `Terminated ${name} (PID ${pid})`;
+			await TerminateProcessChecked(pid, name, startedMs);
+			status.text = `Terminated ${name} (PID ${pid})`;
 			await loadProcesses();
 		} catch (err) {
-			statusMessage = `Failed to terminate: ${err}`;
-		} finally {
-			setTimeout(() => {
-				statusMessage = undefined;
-			}, 3000);
+			status.text = `Failed to terminate: ${err}`;
 		}
 	}
 
-	$effect(() => {
+	onMount(() => {
 		loadProcesses();
 		const timer = setInterval(() => loadProcesses(true), REFRESH_MS);
 		return () => clearInterval(timer);
@@ -104,8 +95,8 @@
 
 	function growthColor(rate: number | undefined) {
 		if (rate === undefined || Math.abs(rate) < 1) return 'text-muted';
-		if (rate >= 20) return 'text-amber-700 dark:text-amber-400 font-bold';
-		return rate > 0 ? 'text-ink' : 'text-green-700 dark:text-green-400';
+		if (rate >= 20) return 'text-warn font-bold';
+		return rate > 0 ? 'text-ink' : 'text-ok';
 	}
 </script>
 
@@ -136,13 +127,15 @@
 		</div>
 	</div>
 
-	{#if statusMessage}
-		<div class="text-xs text-amber-700 dark:text-amber-400 font-semibold px-1">{statusMessage}</div>
+	{#if status.text}
+		<div class="text-xs text-warn font-semibold px-1">{status.text}</div>
 	{/if}
 
 	<!-- Main Table Container with Scrollbar -->
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted animate-pulse">
+		<div
+			class="flex-1 flex items-center justify-center text-xs text-muted motion-safe:animate-pulse"
+		>
 			Sampling running system processes...
 		</div>
 	{:else if filteredProcesses.length === 0}
@@ -168,7 +161,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-line">
-					{#each filteredProcesses as proc}
+					{#each filteredProcesses as proc (proc.pid)}
 						<tr class="hover:bg-ground transition-colors">
 							<td class="py-2 pl-2 font-semibold text-ink truncate max-w-[200px]" title={proc.name}>
 								{proc.name}
@@ -186,16 +179,16 @@
 							</td>
 							<td
 								class="py-2 text-right pr-4 font-mono {proc.cpu_percent > 10
-									? 'text-amber-700 dark:text-amber-400 font-bold'
+									? 'text-warn font-bold'
 									: ''}"
 							>
 								{proc.cpu_percent.toFixed(1)}%
 							</td>
 							<td class="py-2 text-center">
 								<button
-									class="px-3 py-1 text-[11px] border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:text-white rounded-md cursor-pointer font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+									class="px-3 py-1 text-[11px] border border-red-500/40 text-fail hover:bg-red-500 hover:text-white dark:hover:text-white rounded-md cursor-pointer font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
 									disabled={proc.pid <= 4}
-									onclick={() => handleKill(proc.pid, proc.name)}
+									onclick={() => handleKill(proc.pid, proc.name, proc.started_ms)}
 								>
 									End Task
 								</button>

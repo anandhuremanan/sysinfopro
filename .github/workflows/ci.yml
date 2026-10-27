@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      # go.mod pins the toolchain (go 1.26 + toolchain line); setup-go reads it
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check (svelte-check)
+        working-directory: frontend
+        run: npm run check
+
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test --if-present
+
+      # the Go code embeds frontend/build, so it must exist before vet/test compile
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: go vet
+        run: go vet ./...
+
+      # machine-only tests (real PowerShell, hotkeys, Docker) sit behind the
+      # `integration` build tag and are not run here
+      - name: go test
+        run: go test ./...
+
+      - name: Build the Wails CLI
+        run: ./scripts/build-wails-cli.ps1
+
+      # never -clean: it wipes build/bin
+      - name: Build the app
+        run: |
+          $version = (Get-Content wails.json -Raw | ConvertFrom-Json).info.productVersion
+          wails-go127 build -o "sysinfopro-$version.exe"
+          if ($LASTEXITCODE -ne 0) { throw 'wails build failed' }
+
+      - name: Upload exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: sysinfopro-exe
+          path: build/bin/sysinfopro-*.exe
+          if-no-files-found: error

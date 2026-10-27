@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
 	import { onMount } from 'svelte';
 	import { RunNetworkDoctor } from '$lib/wailsjs/go/main/App';
 	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
@@ -44,9 +45,9 @@
 	];
 
 	const TONE: Record<Status, string> = {
-		ok: 'text-green-700 dark:text-green-400',
-		warn: 'text-amber-700 dark:text-amber-400',
-		fail: 'text-red-700 dark:text-red-400',
+		ok: 'text-ok',
+		warn: 'text-warn',
+		fail: 'text-fail',
 		skip: 'text-muted'
 	};
 	const MARK: Record<Status, string> = {
@@ -99,32 +100,31 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Network doctor</div>
-			<div class="text-xs text-muted truncate">
-				Finds where the connection breaks, one link at a time
-			</div>
-		</div>
-		<form
-			class="flex items-center gap-2 shrink-0"
-			onsubmit={(e) => {
-				e.preventDefault();
-				run();
-			}}
-		>
-			<input
-				type="text"
-				placeholder="Also test a site, e.g. github.com"
-				bind:value={site}
-				spellcheck="false"
-				class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-56"
-			/>
-			<button class="btn btn-primary" type="submit" disabled={isRunning}>
-				{isRunning ? 'Checking...' : report ? 'Check again' : 'Check'}
-			</button>
-		</form>
-	</div>
+	<ToolHeader
+		title="Network doctor"
+		subtitle="Finds where the connection breaks, one link at a time"
+	>
+		{#snippet actions()}
+			<form
+				class="flex items-center gap-2 shrink-0"
+				onsubmit={(e) => {
+					e.preventDefault();
+					run();
+				}}
+			>
+				<input
+					type="text"
+					placeholder="Also test a site, e.g. github.com"
+					bind:value={site}
+					spellcheck="false"
+					class="text-xs px-3 py-1.5 rounded-lg border border-line bg-tile text-ink focus:outline-none focus:ring-1 focus:ring-accent w-56"
+				/>
+				<button class="btn btn-primary" type="submit" disabled={isRunning}>
+					{isRunning ? 'Checking...' : report ? 'Check again' : 'Check'}
+				</button>
+			</form>
+		{/snippet}
+	</ToolHeader>
 
 	<!-- the chain: each link lights up as it is checked -->
 	<div class="flex items-center gap-1 px-2 pt-2 shrink-0" aria-label="Connection chain">
@@ -184,10 +184,10 @@
 		<div
 			class="mx-1 px-3 py-2 rounded-xl text-sm font-semibold shrink-0 {report.healthy &&
 			problems.length === 0
-				? 'bg-green-500/10 text-green-700 dark:text-green-400'
+				? 'bg-green-500/10 text-ok'
 				: report.healthy
-					? 'bg-amber-500/10 text-amber-700 dark:text-amber-400'
-					: 'bg-red-500/10 text-red-700 dark:text-red-400'}"
+					? 'bg-amber-500/10 text-warn'
+					: 'bg-red-500/10 text-fail'}"
 		>
 			{report.summary}
 		</div>
@@ -286,7 +286,7 @@
 									>
 									<span
 										class="ml-auto shrink-0 text-[11px] {h.kind === 'block'
-											? 'text-red-700 dark:text-red-400'
+											? 'text-fail'
 											: 'text-muted'}"
 									>
 										{h.kind === 'block' ? 'blocked' : `→ ${h.ip}`}

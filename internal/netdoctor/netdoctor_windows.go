@@ -14,6 +14,8 @@ import (
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+
+	"sysinfopro/internal/winexec"
 )
 
 const (
@@ -168,7 +170,7 @@ func readProxy(ctx context.Context) Proxy {
 	c, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(c, "netsh", "winhttp", "show", "proxy")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	winexec.Hide(cmd)
 	if out, err := cmd.Output(); err == nil {
 		p.WinHTTP = parseWinHTTP(string(out))
 	}

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 type MemoryVelocitySample struct {
@@ -35,7 +35,7 @@ func GetMemoryVelocity() (*MemoryVelocitySample, error) {
 	}
 
 	now := time.Now()
-	usedMB := float64(v.Used) / 1024 / 1024
+	usedMB := float64(v.Total-v.Free) / 1024 / 1024
 
 	sample := &MemoryVelocitySample{
 		Timestamp:       now.Format(time.RFC3339),

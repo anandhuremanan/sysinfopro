@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON } from '$lib/path';
 	import { onMount } from 'svelte';
 	import { formatBytes } from '$lib';
 	import { CheckHandover, RevealInExplorer } from '$lib/wailsjs/go/main/App';
@@ -28,13 +30,13 @@
 	const MARK = {
 		todo: {
 			d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16h.01',
-			tone: 'text-amber-700 dark:text-amber-400',
-			pill: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+			tone: 'text-warn',
+			pill: 'bg-amber-500/15 text-warn',
 			label: 'To do'
 		},
 		ok: {
 			d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 12l3 3 5-6',
-			tone: 'text-green-700 dark:text-green-400',
+			tone: 'text-ok',
 			pill: 'bg-ground text-muted',
 			label: 'Fine'
 		},
@@ -45,7 +47,6 @@
 			label: 'Note'
 		}
 	};
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	let report = $state<Report | null>(recall('handover') ?? null);
 	let isLoading = $state(!recall('handover'));
@@ -76,23 +77,22 @@
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Hand over</div>
-			<div class="text-xs text-muted truncate">
-				{#if report && !isLoading}
-					{report.todo
-						? `${report.todo} ${report.todo === 1 ? 'thing' : 'things'} to deal with before this PC changes hands`
-						: 'Nothing left to deal with before this PC changes hands'}
-				{:else}
-					What to deal with before you sell, give away or return this PC
-				{/if}
-			</div>
-		</div>
-		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
-			Check again
-		</button>
-	</div>
+	<ToolHeader title="Hand over">
+		{#snippet sub()}
+			{#if report && !isLoading}
+				{report.todo
+					? `${report.todo} ${report.todo === 1 ? 'thing' : 'things'} to deal with before this PC changes hands`
+					: 'Nothing left to deal with before this PC changes hands'}
+			{:else}
+				What to deal with before you sell, give away or return this PC
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
+				Check again
+			</button>
+		{/snippet}
+	</ToolHeader>
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">

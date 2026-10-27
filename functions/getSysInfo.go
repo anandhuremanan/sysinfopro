@@ -5,11 +5,10 @@ import (
 	stdnet "net"
 	"os/user"
 
-	"myproject/internal/storage"
+	"sysinfopro/internal/storage"
 
 	// "github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
@@ -51,23 +50,20 @@ func GetSystemInfo() (*SystemInfo, error) {
 	info.TotalRAMMB = vmStat.Total / 1024 / 1024
 	info.FreeRAMMB = vmStat.Free / 1024 / 1024
 
-	// Disk
-	partitions, err := disk.Partitions(false)
-	if err != nil || len(partitions) == 0 {
-		return nil, fmt.Errorf("error getting disk partitions: %v", err)
+	// Disk: the drive Windows is on (listed first), not whichever letter comes first
+	drives, err := storage.ListDrives()
+	if err != nil || len(drives) == 0 {
+		return nil, fmt.Errorf("error getting drives: %v", err)
 	}
-	usageStat, err := disk.Usage(storage.RootPath(partitions[0].Mountpoint))
-	if err != nil {
-		return nil, fmt.Errorf("error getting disk usage: %v", err)
-	}
-	info.TotalDiskGB = usageStat.Total / 1024 / 1024 / 1024
-	info.FreeDiskGB = usageStat.Free / 1024 / 1024 / 1024
-	info.TotalDiskBytes = usageStat.Total
-	info.FreeDiskBytes = usageStat.Free
-	info.DiskUsagePct = usageStat.UsedPercent
+	system := drives[0]
+	info.TotalDiskGB = system.TotalBytes / 1024 / 1024 / 1024
+	info.FreeDiskGB = system.FreeBytes / 1024 / 1024 / 1024
+	info.TotalDiskBytes = system.TotalBytes
+	info.FreeDiskBytes = system.FreeBytes
+	info.DiskUsagePct = system.UsedPct
 
 	// SSD vs HDD as reported by the drive itself; empty when unknown
-	info.DiskType = storage.DiskType(partitions[0].Mountpoint)
+	info.DiskType = storage.DiskType(system.Path)
 
 	// Network
 	netInterfaces, err := net.Interfaces()

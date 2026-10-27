@@ -18,6 +18,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"sysinfopro/internal/fsutil"
 )
 
 type File struct {
@@ -79,18 +81,14 @@ const (
 )
 
 // folders never searched: deleting a "duplicate" in them breaks a program or a project
-var skipDirs = map[string]bool{
-	"windows": true, "program files": true, "program files (x86)": true, "programdata": true,
-	"$recycle.bin": true, "system volume information": true, "recovery": true, "$windows.~bt": true,
-	"appdata": true, "node_modules": true, ".git": true, ".svn": true, ".hg": true, ".venv": true,
-	"venv": true, "__pycache__": true, "site-packages": true, ".gradle": true, ".m2": true,
-	".nuget": true, ".cargo": true, ".rustup": true, "target": true, "vendor": true, ".idea": true,
-	".vs": true, "obj": true, ".pnpm-store": true, ".npm": true, ".cache": true,
+// besides fsutil's common list: version control, editor folders and game libraries
+var skipExtra = map[string]bool{
+	"$windows.~bt": true, ".git": true, ".svn": true, ".hg": true, ".idea": true, ".vs": true,
 	"windowsapps": true, "steamapps": true,
 }
 
 func skipDir(name string) bool {
-	return skipDirs[strings.ToLower(name)]
+	return fsutil.SkipFolder(name, skipExtra)
 }
 
 type candidate struct {
@@ -391,4 +389,25 @@ func CheckKeepsOne(groups []Group, paths []string) error {
 		return errors.New("some of those files were not part of the last search; search again")
 	}
 	return nil
+}
+
+// Recycle moves each path to the Recycle Bin and reports how many went, how many
+// bytes they held (freed once the Bin is emptied) and which could not be moved.
+// Callers check CheckKeepsOne first.
+func Recycle(paths []string) (removed int, freed int64, failed []string) {
+	failed = []string{}
+	for _, p := range paths {
+		info, err := os.Stat(p)
+		if err != nil {
+			failed = append(failed, p)
+			continue
+		}
+		if err := ToRecycleBin(p); err != nil {
+			failed = append(failed, p)
+			continue
+		}
+		removed++
+		freed += info.Size()
+	}
+	return removed, freed, failed
 }

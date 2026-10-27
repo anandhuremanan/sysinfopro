@@ -1,26 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import {
-		GetDrives,
-		GetDuplicateFolders,
-		PickFolder,
-		RevealInExplorer
-	} from '$lib/wailsjs/go/main/App';
+	import ToolHeader from '$lib/components/ui/ToolHeader.svelte';
+	import { REVEAL_ICON, folderName, placeOf } from '$lib/path';
+	import { RevealInExplorer } from '$lib/wailsjs/go/main/App';
 	import { ClipboardSetText } from '$lib/wailsjs/runtime/runtime';
 	import { cancelGitSweep, gitSweep, sweepRepos, type GitRepo } from '$lib/gitSweep.svelte';
-	import BusyArt from '../ui/BusyArt.svelte';
+	import PlacePicker from '../ui/PlacePicker.svelte';
+	import ScanProgress from '../ui/ScanProgress.svelte';
 	import Segmented from '../ui/Segmented.svelte';
 	import StrokeIcon from '../ui/StrokeIcon.svelte';
 
-	type Drive = { path: string };
-	type Place = { label: string; path: string };
 	type Filter = 'at-risk' | 'changes' | 'all';
 
-	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 	const PAGE = 60;
 
-	let drives = $state<Drive[]>([]);
-	let places = $state<Place[]>([]);
 	let filter = $state<Filter>('at-risk');
 	let opened = $state('');
 	let copied = $state('');
@@ -38,20 +30,8 @@
 	);
 	let progress = $derived(gitSweep.progress);
 
-	const folderName = (path: string) =>
-		path
-			.replace(/[\\/]$/, '')
-			.split(/[\\/]/)
-			.pop() || path;
 	// where a project is, inside the folder searched
-	function placeOf(path: string) {
-		const root = (result?.root ?? '').replace(/[\\/]+$/, '');
-		const parent = path.slice(0, path.lastIndexOf('\\'));
-		if (root && parent.toLowerCase().startsWith(root.toLowerCase())) {
-			return parent.slice(root.length).replace(/^[\\/]+/, '') || folderName(root) || root;
-		}
-		return parent;
-	}
+	const where = (path: string) => placeOf(path, result?.root ?? '');
 	function ago(ms: number) {
 		if (!ms) return 'no commits';
 		const days = Math.floor((Date.now() - ms) / 86_400_000);
@@ -90,8 +70,8 @@
 		return out;
 	}
 	const TONE = {
-		risk: 'bg-red-500/10 text-red-700 dark:text-red-400',
-		warn: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+		risk: 'bg-red-500/10 text-fail',
+		warn: 'bg-amber-500/10 text-warn',
 		muted: 'bg-track text-muted'
 	};
 
@@ -101,88 +81,58 @@
 		shown = PAGE;
 		sweepRepos(root);
 	}
-	async function chooseFolder() {
-		const path = await PickFolder('Choose a folder to search for git projects').catch(() => '');
-		if (path) start(path);
-	}
 	async function copy(path: string) {
 		await ClipboardSetText(path);
 		copied = path;
 		setTimeout(() => copied === path && (copied = ''), 1500);
 	}
-
-	onMount(() => {
-		GetDrives()
-			.then((d) => (drives = (d || []) as Drive[]))
-			.catch(() => {});
-		GetDuplicateFolders()
-			.then(
-				(p: Place[]) =>
-					(places = (p || []).filter((x) => x.label === 'User folder' || x.label === 'Documents'))
-			)
-			.catch(() => {});
-	});
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
-	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
-		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Git projects</div>
-			<div class="text-xs text-muted truncate">
-				{#if gitSweep.isSearching}
-					Searching {gitSweep.root}
-				{:else if result && !result.git_missing}
-					{#if result.at_risk}
-						<span class="text-red-700 dark:text-red-400 font-semibold"
-							>{plural(result.at_risk, 'project has', 'projects have')} work only on this PC</span
-						>
-						· {result.repos.length} found in {folderName(result.root)}
-					{:else if result.unreadable}
-						Nothing unpushed found in {folderName(result.root)}, but git could not read {plural(
-							result.unreadable,
-							'project',
-							'projects'
-						)}
-					{:else}
-						All {result.repos.length} projects in {folderName(result.root)} are pushed
-					{/if}
+	<ToolHeader title="Git projects">
+		{#snippet sub()}
+			{#if gitSweep.isSearching}
+				Searching {gitSweep.root}
+			{:else if result && !result.git_missing}
+				{#if result.at_risk}
+					<span class="text-fail font-semibold"
+						>{plural(result.at_risk, 'project has', 'projects have')} work only on this PC</span
+					>
+					· {result.repos.length} found in {folderName(result.root)}
+				{:else if result.unreadable || result.skipped}
+					Nothing unpushed found in {folderName(result.root)}, but {plural(
+						result.unreadable + result.skipped,
+						'project was',
+						'projects were'
+					)} not checked
 				{:else}
-					Work that exists only on this PC: not committed, not pushed, or no remote at all
+					All {result.repos.length} projects in {folderName(result.root)} are pushed
 				{/if}
-			</div>
-		</div>
-		{#if gitSweep.isSearching}
-			<button class="btn btn-secondary shrink-0" onclick={cancelGitSweep}>Stop</button>
-		{:else if result}
-			<button class="btn btn-secondary shrink-0" onclick={() => (gitSweep.result = null)}>
-				New search
-			</button>
-		{/if}
-	</div>
+			{:else}
+				Work that exists only on this PC: not committed, not pushed, or no remote at all
+			{/if}
+		{/snippet}
+		{#snippet actions()}
+			{#if gitSweep.isSearching}
+				<button class="btn btn-secondary shrink-0" onclick={cancelGitSweep}>Stop</button>
+			{:else if result}
+				<button class="btn btn-secondary shrink-0" onclick={() => (gitSweep.result = null)}>
+					New search
+				</button>
+			{/if}
+		{/snippet}
+	</ToolHeader>
 
 	{#if gitSweep.isSearching}
-		<div class="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-			<BusyArt kind="search" size={64} />
-			<div class="text-xs font-semibold text-ink">
-				{#if progress?.phase === 'checking'}
-					Checking project {progress.done} of {progress.found}...
-				{:else}
-					Looking for projects{progress ? `: ${progress.found} so far` : '...'}
-				{/if}
-			</div>
-			{#if progress?.phase === 'checking' && progress.found}
-				<div class="w-64 h-1.5 rounded-full bg-track overflow-hidden">
-					<div
-						class="h-full bg-accent rounded-full transition-[width] duration-200"
-						style="width: {(progress.done / progress.found) * 100}%"
-					></div>
-				</div>
-			{/if}
-			<div class="text-[11px] text-muted max-w-sm truncate" title={progress?.current}>
-				{progress?.current ?? ''}
-			</div>
-			<div class="text-[11px] text-muted">You can use other tools meanwhile; it keeps going.</div>
-		</div>
+		<ScanProgress
+			label={progress?.phase === 'checking'
+				? `Checking project ${progress.done} of ${progress.found}...`
+				: `Looking for projects${progress ? `: ${progress.found} so far` : '...'}`}
+			percent={progress?.phase === 'checking' && progress.found
+				? (progress.done / progress.found) * 100
+				: null}
+			current={progress?.current ?? ''}
+		/>
 	{:else if result?.git_missing}
 		<div class="flex-1 flex flex-col items-center justify-center gap-1 text-center px-8">
 			<div class="text-sm font-semibold text-ink">Git is not installed</div>
@@ -192,26 +142,16 @@
 		</div>
 	{:else if !result}
 		<div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pt-1">
-			{#if gitSweep.error}<p class="text-xs text-red-700 dark:text-red-400">
+			{#if gitSweep.error}<p class="text-xs text-fail">
 					{gitSweep.error}
 				</p>{/if}
-			<section class="flex flex-col gap-2">
-				<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted">Look in</h3>
-				<div class="flex flex-wrap gap-2">
-					{#each places as place (place.path)}
-						<button class="btn btn-secondary" title={place.path} onclick={() => start(place.path)}
-							>{place.label}</button
-						>
-					{/each}
-					{#each drives as drive (drive.path)}
-						{@const letter = drive.path.replace(/[\\/]$/, '')}
-						<button class="btn btn-secondary" onclick={() => start(letter + '\\')}
-							>All of {letter}</button
-						>
-					{/each}
-					<button class="btn btn-secondary" onclick={chooseFolder}>Choose a folder...</button>
-				</div>
-			</section>
+			<PlacePicker
+				onPick={start}
+				layout="inline"
+				heading="Look in"
+				chooseTitle="Choose a folder to search for git projects"
+				folders={(p) => p.filter((x) => x.label === 'User folder' || x.label === 'Documents')}
+			/>
 			<p class="text-[11px] text-muted leading-relaxed max-w-2xl">
 				Every project found is asked, read-only, what it has that no remote has: commits never
 				pushed, stashes, changes not committed, and projects never pushed anywhere. Nothing is
@@ -258,7 +198,7 @@
 						>
 							<span class="flex items-baseline gap-2 min-w-0">
 								<span class="text-xs font-semibold text-ink truncate">{r.name}</span>
-								<span class="text-[11px] text-muted truncate">{placeOf(r.path)}</span>
+								<span class="text-[11px] text-muted truncate">{where(r.path)}</span>
 							</span>
 						</button>
 						<span class="text-[11px] text-muted shrink-0"
@@ -280,7 +220,10 @@
 									>{b.text}</span
 								>
 							{/each}
-							{#if r.error}<span
+							{#if r.status === 'skipped'}<span
+									class="text-[11px] font-semibold px-1.5 py-0.5 rounded-md pill-warn"
+									title={r.error}>not opened: its git settings run programs</span
+								>{:else if r.error}<span
 									class="text-[11px] px-1.5 py-0.5 rounded-md bg-track text-muted"
 									title={r.error}>git could not read it</span
 								>{/if}
@@ -318,7 +261,7 @@
 								</ul>
 							{/if}
 							{#if r.secret_in_url}
-								<p class="text-red-700 dark:text-red-400 leading-relaxed">
+								<p class="text-fail leading-relaxed">
 									The remote's address has a password or token written in it, so anyone who copies
 									this folder gets it too. Revoke the token, then sign in with Git Credential
 									Manager instead.

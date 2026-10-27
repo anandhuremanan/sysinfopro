@@ -102,6 +102,10 @@ export function GetDiagnosticReport() {
   return window['go']['main']['App']['GetDiagnosticReport']();
 }
 
+export function GetDiagnosticsText() {
+  return window['go']['main']['App']['GetDiagnosticsText']();
+}
+
 export function GetDockerUsage() {
   return window['go']['main']['App']['GetDockerUsage']();
 }
@@ -190,10 +194,6 @@ export function GetWingetUpgrades() {
   return window['go']['main']['App']['GetWingetUpgrades']();
 }
 
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
-}
-
 export function IsStoreApp() {
   return window['go']['main']['App']['IsStoreApp']();
 }
@@ -274,8 +274,16 @@ export function SetWidgetMode(arg1) {
   return window['go']['main']['App']['SetWidgetMode'](arg1);
 }
 
+export function SetWindowVisible(arg1) {
+  return window['go']['main']['App']['SetWindowVisible'](arg1);
+}
+
 export function TerminateProcess(arg1) {
   return window['go']['main']['App']['TerminateProcess'](arg1);
+}
+
+export function TerminateProcessChecked(arg1, arg2, arg3) {
+  return window['go']['main']['App']['TerminateProcessChecked'](arg1, arg2, arg3);
 }
 
 export function UndoPathChange() {

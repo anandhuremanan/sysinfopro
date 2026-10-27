@@ -9,11 +9,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"sysinfopro/internal/winexec"
 )
 
 var procGetPowerStatus = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetSystemPowerStatus")
@@ -52,12 +53,13 @@ func Get(ctx context.Context) (*Report, error) {
 	c, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(c, "powercfg", "/batteryreport", "/xml", "/output", out)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+	winexec.Hide(cmd)
 	msg, _ := cmd.CombinedOutput()
 
 	f, err := os.Open(out)
 	if err != nil {
 		// the PC has a battery, so this is a failure to read it, not "no battery"
+		//lint:ignore ST1005 shown to the user as is; "Windows" is a name
 		return nil, fmt.Errorf("Windows could not produce its battery report: %s", strings.TrimSpace(string(msg)))
 	}
 	defer f.Close()

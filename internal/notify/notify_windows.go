@@ -14,7 +14,9 @@ import (
 	"syscall"
 	"unsafe"
 
-	"myproject/internal/winps"
+	"golang.org/x/sys/windows"
+
+	"sysinfopro/internal/winps"
 
 	"git.sr.ht/~jackmordaunt/go-toast/v2/wintoast"
 )
@@ -35,7 +37,8 @@ var (
 // packageAppID returns the Store package's app ID, or "" for a plain exe.
 // A packaged app must notify under this ID; Windows already knows its name and icon.
 func packageAppID() string {
-	proc := syscall.NewLazyDLL("kernel32.dll").NewProc("GetCurrentApplicationUserModelId")
+	// from the Windows system folder only, never from the app's folder
+	proc := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetCurrentApplicationUserModelId")
 	if proc.Find() != nil {
 		return ""
 	}

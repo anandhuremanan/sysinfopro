@@ -1,26 +1,14 @@
 import { formatBytes } from '$lib';
-import { endTask, startTask, updateTask } from '$lib/tasks.svelte';
+import { createJob, errorText } from '$lib/job';
+import { folderName } from '$lib/path';
 import { CancelDuplicateSearch, FindDuplicates } from '$lib/wailsjs/go/main/App';
-import { EventsOn } from '$lib/wailsjs/runtime/runtime';
+import { dupes } from '$lib/wailsjs/go/models';
 
-export type DupeFile = { path: string; modified: number };
-export type DupeGroup = {
-	id: string;
-	size: number;
-	files: DupeFile[];
-	wasted: number;
-	risky: boolean;
-};
-export type DupeResult = {
-	root: string;
-	groups: DupeGroup[];
-	files: number;
-	wasted: number;
-	cloud_skipped: number;
-	unreadable: number;
-	truncated: boolean;
-	duration_ms: number;
-};
+// the shapes come from the Go structs, so a renamed field breaks the build, not the screen
+export type DupeFile = dupes.File;
+export type DupeGroup = dupes.Group;
+export type DupeResult = dupes.Result;
+// progress events are not part of a binding, so this one is written by hand
 type Progress = {
 	phase: 'listing' | 'comparing';
 	files: number;
@@ -39,66 +27,50 @@ export const dupeSearch = $state<{
 	error: string;
 }>({ root: '', result: null, isSearching: false, progress: null, error: '' });
 
-const TASK = 'dupe-search';
-let searchId = 0;
-let listening = false;
-
-const folderName = (path: string) =>
-	path
-		.replace(/[\\/]$/, '')
-		.split(/[\\/]/)
-		.pop() || path;
-
-function listen() {
-	if (listening) return;
-	listening = true;
-	EventsOn('dupes-progress', (p: Progress) => {
-		if (!dupeSearch.isSearching) return;
-		dupeSearch.progress = p;
-		updateTask(
-			TASK,
-			p.phase === 'listing'
-				? `${p.files.toLocaleString()} files`
-				: `comparing ${p.total ? Math.round((p.done / p.total) * 100) : 0}%`
-		);
-	});
-}
+const job = createJob<Progress>({
+	id: 'dupe-search',
+	view: 'dupes',
+	event: 'dupes-progress',
+	isRunning: () => dupeSearch.isSearching,
+	onProgress: (p) => (dupeSearch.progress = p),
+	detail: (p) =>
+		p.phase === 'listing'
+			? `${p.files.toLocaleString()} files`
+			: `comparing ${p.total ? Math.round((p.done / p.total) * 100) : 0}%`,
+	cancelBackend: CancelDuplicateSearch
+});
 
 export async function searchDupes(root: string, minSize: number) {
-	listen();
-	const id = ++searchId;
 	dupeSearch.root = root;
 	dupeSearch.result = null;
 	dupeSearch.progress = null;
 	dupeSearch.error = '';
 	dupeSearch.isSearching = true;
-	startTask({ id: TASK, label: `Duplicates in ${folderName(root)}`, view: 'dupes' });
+	const id = job.start(`Duplicates in ${folderName(root)}`);
 
 	try {
-		const result = (await FindDuplicates(root, minSize)) as DupeResult;
-		if (id !== searchId) return;
+		const result = await FindDuplicates(root, minSize);
+		if (!job.isCurrent(id)) return;
 		dupeSearch.result = result;
-		endTask(TASK, {
+		job.finish(id, {
 			title: 'Duplicate search finished',
 			body: result.groups.length
 				? `${formatBytes(result.wasted)} in extra copies in ${folderName(root)}.`
 				: `No duplicates in ${folderName(root)}.`
 		});
 	} catch (err) {
-		if (id !== searchId) return;
-		dupeSearch.error = `${err}`.includes('canceled') ? '' : `${err}`;
-		endTask(TASK);
+		if (!job.isCurrent(id)) return;
+		dupeSearch.error = errorText(err);
+		job.finish(id);
 	} finally {
-		if (id === searchId) dupeSearch.isSearching = false;
+		if (job.isCurrent(id)) dupeSearch.isSearching = false;
 	}
 }
 
 export function cancelDupeSearch() {
 	if (!dupeSearch.isSearching) return;
-	searchId++;
 	dupeSearch.isSearching = false;
-	CancelDuplicateSearch();
-	endTask(TASK);
+	job.cancel();
 }
 
 // take removed files out of the shown result; a group with one file left is no longer a duplicate
@@ -108,7 +80,12 @@ export function dropRemoved(paths: Set<string>) {
 	const groups: DupeGroup[] = [];
 	for (const g of r.groups) {
 		const files = g.files.filter((f) => !paths.has(f.path));
-		if (files.length > 1) groups.push({ ...g, files, wasted: g.size * (files.length - 1) });
+		if (files.length > 1)
+			groups.push(new dupes.Group({ ...g, files, wasted: g.size * (files.length - 1) }));
 	}
-	dupeSearch.result = { ...r, groups, wasted: groups.reduce((sum, g) => sum + g.wasted, 0) };
+	dupeSearch.result = new dupes.Result({
+		...r,
+		groups,
+		wasted: groups.reduce((sum, g) => sum + g.wasted, 0)
+	});
 }

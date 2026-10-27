@@ -8,12 +8,16 @@ import (
 )
 
 type BatteryDetails struct {
-	Percentage      float64 `json:"percentage"`
-	State           string  `json:"state"`
-	Remaining       float64 `json:"remaining"`
-	DesignCapacity  float64 `json:"design_capacity"`
+	Percentage float64 `json:"percentage"`
+	State      string  `json:"state"`
+	// hours left at the current drain; 0 when not discharging or unknown
+	Remaining      float64 `json:"remaining"`
+	DesignCapacity float64 `json:"design_capacity"` // mWh, when new
+	// how much the battery holds when fully charged now (mWh)
 	CurrentCapacity float64 `json:"current_capacity"`
-	DegradationPct  float64 `json:"degradation_pct"`
+	// how much charge is in it right now (mWh)
+	ChargeNow      float64 `json:"charge_now"`
+	DegradationPct float64 `json:"degradation_pct"`
 	// Always -1: Windows' battery API gives no cycle count here, and the old
 	// estimate from wear was a guess. The Battery tool reads the real count when
 	// the battery reports one.
@@ -27,21 +31,21 @@ func GetBatteryDetails() (*BatteryDetails, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not retrieve battery info: %w", err)
 	}
-
 	if len(batteries) == 0 {
 		return nil, fmt.Errorf("no battery detected")
 	}
+	return detailsFrom(batteries[0]), nil
+}
 
-	b := batteries[0]
-	state := b.State.String()
-
+// detailsFrom turns the library's reading into what the screens show
+func detailsFrom(b *battery.Battery) *BatteryDetails {
 	percentage := 0.0
 	if b.Full > 0 {
 		percentage = (b.Current / b.Full) * 100
 	}
 
 	remaining := 0.0
-	if state == "discharging" && b.ChargeRate > 0 {
+	if b.State.Raw == battery.Discharging && b.ChargeRate > 0 {
 		remaining = b.Current / b.ChargeRate
 	}
 
@@ -62,12 +66,13 @@ func GetBatteryDetails() (*BatteryDetails, error) {
 
 	return &BatteryDetails{
 		Percentage:      percentage,
-		State:           state,
+		State:           b.State.String(),
 		Remaining:       remaining,
 		DesignCapacity:  b.Design,
-		CurrentCapacity: b.Current,
+		CurrentCapacity: b.Full,
+		ChargeNow:       b.Current,
 		DegradationPct:  math.Round(degradation*10) / 10,
 		CycleEstimate:   -1,
 		HealthStatus:    healthStatus,
-	}, nil
+	}
 }
