@@ -97,15 +97,14 @@
 			<span class="shrink-0">Memory</span>
 			<!-- Live Velocity Indicator -->
 			{#if velocitySample}
-				{#if velocitySample.velocity_mbps > 50 && velocitySample.estimated_oom_sec > 0}
+				<!-- a burst of growth says little about the future, so no "full in N s" countdown -->
+				{#if velocitySample.velocity_mbps > 50}
 					<span
-						class="text-red-500 animate-pulse truncate"
-						title="Growing by {velocitySample.velocity_mbps} MB/s; memory runs out in about {velocitySample.estimated_oom_sec} seconds at this rate"
+						class="text-amber-600 dark:text-amber-400 truncate"
+						title="Memory use is growing by {Math.round(
+							velocitySample.velocity_mbps
+						)} MB a second right now"
 					>
-						Full in {velocitySample.estimated_oom_sec}s
-					</span>
-				{:else if velocitySample.velocity_mbps > 50}
-					<span class="text-amber-600 dark:text-amber-400 animate-pulse truncate">
 						+{Math.round(velocitySample.velocity_mbps)} MB/s
 					</span>
 				{:else if velocitySample.velocity_mbps < -50}

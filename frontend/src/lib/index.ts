@@ -16,7 +16,8 @@ export function mbToGb(mb: number) {
 
 // Bar colour for a "how full is it" percentage (memory, storage)
 export function usageBarColor(percent: number): string {
-	if (percent < 80) return 'bg-accent';
+	// a normal amount is not a status, so it stays neutral; colour only past a threshold
+	if (percent < 80) return 'bg-ink/35';
 	if (percent < 90) return 'bg-amber-500';
 	return 'bg-red-500';
 }
@@ -65,11 +66,7 @@ export async function copyStat(systemInfo: any): Promise<string> {
 
 export function getSystemHealthScore(metrics: any): number {
 	if (!metrics) return 0;
-	const {
-		battery,
-		disk,
-		ram
-	} = metrics;
+	const { battery, disk, ram } = metrics;
 
 	let totalScore = 0;
 	let factorsCount = 0;

@@ -80,11 +80,7 @@
 				{/if}
 			</div>
 		</div>
-		<button
-			class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-			disabled={isLoading}
-			onclick={() => refresh(true)}
-		>
+		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
 			Check again
 		</button>
 	</div>
@@ -100,12 +96,14 @@
 	{:else}
 		<div class="flex-1 min-h-0 grid grid-cols-[200px_1fr] gap-3">
 			<!-- the tools -->
-			<div class="min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-1 pr-1">
+			<div
+				class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] flex flex-col gap-1 pr-1"
+			>
 				{#each installed as tool (tool.id)}
 					<button
 						class="flex items-center gap-2 px-2.5 py-2 rounded-xl text-left cursor-pointer border transition-colors {selected?.id ===
 						tool.id
-							? 'border-accent bg-accent/10'
+							? 'border-line bg-ground'
 							: 'border-transparent hover:bg-tile'}"
 						onclick={() => (selectedId = tool.id)}
 					>
@@ -130,7 +128,9 @@
 			<!-- the selected tool -->
 			{#if selected}
 				{#key selected.id}
-					<div class="min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2 pr-1.5">
+					<div
+						class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] flex flex-col gap-2 pr-1.5"
+					>
 						<div class="flex items-baseline gap-2">
 							<span class="font-bold text-ink">{selected.name}</span>
 							<span class="text-xs text-muted">
@@ -162,13 +162,15 @@
 							{#each selected.copies as copy, i (copy.path)}
 								<div
 									class="flex items-center gap-2.5 rounded-xl border px-3 py-2 {copy.active
-										? 'border-accent/60 bg-tile'
+										? 'border-ink/30 bg-tile'
 										: 'border-line bg-tile opacity-80'}"
 								>
 									<span class="text-[11px] font-mono text-muted w-4 shrink-0">{i + 1}</span>
 									<span class="flex-1 min-w-0">
-										<span class="block text-xs font-mono text-ink truncate" title={copy.path}
-											>{copy.path}</span
+										<!-- cut long paths from the left: the end (folder and file) is what matters -->
+										<span
+											class="block text-xs font-mono text-ink truncate [direction:rtl] text-left"
+											title={copy.path}><bdi>{copy.path}</bdi></span
 										>
 										<span class="block text-[11px] text-muted">
 											{copy.version ? `Version ${copy.version}` : 'Did not say its version'}
@@ -182,7 +184,7 @@
 									</span>
 									{#if copy.active}
 										<span
-											class="text-[10px] font-bold uppercase tracking-wider text-accent shrink-0"
+											class="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-ground text-ink shrink-0"
 											>Runs</span
 										>
 									{/if}

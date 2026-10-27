@@ -59,7 +59,7 @@ export const tools: Tool[] = [
 		hint: 'Right now',
 		group: 'System',
 		keywords: 'slow lag sluggish performance cpu memory ram disk busy hang freeze high usage',
-		icon: 'M12 13l3-3M4.5 18a9 9 0 1 1 15 0M12 13h.01'
+		icon: 'M6 3h12M6 21h12M7 3c0 5 5 6 5 9s-5 4-5 9M17 3c0 5-5 6-5 9s5 4 5 9'
 	},
 	{
 		id: 'battery',
@@ -91,7 +91,7 @@ export const tools: Tool[] = [
 		hint: 'Clean up space',
 		group: 'Clean up',
 		keywords: 'cleaner temp temporary cache browser drive health ssd nvme wear temperature',
-		icon: 'M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3'
+		icon: 'M3 13h18M5 13l2-7h10l2 7v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-5zM16 16h.01M12 16h.01'
 	},
 	{
 		id: 'space',
@@ -169,7 +169,7 @@ export const tools: Tool[] = [
 		id: 'locks',
 		name: 'File locks',
 		hint: 'Who has it open',
-		group: 'Developer',
+		group: 'System',
 		keywords: 'in use open handle cannot delete locked',
 		icon: 'M7 11V8a5 5 0 0 1 10 0v3M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM12 15v2.5'
 	},
@@ -186,7 +186,8 @@ export const tools: Tool[] = [
 		name: 'Dev doctor',
 		hint: 'Which version runs',
 		group: 'Developer',
-		keywords: 'python node java git go dotnet version wrong shadowed java_home nvm pyenv toolchain environment',
+		keywords:
+			'python node java git go dotnet version wrong shadowed java_home nvm pyenv toolchain environment',
 		icon: 'M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3M7.5 15h9'
 	},
 	{
@@ -240,3 +241,40 @@ export function matchTool(tool: Tool, query: string): number {
 	}
 	return score;
 }
+
+// Who each tool helps. A tool can help several kinds of people, and people are
+// usually more than one kind (a developer who games is also an everyday user),
+// so the All tools filter shows tools matching any kind that is turned on.
+export type Audience = 'everyday' | 'developer' | 'gaming';
+export const AUDIENCES: { id: Audience; label: string }[] = [
+	{ id: 'everyday', label: 'Everyday' },
+	{ id: 'developer', label: 'Developer' },
+	{ id: 'gaming', label: 'Gaming' }
+];
+const E: Audience = 'everyday';
+const D: Audience = 'developer';
+const G: Audience = 'gaming';
+export const audienceOf: Record<ToolId, Audience[]> = {
+	specs: [E, D, G],
+	security: [E, D],
+	slow: [E, D, G],
+	battery: [E, D],
+	handover: [E, D],
+	changes: [E, D],
+	stress: [G],
+	health: [E, D, G],
+	space: [E, D, G],
+	growth: [E, D],
+	startup: [E, G],
+	software: [E, D],
+	dupes: [E],
+	devcache: [D],
+	wsl: [D],
+	locks: [E, D],
+	gitsweep: [D],
+	devdoctor: [D],
+	env: [D],
+	speed: [E, G],
+	netdoctor: [E, D, G],
+	ports: [D]
+};

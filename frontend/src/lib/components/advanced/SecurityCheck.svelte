@@ -23,7 +23,8 @@
 	const STATUS: Record<Check['status'], { label: string; pill: string; dot: string }> = {
 		pass: {
 			label: 'OK',
-			pill: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30',
+			// passes stay calm so only what needs a look stands out
+			pill: 'bg-transparent text-muted border-line',
 			dot: 'bg-green-500'
 		},
 		warn: {
@@ -76,7 +77,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Security Check</div>
+			<div class="font-bold text-base text-ink">Security check</div>
 			<div class="text-xs text-muted truncate">
 				Read-only check of this PC's protection settings. Nothing is changed.
 			</div>
@@ -95,17 +96,24 @@
 	</div>
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="check" size={64} label="Checking antivirus, firewall, encryption and updates..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt
+				kind="check"
+				size={64}
+				label="Checking antivirus, firewall, encryption and updates..."
+			/>
+		</div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>
 			<button class="btn btn-secondary" onclick={() => loadReport(true)}>Try again</button>
 		</div>
 	{:else if report}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
 			{#each sortedChecks as check (check.id)}
 				<div class="flex items-center gap-3 py-2 border-b border-line">
-					<span class="w-2 h-2 rounded-full shrink-0 {STATUS[check.status].dot}"></span>
 					<span class="w-40 shrink-0 font-semibold text-ink">{check.title}</span>
 					<span class="flex-1 min-w-0">
 						<span class="block text-ink">{check.detail}</span>
@@ -114,7 +122,7 @@
 						{/if}
 					</span>
 					<span
-						class="shrink-0 w-16 text-center text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border {STATUS[
+						class="shrink-0 w-16 text-center text-[11px] font-semibold px-2 py-0.5 rounded-md border {STATUS[
 							check.status
 						].pill}"
 					>

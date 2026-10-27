@@ -71,7 +71,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">File Locks</div>
+			<div class="font-bold text-base text-ink">File locks</div>
 			<div class="text-xs text-muted truncate">
 				Find the program that stops a file or folder being deleted, moved or saved
 			</div>
@@ -97,19 +97,23 @@
 	{/if}
 
 	{#if isChecking}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Asking Windows which programs have it open..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt kind="search" size={64} label="Asking Windows which programs have it open..." />
+		</div>
 	{:else if result}
 		<div class="flex items-center justify-between gap-3 shrink-0">
 			<span class="font-semibold text-ink truncate" title={result.path}>{result.path}</span>
 			<button
-				class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
+				class="btn btn-secondary h-6 px-2 shrink-0"
 				onclick={() => result && check(result.path)}
 			>
 				Check again
 			</button>
 		</div>
 
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
 			{#each result.processes as proc (proc.pid)}
 				<div class="flex items-center gap-3 h-10 border-b border-line">
 					<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={proc.name}>
@@ -117,14 +121,20 @@
 					</span>
 					<span class="shrink-0 w-28 text-muted">{proc.kind}</span>
 					<span class="shrink-0 w-16 text-right font-mono text-muted">{proc.pid}</span>
-					<button
-						class="shrink-0 px-2.5 py-1 text-[10px] border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500 hover:text-white dark:hover:text-white rounded-md cursor-pointer font-medium disabled:opacity-30 disabled:cursor-not-allowed"
-						disabled={isProtected(proc)}
-						title={isProtected(proc) ? 'Windows needs this process' : 'Unsaved work in it is lost'}
-						onclick={() => endProcess(proc)}
-					>
-						End process
-					</button>
+					{#if isProtected(proc)}
+						<span class="shrink-0 w-[92px] text-right text-[11px] text-muted"
+							>Needed by Windows</span
+						>
+					{:else}
+						<!-- neutral until pointed at: ending a program is a choice, not an alarm -->
+						<button
+							class="btn btn-secondary h-6 px-2 w-[92px] shrink-0 hover:border-red-500/50 hover:text-red-600 dark:hover:text-red-400"
+							title="Unsaved work in it is lost"
+							onclick={() => endProcess(proc)}
+						>
+							End process
+						</button>
+					{/if}
 				</div>
 			{:else}
 				<div class="h-full flex flex-col items-center justify-center gap-1 text-center">
@@ -156,7 +166,9 @@
 	{:else}
 		<!-- Ready State -->
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
-			<div class="text-sm font-bold text-ink">"The action can't be completed because the file is open"</div>
+			<div class="text-sm font-bold text-ink">
+				"The action can't be completed because the file is open"
+			</div>
 			<p class="text-xs text-muted max-w-md leading-relaxed">
 				Choose the file or folder Windows refuses to touch. You will see every program that has it
 				open, and can end the one in the way. Checking changes nothing.

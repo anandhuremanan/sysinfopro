@@ -1,10 +1,7 @@
 <script lang="ts">
 	import BusyArt from '../ui/BusyArt.svelte';
 	import { formatBytes, usageBarColor } from '$lib';
-	import {
-		GetDrives,
-		RevealInExplorer
-	} from '$lib/wailsjs/go/main/App';
+	import { GetDrives, RevealInExplorer } from '$lib/wailsjs/go/main/App';
 	import {
 		cancelScan,
 		diskScan,
@@ -25,11 +22,9 @@
 		used_pct: number;
 	};
 
-	const FOLDER_ICON =
-		'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z';
+	const FOLDER_ICON = 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z';
 	const FILE_ICON = 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5zM14 3v5h5';
-	const REVEAL_ICON =
-		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
+	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	// open on this drive ("C:") when given, for example from a low-space alert
 	let { drive: initialDrive }: { drive?: string } = $props();
@@ -76,10 +71,13 @@
 		try {
 			drives = (await GetDrives()) || [];
 			const wanted = initialDrive?.toUpperCase();
-			const asked = wanted ? drives.find((d) => d.path.toUpperCase().startsWith(wanted)) : undefined;
+			const asked = wanted
+				? drives.find((d) => d.path.toUpperCase().startsWith(wanted))
+				: undefined;
 			// an alert can ask for a drive; otherwise keep the drive chosen before, or the first
 			if (asked && asked.path !== diskScan.drivePath && !diskScan.isScanning) selectDrive(asked);
-			else if (!drives.some((d) => d.path === diskScan.drivePath) && drives.length > 0) selectDrive(drives[0]);
+			else if (!drives.some((d) => d.path === diskScan.drivePath) && drives.length > 0)
+				selectDrive(drives[0]);
 		} catch (err) {
 			console.error('Failed to list drives:', err);
 			showStatus(`Failed to list drives: ${err}`);
@@ -113,21 +111,19 @@
 		return pct > 0 && pct < 0.1 ? '<0.1%' : `${pct.toFixed(1)}%`;
 	}
 
-
 	$effect(() => {
 		loadDrives();
 		// free space changes while the tool is open (downloads, builds, clean-ups)
 		const timer = setInterval(loadDrives, 5000);
 		return () => clearInterval(timer);
 	});
-
 </script>
 
 <div class="flex flex-col h-full min-h-0 gap-2 p-1">
 	<!-- Header Bar: drives -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Disk Usage Analyser</div>
+			<div class="font-bold text-base text-ink">Disk usage</div>
 			<div class="text-xs text-muted truncate">
 				See which folders and files take up space on each drive
 			</div>
@@ -138,14 +134,15 @@
 				<button
 					class="w-[132px] px-2.5 py-1.5 rounded-lg border text-left cursor-pointer transition-colors {selectedDrive?.path ===
 					drive.path
-						? 'border-accent bg-ground'
+						? 'border-ink/40 bg-ground'
 						: 'border-line hover:bg-ground'}"
 					aria-pressed={selectedDrive?.path === drive.path}
 					onclick={() => selectDrive(drive)}
 				>
 					<span class="flex justify-between items-baseline gap-2">
 						<span class="font-bold text-ink">{drive.path.replace(/[\\/]$/, '')}</span>
-						<span class="text-[10px] text-muted truncate">{formatBytes(drive.free_bytes)} free</span>
+						<span class="text-[10px] text-muted truncate">{formatBytes(drive.free_bytes)} free</span
+						>
 					</span>
 					<span class="block h-1 mt-1 rounded-full bg-track">
 						<span
@@ -158,8 +155,8 @@
 		</div>
 	</div>
 
-	<!-- Path bar -->
-	{#if selectedDrive}
+	<!-- Path bar: only once there is somewhere to go back to (the drive name alone repeats the chosen drive) -->
+	{#if selectedDrive && (usage || crumbs.length > 1)}
 		<div class="flex items-center justify-between gap-3 shrink-0">
 			<nav aria-label="Folder path" class="flex items-center gap-1 min-w-0 overflow-hidden">
 				{#each crumbs as crumb, i (crumb.path)}
@@ -179,10 +176,7 @@
 				{/each}
 			</nav>
 			{#if usage}
-				<button
-					class="text-xs bg-ground px-3 py-1 rounded-lg cursor-pointer hover:bg-line font-medium border border-line shrink-0"
-					onclick={() => scan(currentPath, true)}
-				>
+				<button class="btn btn-secondary shrink-0" onclick={() => scan(currentPath, true)}>
 					Rescan
 				</button>
 			{/if}
@@ -209,12 +203,7 @@
 			<div class="text-[11px] text-muted max-w-[520px] truncate" title={scanProgress?.current}>
 				{scanProgress?.current || currentPath}
 			</div>
-			<button
-				class="mt-1 text-xs bg-ground px-3 py-1.5 rounded-lg cursor-pointer hover:bg-line font-medium border border-line"
-				onclick={cancelScan}
-			>
-				Cancel
-			</button>
+			<button class="btn btn-secondary mt-1" onclick={cancelScan}> Cancel </button>
 		</div>
 	{:else if usage}
 		<div class="flex-1 min-h-0 grid grid-cols-5 gap-3">
@@ -223,7 +212,9 @@
 				<div class="text-[10px] uppercase tracking-wider font-semibold text-muted pb-1 shrink-0">
 					In this folder
 				</div>
-				<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+				<div
+					class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+				>
 					{#each usage.entries as entry (entry.path)}
 						<div class="group flex items-center gap-2 h-8 border-b border-line">
 							<span class="shrink-0 {entry.is_dir ? 'text-accent' : 'text-muted'}">
@@ -238,7 +229,8 @@
 									{entry.name}
 								</button>
 							{:else}
-								<span class="flex-1 min-w-0 text-ink truncate" title={entry.path}>{entry.name}</span>
+								<span class="flex-1 min-w-0 text-ink truncate" title={entry.path}>{entry.name}</span
+								>
 							{/if}
 							<span class="shrink-0 w-16 h-1 rounded-full bg-track">
 								<span
@@ -262,7 +254,9 @@
 							</button>
 						</div>
 					{:else}
-						<div class="h-full flex items-center justify-center text-muted">This folder is empty.</div>
+						<div class="h-full flex items-center justify-center text-muted">
+							This folder is empty.
+						</div>
 					{/each}
 				</div>
 			</div>
@@ -272,11 +266,15 @@
 				<div class="text-[10px] uppercase tracking-wider font-semibold text-muted pb-1 shrink-0">
 					Largest files here and below
 				</div>
-				<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+				<div
+					class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+				>
 					{#each usage.largest_files as file (file.path)}
 						<div class="flex items-center gap-2 h-8 border-b border-line">
 							<span class="flex-1 min-w-0 text-ink truncate" title={file.path}>{file.name}</span>
-							<span class="shrink-0 font-mono font-bold text-ink">{formatBytes(file.size_bytes)}</span>
+							<span class="shrink-0 font-mono font-bold text-ink"
+								>{formatBytes(file.size_bytes)}</span
+							>
 							<button
 								aria-label="Show {file.name} in file manager"
 								title="Show in file manager"
@@ -329,6 +327,8 @@
 			</button>
 		</div>
 	{:else}
-		<div class="flex-1 flex items-center justify-center text-xs text-muted">Looking for drives...</div>
+		<div class="flex-1 flex items-center justify-center text-xs text-muted">
+			Looking for drives...
+		</div>
 	{/if}
 </div>

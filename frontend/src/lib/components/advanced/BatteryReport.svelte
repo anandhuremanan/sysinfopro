@@ -64,7 +64,7 @@
 
 	// the health chart: one line, % of original capacity over time
 	const W = 560;
-	const H = 150;
+	const H = 120;
 	const PAD = { l: 34, r: 8, t: 8, b: 20 };
 	let chart = $derived.by(() => {
 		const h = report?.history ?? [];
@@ -116,11 +116,7 @@
 					: ''}
 			</div>
 		</div>
-		<button
-			class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-			disabled={isLoading}
-			onclick={() => refresh(true)}
-		>
+		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
 			Refresh
 		</button>
 	</div>
@@ -138,7 +134,9 @@
 			This PC has no battery, so there is nothing to report.
 		</div>
 	{:else if report}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-3">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-3"
+		>
 			<!-- headline -->
 			<div class="flex items-center gap-4 px-1">
 				<div class="shrink-0 text-center">

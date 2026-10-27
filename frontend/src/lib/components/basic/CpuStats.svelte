@@ -1,5 +1,20 @@
 <script lang="ts">
-	import { GetCPUStats } from '../../wailsjs/go/main/App';
+	import { GetCPUStats, GetUptimeSeconds } from '../../wailsjs/go/main/App';
+
+	let { onStress }: { onStress?: () => void } = $props();
+
+	// time since Windows last started; with Fast Startup, "Shut down" does not reset it
+	let uptimeSec = $state(0);
+	let uptimeText = $derived.by(() => {
+		const h = Math.floor(uptimeSec / 3600);
+		if (h < 1) return `${Math.max(1, Math.floor(uptimeSec / 60))} min`;
+		if (h < 48) return `${h} h`;
+		return `${Math.floor(h / 24)} days`;
+	});
+	let longUptime = $derived(uptimeSec > 14 * 86400);
+	async function readUptime() {
+		uptimeSec = (await GetUptimeSeconds().catch(() => 0)) || 0;
+	}
 
 	interface CPUStats {
 		usage: number;
@@ -45,7 +60,10 @@
 		isThrottling = !!stats.is_throttling;
 		sustainedLoad = !!stats.sustained_load;
 
-		timestamps = [...timestamps, new Date((stats.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString()];
+		timestamps = [
+			...timestamps,
+			new Date((stats.timestamp || Date.now() / 1000) * 1000).toLocaleTimeString()
+		];
 		usageHistory = [...usageHistory, stats.usage || 0];
 
 		if (usageHistory.length > MAX_HISTORY_LENGTH) {
@@ -73,6 +91,9 @@
 
 	$effect(() => {
 		init();
+		readUptime();
+		const timer = setInterval(readUptime, 60_000);
+		return () => clearInterval(timer);
 	});
 
 	$effect(() => {
@@ -111,12 +132,31 @@
 		</svg>
 	</div>
 
-	<!-- Intelligent Diagnostics Status -->
-	{#if isThrottling}
-		<div class="font-semibold text-red-500">Thermal throttling detected</div>
-	{:else if sustainedLoad}
-		<div class="font-semibold text-amber-600 dark:text-amber-400">Sustained heavy load</div>
-	{:else}
-		<div class="text-muted">Normal load</div>
-	{/if}
+	<div class="flex flex-col gap-0.5">
+		{#if isThrottling}
+			<span class="font-semibold text-red-500">Slowed down by heat</span>
+		{:else if sustainedLoad}
+			<span class="font-semibold text-amber-600 dark:text-amber-400">Busy for a while now</span>
+		{:else}
+			<span class="text-muted">Normal load</span>
+		{/if}
+		<span class="flex items-center justify-between gap-2 text-[11px]">
+			<span
+				class={longUptime ? 'text-amber-600 dark:text-amber-400' : 'text-muted'}
+				title={longUptime
+					? 'A restart clears memory and finishes updates. With Fast Startup on, Shut down does not count as a restart.'
+					: 'Time since Windows last started'}
+			>
+				{uptimeSec ? `Up ${uptimeText}${longUptime ? ' · restart?' : ''}` : ''}
+			</span>
+			{#if onStress}
+				<button
+					class="relative z-10 font-semibold text-accent cursor-pointer hover:underline shrink-0"
+					onclick={onStress}
+				>
+					Stress test →
+				</button>
+			{/if}
+		</span>
+	</div>
 </div>

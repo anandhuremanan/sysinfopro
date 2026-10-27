@@ -35,9 +35,7 @@
 		{onclick}
 	>
 		<span class="flex items-start justify-between">
-			<span
-				class="w-6 h-6 rounded-[7px] bg-accent text-on-accent flex items-center justify-center"
-			>
+			<span class="w-6 h-6 rounded-[7px] bg-accent/15 text-accent flex items-center justify-center">
 				<StrokeIcon d={icon} size={14} />
 			</span>
 			{@render badge()}
@@ -53,7 +51,7 @@
 		{onclick}
 	>
 		<span
-			class="shrink-0 w-[30px] h-[30px] rounded-[9px] bg-accent text-on-accent flex items-center justify-center"
+			class="shrink-0 w-[30px] h-[30px] rounded-[9px] bg-accent/15 text-accent flex items-center justify-center"
 		>
 			<StrokeIcon d={icon} />
 		</span>

@@ -68,11 +68,19 @@
 		const out: { text: string; tone: 'risk' | 'warn' | 'muted' }[] = [];
 		if (r.secret_in_url) out.push({ text: 'password in remote address', tone: 'risk' });
 		if (r.no_remote && !r.empty) out.push({ text: 'no remote: only on this PC', tone: 'risk' });
-		else if (r.local_only)
+		else if (r.local_only) {
+			// say where the commits are: often an old side branch, not the one checked out
+			const commits = plural(r.local_only, 'commit', 'commits');
+			const only = r.branches.length === 1 ? r.branches[0] : null;
 			out.push({
-				text: plural(r.local_only, 'commit not pushed', 'commits not pushed'),
+				text: only
+					? `${commits} on ${only.name === r.branch ? 'this branch' : `branch ${only.name}`} not pushed`
+					: r.branches.length > 1
+						? `${commits} on ${r.branches.length} branches not pushed`
+						: `${commits} not pushed`,
 				tone: 'risk'
 			});
+		}
 		if (r.stashes) out.push({ text: plural(r.stashes, 'stash', 'stashes'), tone: 'risk' });
 		if (r.conflicts) out.push({ text: plural(r.conflicts, 'conflict', 'conflicts'), tone: 'warn' });
 		if (r.changed)
@@ -140,10 +148,7 @@
 		{#if gitSweep.isSearching}
 			<button class="btn btn-secondary shrink-0" onclick={cancelGitSweep}>Stop</button>
 		{:else if result}
-			<button
-				class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-				onclick={() => (gitSweep.result = null)}
-			>
+			<button class="btn btn-secondary shrink-0" onclick={() => (gitSweep.result = null)}>
 				New search
 			</button>
 		{/if}
@@ -185,7 +190,7 @@
 					{gitSweep.error}
 				</p>{/if}
 			<section class="flex flex-col gap-2">
-				<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted">Search</h3>
+				<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted">Look in</h3>
 				<div class="flex flex-wrap gap-2">
 					{#each places as place (place.path)}
 						<button class="btn btn-secondary" title={place.path} onclick={() => start(place.path)}
@@ -198,7 +203,7 @@
 							>All of {letter}</button
 						>
 					{/each}
-					<button class="btn btn-primary" onclick={chooseFolder}>Choose a folder...</button>
+					<button class="btn btn-secondary" onclick={chooseFolder}>Choose a folder...</button>
 				</div>
 			</section>
 			<p class="text-[11px] text-muted leading-relaxed max-w-2xl">
@@ -229,7 +234,9 @@
 			/>
 		</div>
 
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-1.5"
+		>
 			{#each repos.slice(0, shown) as r (r.path)}
 				{@const open = opened === r.path}
 				<div

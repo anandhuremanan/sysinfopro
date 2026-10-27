@@ -7,8 +7,8 @@ import (
 
 type FactorScore struct {
 	Name    string  `json:"name"`
-	Score   float64 `json:"score"`   // 0 - 100
-	Status  string  `json:"status"`  // Optimal, Fair, Warning, Critical
+	Score   float64 `json:"score"`  // 0 - 100
+	Status  string  `json:"status"` // Optimal, Fair, Warning, Critical
 	Details string  `json:"details"`
 }
 
@@ -28,17 +28,17 @@ type DiagnosticReport struct {
 }
 
 type EvaluationInput struct {
-	CpuUsagePct      float64
-	IsThrottling     bool
-	RamUsagePct      float64
-	SwapUsedMB       uint64
-	SwapTotalMB      uint64
-	FreeDiskGB       uint64
-	TotalDiskGB      uint64
-	BatteryPct       float64
+	CpuUsagePct        float64
+	IsThrottling       bool
+	RamUsagePct        float64
+	SwapUsedMB         uint64
+	SwapTotalMB        uint64
+	FreeDiskGB         uint64
+	TotalDiskGB        uint64
+	BatteryPct         float64
 	BatteryDegradation float64
-	NetworkConnected bool
-	PingLatencyMs    float64
+	NetworkConnected   bool
+	PingLatencyMs      float64
 }
 
 func EvaluateSystemHealth(input EvaluationInput) DiagnosticReport {
@@ -73,18 +73,22 @@ func EvaluateSystemHealth(input EvaluationInput) DiagnosticReport {
 
 	// 2. RAM & Swap Factor
 	ramScore := 100.0 - input.RamUsagePct
+	swapPct := 0.0
 	if input.SwapTotalMB > 0 && input.SwapUsedMB > 0 {
-		swapPct := (float64(input.SwapUsedMB) / float64(input.SwapTotalMB)) * 100.0
-		if swapPct > 50 {
-			ramScore -= 15.0
-			recs = append(recs, Recommendation{
-				ID:          "ram_swap",
-				Severity:    "warning",
-				Title:       "Elevated Memory Pressure",
-				Description: "System is using swap paging memory which may cause minor micro-stutters.",
-				ActionLabel: "Close Heavy Apps",
-			})
-		}
+		swapPct = (float64(input.SwapUsedMB) / float64(input.SwapTotalMB)) * 100.0
+	}
+	// 90% is also where the home screen's memory bar turns red, so the two agree
+	if swapPct > 50 {
+		ramScore -= 15.0
+	}
+	if swapPct > 50 || input.RamUsagePct >= 90 {
+		recs = append(recs, Recommendation{
+			ID:          "ram_swap",
+			Severity:    "warning",
+			Title:       "Memory is nearly full",
+			Description: "When memory runs out, Windows moves things to the drive, which is much slower.",
+			ActionLabel: "Close Heavy Apps",
+		})
 	}
 	ramScore = math.Max(0.0, math.Min(100.0, ramScore))
 	ramStatus := "Optimal"

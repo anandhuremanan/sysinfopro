@@ -52,8 +52,7 @@
 		files_deleted: number;
 	};
 
-	const REVEAL_ICON =
-		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
+	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	let caches = $state<Item[]>(recall('devcaches') ?? []);
 	// the project search lives in a store: it keeps running, and its result stays,
@@ -292,7 +291,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Dev Cache Cleaner</div>
+			<div class="font-bold text-base text-ink">Dev caches</div>
 			<div class="text-xs text-muted truncate">
 				Reclaim space from package caches and old project folders
 			</div>
@@ -303,7 +302,7 @@
 				<span class="text-muted">{formatBytes(totalBytes)} found</span>
 			{/if}
 			<button
-				class="btn btn-danger"
+				class="btn btn-primary disabled:bg-track disabled:text-muted disabled:opacity-100"
 				disabled={selectedItems.length === 0 || isDeleting}
 				onclick={() => (showConfirm = true)}
 			>
@@ -333,16 +332,20 @@
 					Package and build caches
 				</span>
 				<button
-					class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink"
+					class="btn btn-secondary h-6 px-2"
 					onclick={() => loadCaches(true)}
 					disabled={isScanningCaches}
 				>
 					Rescan
 				</button>
 			</div>
-			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+			<div
+				class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+			>
 				{#if isScanningCaches}
-					<div class="h-full flex items-center justify-center"><BusyArt kind="measure" size={64} label="Measuring caches..." /></div>
+					<div class="h-full flex items-center justify-center">
+						<BusyArt kind="measure" size={64} label="Measuring caches..." />
+					</div>
 				{:else}
 					{#each caches as item (item.path)}
 						{@render row(item, item.name, item.deletable ? item.path : item.note)}
@@ -403,7 +406,7 @@
 						{/each}
 					</div>
 					<button
-						class="btn btn-danger ml-auto h-6 px-2"
+						class="btn btn-primary ml-auto h-6 px-2"
 						disabled={staleLeftovers.length === 0 || isDeleting}
 						title={staleLeftovers.length > 0
 							? `Delete ${staleLeftovers.length} ${staleLeftovers.length === 1 ? 'folder' : 'folders'} not used in ${unusedMonths} ${unusedMonths === 1 ? 'month' : 'months'}`
@@ -416,7 +419,9 @@
 					</button>
 				</div>
 			{/if}
-			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+			<div
+				class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+			>
 				{#if isSearching}
 					<div class="h-full flex flex-col items-center justify-center gap-2 text-center">
 						<BusyArt kind="search" size={64} />
@@ -427,7 +432,8 @@
 				{:else if !searchRoot}
 					<div class="h-full flex flex-col items-center justify-center gap-2 text-center px-4">
 						<p class="text-muted leading-relaxed">
-							Pick the folder that holds your projects to find node_modules, build output and Python environments inside it.
+							Pick the folder that holds your projects to find node_modules, build output and Python
+							environments inside it.
 						</p>
 						<button class="btn btn-primary" onclick={chooseFolderAndSearch}>Choose folder</button>
 					</div>
@@ -527,9 +533,8 @@
 
 		{#if !isDeleting}
 			<p class="text-muted leading-relaxed">
-				Nothing here is your own work: caches are downloaded again when needed, and project
-				folders come back when you install or build that project. Close editors and dev servers
-				first.
+				Nothing here is your own work: caches are downloaded again when needed, and project folders
+				come back when you install or build that project. Close editors and dev servers first.
 			</p>
 		{/if}
 	</div>

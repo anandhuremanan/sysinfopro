@@ -1,6 +1,12 @@
 <script lang="ts">
-	import { matchTool, tools, type ToolStatus } from '$lib/tools';
-	import StrokeIcon from '../ui/StrokeIcon.svelte';
+	import {
+		AUDIENCES,
+		audienceOf,
+		matchTool,
+		tools,
+		type Audience,
+		type ToolStatus
+	} from '$lib/tools';
 
 	let {
 		toolStatus,
@@ -12,36 +18,62 @@
 
 	let searchTerm = $state('');
 
-	// groups in display order, each with its own shade of the accent colour
-	const GROUPS = [
-		{ name: 'System', tone: 100 },
-		{ name: 'Clean up', tone: 82 },
-		{ name: 'Developer', tone: 64 },
-		{ name: 'Network', tone: 48 }
-	];
-	const toneOf = (group: string) => GROUPS.find((g) => g.name === group)?.tone ?? 100;
-	// --tone-mix is white for light accents and black for dark ones, so a lighter
-	// shade keeps the icon on it readable
-	const tint = (group: string) =>
-		`color-mix(in srgb, var(--accent) ${toneOf(group)}%, var(--tone-mix))`;
+	// groups in display order; the first card of each group names it
+	const GROUPS = ['System', 'Clean up', 'Developer', 'Network'];
 
+	// which kinds of tools to show; remembered on this PC. All on = every tool.
+	const KEY = 'sysinfopro-tool-audience';
+	function remembered(): Audience[] {
+		try {
+			const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
+			if (Array.isArray(saved) && saved.length) return saved;
+		} catch {
+			// private window or blocked storage: fall back to everything
+		}
+		return AUDIENCES.map((a) => a.id);
+	}
+	let audience = $state<Audience[]>(remembered());
+
+	function toggle(id: Audience) {
+		// at least one kind stays on, so the page is never empty
+		if (audience.includes(id) && audience.length === 1) return;
+		audience = audience.includes(id) ? audience.filter((a) => a !== id) : [...audience, id];
+		try {
+			localStorage.setItem(KEY, JSON.stringify(audience));
+		} catch {
+			// not remembered; still applies now
+		}
+	}
+
+	let ordered = $derived(GROUPS.flatMap((g) => tools.filter((t) => t.group === g)));
+	// typing searches every tool, so a filtered-out tool is never unreachable
+	let searching = $derived(searchTerm.trim().length > 0);
 	let shown = $derived(
-		GROUPS.flatMap((g) => tools.filter((t) => t.group === g.name)).filter(
-			(t) => matchTool(t, searchTerm) > 0
-		)
+		searching
+			? ordered.filter((t) => matchTool(t, searchTerm) > 0)
+			: ordered.filter((t) => audienceOf[t.id].some((a) => audience.includes(a)))
 	);
 </script>
 
 <div class="h-full flex flex-col gap-2.5 min-h-0">
 	<div class="flex items-center justify-between gap-3 shrink-0">
-		<div class="flex items-center gap-3.5 min-w-0 text-[11px] text-muted">
-			<span class="text-xs">{tools.length} tools</span>
-			{#each GROUPS as group (group.name)}
-				<span class="flex items-center gap-1.5 whitespace-nowrap">
-					<i class="w-2 h-2 rounded-[3px]" style="background: {tint(group.name)}"></i>
-					{group.name}
-				</span>
+		<div class="flex items-center gap-1.5 min-w-0" role="group" aria-label="Show tools for">
+			<span class="text-xs text-muted mr-1">Show tools for</span>
+			{#each AUDIENCES as a (a.id)}
+				{@const on = audience.includes(a.id)}
+				<button
+					class="h-6 px-2.5 rounded-full text-[11px] font-semibold border cursor-pointer transition-colors {on
+						? 'bg-accent/15 border-accent/50 text-ink'
+						: 'bg-transparent border-line text-muted hover:text-ink'}"
+					aria-pressed={on}
+					onclick={() => toggle(a.id)}
+				>
+					{a.label}
+				</button>
 			{/each}
+			<span class="text-[11px] text-muted ml-1.5">
+				{searching ? `${shown.length} found in all tools` : `${shown.length} of ${tools.length}`}
+			</span>
 		</div>
 		<input
 			type="search"
@@ -56,34 +88,78 @@
 		{#if shown.length === 0}
 			<div class="h-full flex items-center justify-center text-muted">No matching tools found.</div>
 		{:else}
-			<div class="grid grid-cols-6 gap-2 auto-rows-[80px]">
-				{#each shown as tool (tool.id)}
+			<div class="grid grid-cols-6 gap-2 auto-rows-[76px] p-0.5">
+				{#each shown as tool, i (tool.id)}
 					{@const count = toolStatus[tool.id]?.count ?? 0}
 					<button
-						class="relative min-w-0 rounded-2xl bg-tile px-2 py-1.5 flex flex-col items-center justify-center gap-0.5 text-center cursor-pointer transition-[background-color,transform] duration-150 hover:bg-line/60 active:scale-[0.97]"
+						class="card relative min-w-0 overflow-hidden rounded-[14px] px-2.5 py-2 flex flex-col justify-end text-left cursor-pointer"
 						onclick={() => onOpen(tool.id)}
 					>
-						<span
-							class="w-[30px] h-[30px] rounded-[9px] flex items-center justify-center text-on-accent"
-							style="background: {tint(tool.group)}"
+						<!-- the tool's icon, large and faint; brighter on hover -->
+						<svg
+							class="mark absolute -top-1.5 -right-2 text-accent pointer-events-none"
+							width="52"
+							height="52"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
 						>
-							<StrokeIcon d={tool.icon} size={18} />
-						</span>
-						<span class="font-semibold text-ink leading-tight max-w-full truncate">{tool.name}</span
-						>
-						<span class="text-[11px] text-muted leading-tight max-w-full truncate">
-							{toolStatus[tool.id]?.hint ?? tool.hint}
-						</span>
+							<path class="base" d={tool.icon} />
+						</svg>
+						{#if i === 0 || shown[i - 1].group !== tool.group}
+							<span
+								class="absolute top-2 left-2.5 text-[9.5px] uppercase tracking-wider font-semibold text-accent"
+							>
+								{tool.group}
+							</span>
+						{/if}
 						{#if count > 0}
 							<span
-								class="absolute top-2 right-2 min-w-[18px] h-[18px] px-[5px] rounded-full bg-amber-200 text-amber-900 text-[11px] font-bold leading-[18px] text-center"
+								class="absolute top-1.5 right-2 z-10 min-w-[18px] h-[18px] px-[5px] rounded-full bg-amber-200 text-amber-900 text-[11px] font-bold leading-[18px] text-center"
+								aria-label="{count} to look at"
 							>
 								{count}
 							</span>
 						{/if}
+						<span class="relative text-[12.5px] font-semibold text-ink leading-tight line-clamp-2"
+							>{tool.name}</span
+						>
+						<span class="relative text-[11px] text-muted leading-tight truncate">
+							{toolStatus[tool.id]?.hint ?? tool.hint}
+						</span>
 					</button>
 				{/each}
 			</div>
 		{/if}
 	</div>
 </div>
+
+<style>
+	.card {
+		background: linear-gradient(
+			150deg,
+			color-mix(in srgb, var(--accent) 14%, var(--tile)) 0%,
+			var(--tile) 70%
+		);
+		border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+	}
+	/* hover: a stronger border and a brighter icon, nothing moving */
+	.card:hover {
+		border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+	}
+	.card:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+	.mark .base {
+		opacity: 0.18;
+	}
+	.card:hover .mark .base,
+	.card:focus-visible .mark .base {
+		opacity: 0.32;
+	}
+</style>

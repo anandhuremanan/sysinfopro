@@ -170,10 +170,7 @@
 		{#if dupeSearch.isSearching}
 			<button class="btn btn-secondary shrink-0" onclick={cancelDupeSearch}>Stop</button>
 		{:else if result}
-			<button
-				class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-				onclick={() => (dupeSearch.result = null)}
-			>
+			<button class="btn btn-secondary shrink-0" onclick={() => (dupeSearch.result = null)}>
 				New search
 			</button>
 		{/if}
@@ -243,7 +240,7 @@
 								{place.label}
 							</button>
 						{/each}
-						<button class="btn btn-primary" onclick={chooseFolder}>Choose a folder...</button>
+						<button class="btn btn-secondary" onclick={chooseFolder}>Choose a folder...</button>
 					</div>
 				</section>
 			{/if}
@@ -329,7 +326,9 @@
 			</label>
 		{/if}
 
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-1.5"
+		>
 			{#each groups.slice(0, shown) as g (g.id)}
 				{@const all = opened.has(g.id)}
 				<div

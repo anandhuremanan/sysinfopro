@@ -26,9 +26,24 @@
 
 	const GROUPS = ['Accounts', 'Your files', 'Secrets', 'Device'];
 	const MARK = {
-		todo: { d: 'M12 7v6M12 17h.01', tone: 'text-amber-700 dark:text-amber-400', label: 'To do' },
-		ok: { d: 'M5 12l5 5 9-10', tone: 'text-green-700 dark:text-green-400', label: 'Fine' },
-		info: { d: 'M12 11v6M12 7h.01', tone: 'text-muted', label: 'Note' }
+		todo: {
+			d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8v5M12 16h.01',
+			tone: 'text-amber-700 dark:text-amber-400',
+			pill: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+			label: 'To do'
+		},
+		ok: {
+			d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM8 12l3 3 5-6',
+			tone: 'text-green-700 dark:text-green-400',
+			pill: 'bg-ground text-muted',
+			label: 'Fine'
+		},
+		info: {
+			d: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01',
+			tone: 'text-muted',
+			pill: 'bg-ground text-muted',
+			label: 'Note'
+		}
 	};
 	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
@@ -74,11 +89,7 @@
 				{/if}
 			</div>
 		</div>
-		<button
-			class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-			disabled={isLoading}
-			onclick={() => refresh(true)}
-		>
+		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
 			Check again
 		</button>
 	</div>
@@ -88,7 +99,9 @@
 			<BusyArt kind="check" size={64} label="Looking at accounts, files and saved passwords..." />
 		</div>
 	{:else if report}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-3">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-3"
+		>
 			<p class="text-[11px] text-muted px-1">
 				Only looked at, nothing is changed. Passwords and keys are never read.
 			</p>
@@ -105,13 +118,13 @@
 						>
 							<div class="flex items-center gap-2">
 								<span class="{MARK[item.status].tone} shrink-0"
-									><StrokeIcon d={MARK[item.status].d} size={14} /></span
+									><StrokeIcon d={MARK[item.status].d} size={16} /></span
 								>
 								<span class="text-xs font-semibold text-ink flex-1 min-w-0">{item.title}</span>
 								<span
-									class="text-[10px] uppercase tracking-wider font-semibold shrink-0 {MARK[
+									class="text-[11px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 {MARK[
 										item.status
-									].tone}"
+									].pill}"
 								>
 									{MARK[item.status].label}
 								</span>

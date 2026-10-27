@@ -34,14 +34,19 @@
 	};
 
 	const LEVEL = {
-		high: { dot: 'bg-red-500', text: 'text-red-700 dark:text-red-400', label: 'Big effect' },
-		medium: {
-			dot: 'bg-amber-500',
-			text: 'text-amber-700 dark:text-amber-400',
-			label: 'Some effect'
-		},
-		info: { dot: 'bg-muted', text: 'text-muted', label: 'Worth knowing' }
+		high: { pill: 'bg-red-500/15 text-red-700 dark:text-red-400', label: 'Big effect' },
+		medium: { pill: 'bg-amber-500/15 text-amber-700 dark:text-amber-400', label: 'Some effect' },
+		info: { pill: 'bg-ground text-muted', label: 'Worth knowing' }
 	};
+
+	// the banner sums up; the cards below give each cause
+	let banner = $derived.by(() => {
+		if (!report || report.calm) return 'Nothing is slowing the PC down right now.';
+		const n = report.findings.filter((f) => f.level !== 'info').length;
+		return n > 1
+			? `${n} things are slowing the PC down right now. The biggest is first.`
+			: report.summary;
+	});
 
 	// a result is only "right now" for a short while
 	const fresh = recall<{ at: number; report: Report }>('slownow');
@@ -103,7 +108,7 @@
 	}
 
 	const tone = (pct: number) =>
-		pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-500' : 'bg-accent';
+		pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-500' : 'bg-ink/35';
 
 	onMount(() => {
 		if (!report) run();
@@ -118,7 +123,7 @@
 				What is holding the PC back right now, in plain words
 			</div>
 		</div>
-		<button class="btn btn-primary shrink-0" disabled={isRunning} onclick={run}>
+		<button class="btn btn-secondary shrink-0" disabled={isRunning} onclick={run}>
 			{isRunning ? 'Watching...' : 'Check again'}
 		</button>
 	</div>
@@ -141,21 +146,21 @@
 					? 'bg-red-500/10 text-red-700 dark:text-red-400'
 					: 'bg-amber-500/10 text-amber-700 dark:text-amber-400'}"
 		>
-			{report.calm ? 'Nothing is slowing the PC down right now.' : report.summary}
+			{banner}
 		</div>
 
 		<div class="flex-1 min-h-0 grid grid-cols-[3fr_2fr] gap-3 pt-1 {isRunning ? 'opacity-50' : ''}">
 			<!-- what was found -->
-			<div class="min-h-0 overflow-y-auto overscroll-contain pr-1 flex flex-col gap-1.5">
+			<div
+				class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1 flex flex-col gap-1.5"
+			>
 				{#each report.findings as f (f.id + f.pid)}
 					<div class="rounded-xl bg-tile border border-line px-3 py-2">
 						<div class="flex items-center gap-2">
-							<span class="size-2 rounded-full shrink-0 {LEVEL[f.level].dot}" aria-hidden="true"
-							></span>
 							<span class="text-xs font-semibold text-ink flex-1 min-w-0">{f.title}</span>
 							<span
-								class="text-[10px] uppercase tracking-wider font-semibold shrink-0 {LEVEL[f.level]
-									.text}"
+								class="text-[11px] font-semibold px-1.5 py-0.5 rounded-md shrink-0 {LEVEL[f.level]
+									.pill}"
 							>
 								{LEVEL[f.level].label}
 							</span>
@@ -186,7 +191,9 @@
 			</div>
 
 			<!-- the three meters -->
-			<div class="min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">
+			<div
+				class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] flex flex-col gap-2"
+			>
 				{#each meters as m (m.label)}
 					<section class="rounded-xl bg-tile border border-line px-3 py-2 text-xs">
 						<div class="flex items-baseline justify-between">

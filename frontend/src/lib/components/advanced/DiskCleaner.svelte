@@ -3,15 +3,9 @@
 	import { formatBytes } from '$lib';
 	import { load, recall } from '$lib/cache';
 	import { recordFreed } from '$lib/rating.svelte';
-	import {
-		CancelCleanJunk,
-		CleanJunk,
-		GetDriveHealth,
-		ScanJunk
-	} from '$lib/wailsjs/go/main/App';
+	import { CancelCleanJunk, CleanJunk, GetDriveHealth, ScanJunk } from '$lib/wailsjs/go/main/App';
 	import { EventsOn } from '$lib/wailsjs/runtime/runtime';
 	import { onDestroy, onMount } from 'svelte';
-	import Card from '../ui/Card.svelte';
 	import DriveScan from '../ui/DriveScan.svelte';
 	import Modal from '../ui/Modal.svelte';
 
@@ -65,7 +59,9 @@
 	let disks = $state<Disk[]>(groupByDisk(cachedHealth ?? []));
 	let healthState = $state<'loading' | 'ready' | 'failed'>(cachedHealth ? 'ready' : 'loading');
 
-	let categories = $state<Category[]>((cachedJunk?.categories ?? []).filter((c) => c.size_bytes > 0));
+	let categories = $state<Category[]>(
+		(cachedJunk?.categories ?? []).filter((c) => c.size_bytes > 0)
+	);
 	let totalBytes = $state(cachedJunk?.total_bytes ?? 0);
 	let scanState = $state<'scanning' | 'ready' | 'failed'>(cachedJunk ? 'ready' : 'scanning');
 
@@ -85,7 +81,8 @@
 	async function loadHealth(force = false) {
 		if (force || healthState !== 'ready') healthState = 'loading';
 		try {
-			const drives = ((await load('drive-health', GetDriveHealth, 5 * 60_000, force)) || []) as Drive[];
+			const drives = ((await load('drive-health', GetDriveHealth, 5 * 60_000, force)) ||
+				[]) as Drive[];
 			disks = groupByDisk(drives);
 			healthState = 'ready';
 		} catch (err) {
@@ -119,7 +116,9 @@
 			result =
 				(summary.stopped ? 'Stopped. ' : '') +
 				`Freed ${formatBytes(summary.freed_bytes)}` +
-				(summary.skipped > 0 ? ` · ${summary.skipped.toLocaleString()} files in use were left` : '');
+				(summary.skipped > 0
+					? ` · ${summary.skipped.toLocaleString()} files in use were left`
+					: '');
 		} catch (err) {
 			result = `Cleaning failed: ${err}`;
 		} finally {
@@ -156,10 +155,19 @@
 	});
 </script>
 
-<Card>
-	<div class="h-full flex flex-col gap-3 min-h-0">
+<div class="flex flex-col h-full min-h-0 gap-2 p-1">
+	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
+		<div class="min-w-0">
+			<div class="font-bold text-base text-ink">Disk &amp; health</div>
+			<div class="text-xs text-muted truncate">
+				How your drives are holding up, and temporary files you can clear
+			</div>
+		</div>
+	</div>
+
+	<div class="flex-1 min-h-0 grid grid-cols-2 gap-4 pt-1">
 		<!-- Drive health -->
-		<section class="flex flex-col gap-2 shrink-0">
+		<section class="min-h-0 flex flex-col gap-2">
 			<div class="h-6 flex items-center justify-between">
 				<span class="font-bold text-ink">Drive health</span>
 				<button
@@ -172,11 +180,13 @@
 			</div>
 
 			{#if healthState === 'loading'}
-				<div class="h-16 flex items-center"><BusyArt kind="read" size={40} label="Reading drive health..." /></div>
+				<div class="h-16 flex items-center">
+					<BusyArt kind="read" size={40} label="Reading drive health..." />
+				</div>
 			{:else if healthState === 'failed' || disks.length === 0}
 				<div class="h-16 flex items-center text-muted">Windows did not report drive health.</div>
 			{:else}
-				<div class="flex flex-col gap-2.5 max-h-36 overflow-y-auto pr-1">
+				<div class="flex-1 min-h-0 flex flex-col gap-3 overflow-y-auto pr-1">
 					{#each disks as disk (disk.model + disk.type)}
 						<div class="flex flex-col gap-1.5">
 							<div class="flex items-center gap-2 min-w-0">
@@ -198,9 +208,12 @@
 							</div>
 
 							{#if disk.nvme}
-								<div class="grid grid-cols-4 gap-1.5">
+								<div class="grid grid-cols-2 gap-1.5">
 									{#each [{ value: `${disk.life_left_pct}%`, label: 'Life left', title: `The drive reports ${disk.nvme.percent_used}% of its rated write endurance used` }, { value: `${disk.nvme.temperature_c} °C`, label: 'Temperature', title: 'Current temperature reported by the drive' }, { value: `${disk.nvme.tb_written} TB`, label: 'Written', title: 'Total data written over the drive’s life' }, { value: hours(disk.nvme.power_on_hours), label: 'Powered on', title: `${disk.nvme.power_on_hours.toLocaleString()} hours in total` }] as stat (stat.label)}
-										<div class="rounded-lg bg-tile px-2 py-1.5 min-w-0" title={stat.title}>
+										<div
+											class="rounded-lg bg-tile border border-line px-2 py-1.5 min-w-0"
+											title={stat.title}
+										>
 											<div class="font-bold text-ink font-mono truncate">{stat.value}</div>
 											<div class="text-[10px] text-muted truncate">{stat.label}</div>
 										</div>
@@ -224,9 +237,9 @@
 		</section>
 
 		<!-- Cleanup -->
-		<section class="flex-1 min-h-0 flex flex-col gap-2 pt-3 border-t border-line">
+		<section class="min-h-0 flex flex-col gap-2">
 			<div class="h-6 flex items-center justify-between gap-2 shrink-0">
-				<span class="font-bold text-ink">Temporary files</span>
+				<span class="font-bold text-ink">Files you can clear</span>
 				<button
 					class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink disabled:opacity-50"
 					disabled={scanState === 'scanning' || isCleaning}
@@ -277,12 +290,15 @@
 						{result}
 					</span>
 				{:else}
-					<span class="text-[11px] text-muted truncate" title="Files changed in the last hour, and files a program has open, are left alone">
+					<span
+						class="text-[11px] text-muted truncate"
+						title="Files changed in the last hour, and files a program has open, are left alone"
+					>
 						Files changed in the last hour are kept
 					</span>
 				{/if}
 				<button
-					class="btn btn-danger shrink-0"
+					class="btn btn-primary shrink-0"
 					disabled={scanState !== 'ready' || totalBytes === 0 || isCleaning}
 					onclick={() => (showConfirm = true)}
 				>
@@ -291,7 +307,7 @@
 			</div>
 		</section>
 	</div>
-</Card>
+</div>
 
 <Modal
 	bind:showModal={showConfirm}
@@ -334,8 +350,8 @@
 		</div>
 	{:else}
 		<p class="text-muted leading-relaxed">
-			Browsers rebuild their caches as you browse; you stay signed in and keep your history.
-			Files a program has open, and anything changed in the last hour, are left alone.
+			Browsers rebuild their caches as you browse; you stay signed in and keep your history. Files a
+			program has open, and anything changed in the last hour, are left alone.
 		</p>
 	{/if}
 

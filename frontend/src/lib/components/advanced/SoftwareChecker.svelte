@@ -48,12 +48,15 @@
 	let updates = $state<Record<string, UpdateState>>({});
 	let isUpdatingAll = $state(false);
 
+	// outdated tools first, so what needs doing is on screen
 	let filteredItems = $derived(
-		items.filter(
-			(i) =>
-				i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				i.current_version.toLowerCase().includes(searchTerm.toLowerCase())
-		)
+		items
+			.filter(
+				(i) =>
+					i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					i.current_version.toLowerCase().includes(searchTerm.toLowerCase())
+			)
+			.sort((a, b) => Number(b.is_outdated) - Number(a.is_outdated))
 	);
 	let outdatedCount = $derived(items.filter((i) => i.is_outdated).length);
 
@@ -68,7 +71,8 @@
 	async function loadSoftware(force = false) {
 		isLoading = force || items.length === 0;
 		try {
-			items = ((await load('software', GetSoftwareHealthDetails, 30 * 60_000, force)) || []) as SoftwareItem[];
+			items = ((await load('software', GetSoftwareHealthDetails, 30 * 60_000, force)) ||
+				[]) as SoftwareItem[];
 		} catch (err) {
 			console.error('Failed to get software health details:', err);
 		} finally {
@@ -156,7 +160,9 @@
 
 	{#if tab === 'dev'}
 		{#if isLoading}
-			<div class="flex-1 flex items-center justify-center"><BusyArt kind="measure" size={64} label="Checking installed versions..." /></div>
+			<div class="flex-1 flex items-center justify-center">
+				<BusyArt kind="measure" size={64} label="Checking installed versions..." />
+			</div>
 		{:else}
 			<div class="flex items-center justify-between gap-3 shrink-0">
 				<span class="text-muted">
@@ -173,32 +179,40 @@
 					class="text-xs w-40 h-7 px-2.5 py-0 rounded-lg border border-line bg-tile text-ink placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
 				/>
 			</div>
-			<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+			<div
+				class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+			>
 				{#each filteredItems as item (item.name)}
 					<div class="flex items-center gap-3 h-10 border-b border-line">
-						<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={item.name}>{item.name}</span>
+						<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={item.name}
+							>{item.name}</span
+						>
 						<span class="w-36 shrink-0 font-mono text-[11px] text-right truncate">
 							{#if item.is_outdated}
 								<span class="text-muted">{item.current_version}</span>
 								<span class="text-muted">→</span>
-								<span class="text-accent font-semibold">{item.latest_version}</span>
+								<span class="text-ink font-semibold">{item.latest_version}</span>
 							{:else}
 								<span class="text-muted">{item.current_version}</span>
 							{/if}
 						</span>
 						<span class="w-16 shrink-0 text-right">
 							{#if item.is_outdated}
-								<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+								<span
+									class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+								>
 									Outdated
 								</span>
 							{:else if isChecked(item)}
-								<span class="text-[10px] px-1.5 py-0.5 rounded-md bg-green-500/15 text-green-700 dark:text-green-400 font-semibold">
-									Current
+								<span class="text-[10px] px-1.5 py-0.5 rounded-md text-muted font-semibold">
+									Up to date
 								</span>
 							{/if}
 						</span>
 						<button
-							class="w-16 shrink-0 text-right text-[11px] font-semibold text-accent cursor-pointer hover:underline disabled:opacity-40 disabled:no-underline"
+							class="w-16 shrink-0 text-right text-[11px] font-semibold cursor-pointer hover:underline disabled:opacity-40 disabled:no-underline {item.is_outdated
+								? 'text-accent'
+								: 'text-muted hover:text-ink'}"
 							disabled={!item.official_download}
 							onclick={() => BrowserOpenURL(item.official_download)}
 						>
@@ -211,11 +225,19 @@
 			</div>
 		{/if}
 	{:else if isLoadingWinget || !winget}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Asking winget for updates. This can take half a minute..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt
+				kind="search"
+				size={64}
+				label="Asking winget for updates. This can take half a minute..."
+			/>
+		</div>
 	{:else if winget.status === 'blocked'}
-		<div class="flex-1 flex items-center justify-center text-muted text-center px-10 leading-relaxed">
-			Your organisation has turned off Windows Package Manager (winget) on this PC, so apps cannot be
-			updated from here.
+		<div
+			class="flex-1 flex items-center justify-center text-muted text-center px-10 leading-relaxed"
+		>
+			Your organisation has turned off Windows Package Manager (winget) on this PC, so apps cannot
+			be updated from here.
 		</div>
 	{:else if winget.status === 'missing'}
 		<div class="flex-1 flex flex-col items-center justify-center gap-3 text-center px-10">
@@ -239,8 +261,8 @@
 		<div class="flex items-center justify-between gap-3 shrink-0">
 			<span class="text-muted">
 				{winget.packages.length}
-				{winget.packages.length === 1 ? 'update' : 'updates'} available · some installers ask for
-				administrator permission
+				{winget.packages.length === 1 ? 'update' : 'updates'} available · some installers ask for administrator
+				permission
 			</span>
 			<button
 				class="btn btn-primary"
@@ -250,7 +272,9 @@
 				{isUpdatingAll ? 'Updating...' : `Update all (${updatable.length})`}
 			</button>
 		</div>
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
 			{#each winget.packages as pkg (pkg.id + pkg.name)}
 				{@const u = updates[pkg.id]}
 				<div class="flex items-center gap-3 h-10 border-b border-line">
@@ -265,14 +289,21 @@
 					</span>
 					<span class="w-20 shrink-0 flex justify-end">
 						{#if u?.state === 'updating'}
-							<span class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" aria-label="Updating"></span>
+							<span
+								class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"
+								aria-label="Updating"
+							></span>
 						{:else if u?.state === 'done'}
-							<span class="flex items-center gap-1 text-green-700 dark:text-green-400 font-semibold text-[11px]">
+							<span
+								class="flex items-center gap-1 text-green-700 dark:text-green-400 font-semibold text-[11px]"
+							>
 								<StrokeIcon d="M5 12.5l4.5 4.5L19 7.5" size={12} /> Updated
 							</span>
 						{:else}
 							<button
-								class="btn btn-secondary h-6 px-2.5 {u?.state === 'failed' ? 'text-red-600 dark:text-red-400' : ''}"
+								class="btn btn-secondary h-6 px-2.5 {u?.state === 'failed'
+									? 'text-red-600 dark:text-red-400'
+									: ''}"
 								disabled={pkg.truncated || anyUpdating}
 								title={pkg.truncated
 									? 'winget shortened this app’s ID; update it from a terminal with: winget upgrade'

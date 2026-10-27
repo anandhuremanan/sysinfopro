@@ -1,6 +1,6 @@
 <script lang="ts">
 	import BusyArt from '../ui/BusyArt.svelte';
-	import { formatBytes } from '$lib';
+	import { formatBytes, usageBarColor } from '$lib';
 	import {
 		AnalyzeDiskUsage,
 		CancelDiskScan,
@@ -19,8 +19,7 @@
 	type Row = Entry & { delta: number; perMinute: number };
 
 	const CHECK_EVERY_S = 30;
-	const REVEAL_ICON =
-		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
+	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	let folders = $state<WatchFolder[]>([]);
 	let drives = $state<Drive[]>([]);
@@ -71,7 +70,8 @@
 	const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 	// "C:" -> "C:\" ; a drive root, or "" for a folder
-	const driveOf = (path: string) => (/^[A-Za-z]:[\\/]?$/.test(path) ? path.slice(0, 2).toUpperCase() : '');
+	const driveOf = (path: string) =>
+		/^[A-Za-z]:[\\/]?$/.test(path) ? path.slice(0, 2).toUpperCase() : '';
 	const rootOf = (drive: string) => drive + '\\';
 
 	async function readFree(drive: string) {
@@ -82,7 +82,9 @@
 	async function start(path: string) {
 		// the measuring engine does one job at a time; never cancel Disk usage's analysis from here
 		if (diskScan.isScanning) {
-			showStatus('Disk usage is analysing a drive. Start the watch when it finishes, or cancel it there.');
+			showStatus(
+				'Disk usage is analysing a drive. Start the watch when it finishes, or cancel it there.'
+			);
 			return;
 		}
 		stop();
@@ -187,7 +189,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Disk Growth Watch</div>
+			<div class="font-bold text-base text-ink">Disk growth</div>
 			<div class="text-xs text-muted truncate" title={watchPath}>
 				{isWatching
 					? `Watching ${watchDrive ? `all of ${watchDrive}` : watchPath}`
@@ -219,8 +221,8 @@
 		<!-- Ready State: what to watch -->
 		<div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 pt-1">
 			<p class="text-xs text-muted leading-relaxed max-w-2xl">
-				It is measured once as a starting point, then again and again, and the folders that grew are
-				listed with how fast. Nothing is changed.
+				Measured now, then checked again and again; folders that grow are listed with how fast.
+				Nothing is changed.
 			</p>
 
 			{#if drives.length}
@@ -238,9 +240,14 @@
 									<span class="text-[11px] text-muted">{formatBytes(drive.free_bytes)} free</span>
 								</span>
 								<span class="block h-1 mt-2 rounded-full bg-track">
-									<span class="block h-1 rounded-full bg-accent" style="width: {Math.min(100, drive.used_pct)}%"></span>
+									<span
+										class="block h-1 rounded-full {usageBarColor(drive.used_pct)}"
+										style="width: {Math.min(100, drive.used_pct)}%"
+									></span>
 								</span>
-								<span class="block mt-1.5 text-[11px] text-muted">Whole drive · first pass takes minutes</span>
+								<span class="block mt-1.5 text-[11px] text-muted"
+									>Whole drive · first pass takes minutes</span
+								>
 							</button>
 						{/each}
 					</div>
@@ -248,14 +255,20 @@
 			{/if}
 
 			<section class="flex flex-col gap-2">
-				<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted">Common folders</h3>
+				<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted">
+					Common folders
+				</h3>
 				<div class="flex flex-wrap gap-2">
 					{#each folders as folder (folder.path)}
-						<button class="btn btn-secondary" title={folder.path} onclick={() => start(folder.path)}>
+						<button
+							class="btn btn-secondary"
+							title={folder.path}
+							onclick={() => start(folder.path)}
+						>
 							{folder.label}
 						</button>
 					{/each}
-					<button class="btn btn-primary" onclick={chooseFolder}>Choose a folder...</button>
+					<button class="btn btn-secondary" onclick={chooseFolder}>Choose a folder...</button>
 				</div>
 			</section>
 		</div>
@@ -288,7 +301,9 @@
 				<span class="text-muted">since the watch began</span>
 			</div>
 		{/if}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
 			{#each changedRows as row (row.path)}
 				<div class="flex items-center gap-3 h-9 border-b border-line">
 					<span class="flex-1 min-w-0 font-semibold text-ink truncate" title={row.path}>
@@ -319,7 +334,9 @@
 			{:else}
 				<div class="h-full flex flex-col items-center justify-center gap-1 text-center">
 					<div class="font-semibold text-ink">No change so far</div>
-					<p class="text-muted">Nothing in this folder has grown or shrunk since the watch began.</p>
+					<p class="text-muted">
+						Nothing in this folder has grown or shrunk since the watch began.
+					</p>
 				</div>
 			{/each}
 		</div>

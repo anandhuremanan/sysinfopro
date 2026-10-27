@@ -174,6 +174,10 @@ export function GetTopProcesses(arg1) {
   return window['go']['main']['App']['GetTopProcesses'](arg1);
 }
 
+export function GetUptimeSeconds() {
+  return window['go']['main']['App']['GetUptimeSeconds']();
+}
+
 export function GetWatchFolders() {
   return window['go']['main']['App']['GetWatchFolders']();
 }

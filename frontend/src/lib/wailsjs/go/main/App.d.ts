@@ -111,6 +111,8 @@ export function GetSysInfo():Promise<string>;
 
 export function GetTopProcesses(arg1:number):Promise<Array<process.ProcessItem>>;
 
+export function GetUptimeSeconds():Promise<number>;
+
 export function GetWatchFolders():Promise<Array<main.WatchFolder>>;
 
 export function GetWingetUpgrades():Promise<winget.Result>;

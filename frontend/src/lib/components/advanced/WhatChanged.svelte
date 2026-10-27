@@ -70,7 +70,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">What Changed</div>
+			<div class="font-bold text-base text-ink">What changed</div>
 			<div class="text-xs text-muted truncate">
 				{#if changes?.has_baseline}
 					Compared with {sinceLabel}
@@ -98,7 +98,9 @@
 	</div>
 
 	{#if isLoading && !changes}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="check" size={64} label="Reading the current state of this PC..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt kind="check" size={64} label="Reading the current state of this PC..." />
+		</div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>
@@ -118,10 +120,14 @@
 			<p class="text-xs text-muted">Same as on {sinceLabel}.</p>
 		</div>
 	{:else if changes}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-2.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-2.5"
+		>
 			{#each changedCategories as category (category.id)}
 				<section class="bg-ground border border-line rounded-xl px-3 py-2.5">
-					<h2 class="flex items-center justify-between text-[10px] uppercase tracking-wider font-semibold text-muted pb-1">
+					<h2
+						class="flex items-center justify-between text-[10px] uppercase tracking-wider font-semibold text-muted pb-1"
+					>
 						<span>{category.title}</span>
 						<span class="normal-case tracking-normal">
 							{category.added.length + category.removed.length + category.changed.length}
@@ -132,19 +138,22 @@
 					</h2>
 					{#each category.added as item}
 						<div class="flex gap-2 py-0.5">
-							<span class="shrink-0 w-14 font-semibold text-green-700 dark:text-green-400">Added</span>
+							<span class="shrink-0 w-14 font-semibold text-green-700 dark:text-green-400"
+								>Added</span
+							>
 							<span class="min-w-0 break-words text-ink select-text">{item}</span>
 						</div>
 					{/each}
 					{#each category.changed as item}
 						<div class="flex gap-2 py-0.5">
-							<span class="shrink-0 w-14 font-semibold text-amber-700 dark:text-amber-400">Changed</span>
+							<span class="shrink-0 w-14 font-semibold text-ink">Changed</span>
 							<span class="min-w-0 break-words text-ink select-text">{item}</span>
 						</div>
 					{/each}
 					{#each category.removed as item}
 						<div class="flex gap-2 py-0.5">
-							<span class="shrink-0 w-14 font-semibold text-red-600 dark:text-red-400">Removed</span>
+							<span class="shrink-0 w-14 font-semibold text-red-600 dark:text-red-400">Removed</span
+							>
 							<span class="min-w-0 break-words text-ink select-text">{item}</span>
 						</div>
 					{/each}

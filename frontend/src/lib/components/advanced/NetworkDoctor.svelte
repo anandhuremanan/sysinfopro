@@ -140,11 +140,11 @@
 							? 'bg-red-500'
 							: s?.status === 'skip'
 								? 'bg-track'
-								: 'bg-accent'}"
+								: 'bg-green-500'}"
 						style="width: {s ? '100%' : '0%'}"
 					></div>
 					{#if current}<div
-							class="flow absolute inset-y-0 w-1/3 bg-accent/60 rounded-full"
+							class="flow absolute inset-y-0 w-1/3 bg-muted/60 rounded-full"
 						></div>{/if}
 				</div>
 			{/if}
@@ -156,11 +156,11 @@
 							: s.status === 'warn'
 								? 'border-amber-500/60 bg-amber-500/10'
 								: s.status === 'ok'
-									? 'border-accent/60 bg-accent/10'
+									? 'border-green-500/50 bg-green-500/10'
 									: 'border-line bg-tile'
 						: 'border-line bg-tile'} {current ? 'pulse' : ''}"
 				>
-					<span class={s ? (s.status === 'ok' ? 'text-accent' : TONE[s.status]) : 'text-muted'}>
+					<span class={s ? TONE[s.status] : 'text-muted'}>
 						<StrokeIcon d={link.icon} size={18} />
 					</span>
 					{#if s}
@@ -195,7 +195,9 @@
 
 	<div class="flex-1 min-h-0 grid grid-cols-[3fr_2fr] gap-3 pt-1">
 		<!-- what each check found -->
-		<div class="min-h-0 overflow-y-auto overscroll-contain pr-1 flex flex-col gap-1.5">
+		<div
+			class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1 flex flex-col gap-1.5"
+		>
 			{#each steps as s (s.id)}
 				<div class="rounded-xl bg-tile border border-line px-3 py-2">
 					<div class="flex items-center gap-2">
@@ -222,7 +224,9 @@
 		</div>
 
 		<!-- settings that change where traffic goes -->
-		<div class="min-h-0 overflow-y-auto overscroll-contain flex flex-col gap-2">
+		<div
+			class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] flex flex-col gap-2"
+		>
 			{#if report?.adapter}
 				<section class="rounded-xl bg-tile border border-line px-3 py-2 text-xs">
 					<h3 class="text-[10px] uppercase tracking-wider font-semibold text-muted mb-1">

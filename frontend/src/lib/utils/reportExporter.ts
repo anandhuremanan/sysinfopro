@@ -46,6 +46,13 @@ function escapeHtml(value: unknown): string {
 		.replace(/"/g, '&quot;');
 }
 
+// "Intel(R) Core(TM) i5" -> "Intel Core i5"
+export const tidyName = (name: string) =>
+	String(name ?? '')
+		.replace(/\((R|TM|tm|C)\)/g, '')
+		.replace(/\s{2,}/g, ' ')
+		.trim();
+
 // Sections shared by the on-screen specs view and the exported report
 export function buildSpecSections(specs: any): Section[] {
 	if (!specs) return [];
@@ -64,7 +71,7 @@ export function buildSpecSections(specs: any): Section[] {
 
 	specs.cpus.forEach((cpu: any, i: number) => {
 		add(specs.cpus.length > 1 ? `Processor ${i + 1}` : 'Processor', [
-			['Model', cpu.name],
+			['Model', tidyName(cpu.name)],
 			['Cores', `${cpu.cores} cores, ${cpu.threads} threads`],
 			['Max speed', cpu.max_mhz ? `${(cpu.max_mhz / 1000).toFixed(2)} GHz` : ''],
 			['Socket', cpu.socket]
@@ -73,7 +80,7 @@ export function buildSpecSections(specs: any): Section[] {
 
 	specs.gpus.forEach((gpu: any, i: number) => {
 		add(specs.gpus.length > 1 ? `Graphics ${i + 1}` : 'Graphics', [
-			['Adapter', gpu.name],
+			['Adapter', tidyName(gpu.name)],
 			// Windows reports this as a 32-bit value, so cards over 4 GB read low
 			['Video memory', gpu.vram_bytes > 0 ? formatBytes(gpu.vram_bytes) : ''],
 			['Display', gpu.width ? `${gpu.width} × ${gpu.height} at ${gpu.refresh_hz} Hz` : ''],
@@ -86,8 +93,9 @@ export function buildSpecSections(specs: any): Section[] {
 		['Installed', totalRam > 0 ? formatBytes(totalRam) : ''],
 		['Slots', specs.memory_slots > 0 ? `${specs.memory.length} of ${specs.memory_slots} used` : ''],
 		...specs.memory.map(
-			(m: any): Row => [
-				m.slot || 'Module',
+			(m: any, i: number): Row => [
+				// Windows names slots like "Controller0-ChannelA-DIMM0"; a number is clearer
+				specs.memory.length > 1 ? `Slot ${i + 1}` : 'Module',
 				[formatBytes(m.size_bytes), m.speed_mhz ? `${m.speed_mhz} MHz` : '', m.manufacturer, m.part]
 					.filter(Boolean)
 					.join(' · ')

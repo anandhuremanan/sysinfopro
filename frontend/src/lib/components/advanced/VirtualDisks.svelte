@@ -30,8 +30,7 @@
 		rows: { type: string; count: string; size: string; reclaimable: string }[];
 	};
 
-	const REVEAL_ICON =
-		'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
+	const REVEAL_ICON = 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4';
 
 	let disks = $state<Disk[]>(recall('vdisks') ?? []);
 	let docker = $state<DockerUsage | null>(recall('docker') ?? null);
@@ -55,7 +54,9 @@
 			isLoading = false;
 		}
 		// Docker can take a few seconds to answer; the disks show first
-		docker = (await load('docker', GetDockerUsage, 60_000, force).catch(() => null)) as DockerUsage | null;
+		docker = (await load('docker', GetDockerUsage, 60_000, force).catch(
+			() => null
+		)) as DockerUsage | null;
 	}
 
 	function diskpartScript(path: string) {
@@ -98,7 +99,8 @@
 
 {#snippet command(id: string, text: string)}
 	<div class="flex items-start gap-2 rounded-lg bg-ground border border-line px-2.5 py-1.5">
-		<pre class="flex-1 min-w-0 font-mono text-[11px] text-ink whitespace-pre-wrap break-all">{text}</pre>
+		<pre
+			class="flex-1 min-w-0 font-mono text-[11px] text-ink whitespace-pre-wrap break-all">{text}</pre>
 		<button
 			class="shrink-0 text-[11px] font-semibold text-accent cursor-pointer hover:underline"
 			onclick={() => copy(id, text)}
@@ -116,23 +118,24 @@
 				Their virtual disks grow as you use them and never give space back on their own
 			</div>
 		</div>
-		<button
-			class="text-[11px] text-muted font-medium cursor-pointer hover:text-ink shrink-0"
-			disabled={isLoading}
-			onclick={() => refresh(true)}
-		>
+		<button class="btn btn-secondary shrink-0" disabled={isLoading} onclick={() => refresh(true)}>
 			Refresh
 		</button>
 	</div>
 
 	{#if statusMessage}
-		<div class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate" title={statusMessage}>
+		<div
+			class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate"
+			title={statusMessage}
+		>
 			{statusMessage}
 		</div>
 	{/if}
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="search" size={64} label="Looking for WSL and Docker disks..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt kind="search" size={64} label="Looking for WSL and Docker disks..." />
+		</div>
 	{:else if disks.length === 0 && !docker?.installed}
 		<div class="flex-1 flex items-center justify-center text-muted text-center px-8">
 			No WSL distributions or Docker disks on this PC.
@@ -140,7 +143,9 @@
 	{:else}
 		<div class="flex-1 min-h-0 grid grid-cols-2 gap-4">
 			<!-- disks, then Docker's own usage -->
-			<div class="min-h-0 flex flex-col gap-3 overflow-y-auto overscroll-contain pr-1.5">
+			<div
+				class="min-h-0 flex flex-col gap-3 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+			>
 				<div class="flex flex-col">
 					{#each disks as disk (disk.path)}
 						<button
@@ -154,7 +159,10 @@
 								<span class="flex items-center gap-1.5 min-w-0">
 									<span class="font-semibold text-ink truncate">{disk.name}</span>
 									{#if disk.default}
-										<span class="shrink-0 text-[10px] px-1.5 rounded bg-line text-muted font-semibold">Default</span>
+										<span
+											class="shrink-0 text-[10px] px-1.5 rounded bg-line text-muted font-semibold"
+											>Default</span
+										>
 									{/if}
 								</span>
 								<span class="text-[11px] text-muted truncate">
@@ -163,11 +171,15 @@
 								</span>
 							</span>
 							{#if disk.missing}
-								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+								<span
+									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+								>
 									Disk missing
 								</span>
 							{:else if disk.version !== 1}
-								<span class="shrink-0 font-mono font-bold text-ink">{formatBytes(disk.on_disk_bytes)}</span>
+								<span class="shrink-0 font-mono font-bold text-ink"
+									>{formatBytes(disk.on_disk_bytes)}</span
+								>
 							{/if}
 						</button>
 					{:else}
@@ -178,21 +190,33 @@
 				{#if docker?.installed}
 					<div class="flex flex-col gap-1.5 pt-3 border-t border-line">
 						<div class="flex items-center justify-between gap-2">
-							<span class="text-[10px] uppercase tracking-wider font-semibold text-muted">Docker data</span>
+							<span class="text-[10px] uppercase tracking-wider font-semibold text-muted"
+								>Docker data</span
+							>
 							{#if docker.running}
-								<button class="btn btn-danger h-6 px-2" disabled={isPruning} onclick={() => (showPrune = true)}>
+								<button
+									class="btn btn-danger h-6 px-2"
+									disabled={isPruning}
+									onclick={() => (showPrune = true)}
+								>
 									Remove unused
 								</button>
 							{/if}
 						</div>
 						{#if !docker.running}
-							<p class="text-muted leading-snug">Start Docker Desktop to see how much it could give back.</p>
+							<p class="text-muted leading-snug">
+								Start Docker Desktop to see how much it could give back.
+							</p>
 						{:else}
 							{#each docker.rows as row (row.type)}
 								<div class="flex justify-between gap-3">
-									<span class="text-ink">{row.type} <span class="text-muted">({row.count})</span></span>
+									<span class="text-ink"
+										>{row.type} <span class="text-muted">({row.count})</span></span
+									>
 									<span class="shrink-0">
-										<span class="font-mono font-semibold text-ink">{row.reclaimable.replace(/\s*\(.*\)/, '')}</span>
+										<span class="font-mono font-semibold text-ink"
+											>{row.reclaimable.replace(/\s*\(.*\)/, '')}</span
+										>
 										<span class="text-muted">of {row.size} unused</span>
 									</span>
 								</div>
@@ -203,12 +227,16 @@
 			</div>
 
 			<!-- what to do about the selected disk -->
-			<div class="min-h-0 overflow-y-auto overscroll-contain pr-1.5 flex flex-col gap-2.5">
+			<div
+				class="min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5 flex flex-col gap-2.5"
+			>
 				{#if selected}
 					<div class="flex items-start justify-between gap-2">
 						<div class="min-w-0">
 							<div class="font-bold text-ink truncate">{selected.name}</div>
-							<div class="text-[11px] text-muted truncate" title={selected.path}>{selected.path}</div>
+							<div class="text-[11px] text-muted truncate" title={selected.path}>
+								{selected.path}
+							</div>
 						</div>
 						{#if !selected.missing}
 							<button
@@ -238,7 +266,9 @@
 						</p>
 					{:else}
 						<div class="flex items-baseline gap-2">
-							<span class="text-xl font-bold text-ink font-mono">{formatBytes(selected.on_disk_bytes)}</span>
+							<span class="text-xl font-bold text-ink font-mono"
+								>{formatBytes(selected.on_disk_bytes)}</span
+							>
 							<span class="text-muted">
 								on disk{selected.sparse && selected.size_bytes > selected.on_disk_bytes
 									? ` of a ${formatBytes(selected.size_bytes)} file`

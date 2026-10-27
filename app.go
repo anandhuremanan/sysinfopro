@@ -259,6 +259,11 @@ func (a *App) GetInterNetSpeed() (string, error) {
 	return string(jsonBytes), nil
 }
 
+// GetUptimeSeconds is how long Windows has been running since it last started
+func (a *App) GetUptimeSeconds() uint64 {
+	return uint64(time.Duration(windowsTickMs()) * time.Millisecond / time.Second)
+}
+
 func (a *App) GetCPUStats() (*functions.CPUStats, error) {
 	return functions.GetCPUStats()
 }

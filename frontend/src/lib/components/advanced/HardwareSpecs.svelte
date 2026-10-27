@@ -70,7 +70,7 @@
 	<!-- Header Bar -->
 	<div class="flex justify-between items-center gap-3 pb-2 border-b border-line shrink-0">
 		<div class="min-w-0">
-			<div class="font-bold text-base text-ink">Hardware Specs</div>
+			<div class="font-bold text-base text-ink">Specs</div>
 			<div class="text-xs text-muted truncate">
 				{specs
 					? `${specs.system.manufacturer} ${specs.system.model}`
@@ -96,14 +96,18 @@
 	{/if}
 
 	{#if isLoading}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="read" size={64} label="Reading hardware inventory..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt kind="read" size={64} label="Reading hardware inventory..." />
+		</div>
 	{:else if loadError}
 		<div class="flex-1 flex flex-col items-center justify-center gap-2 text-center">
 			<div class="text-xs text-red-500 max-w-md">{loadError}</div>
 			<button class="btn btn-secondary" onclick={loadSpecs}>Try again</button>
 		</div>
 	{:else}
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
 			<div class="grid grid-cols-2 gap-2.5">
 				{#each sections as section (section.title)}
 					<section class="bg-ground border border-line rounded-xl px-3 py-2.5 min-w-0">

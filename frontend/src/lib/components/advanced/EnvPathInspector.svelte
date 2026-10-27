@@ -36,6 +36,16 @@
 	] as const;
 
 	let analysis = $state<Analysis | null>(null);
+	// a list with problems comes first, so they are on screen without scrolling
+	let scopes = $derived(
+		[...SCOPES].sort((a, b) => {
+			const bad = (id: string) =>
+				analysis?.path_entries.some((e) => e.scope === id && (!e.is_valid || e.is_duplicate))
+					? 0
+					: 1;
+			return bad(a.id) - bad(b.id);
+		})
+	);
 	let isLoading = $state(false);
 	let isSaving = $state(false);
 	let showConfirm = $state(false);
@@ -54,7 +64,9 @@
 	// every fixable entry starts ticked, so one click fixes everything that can be fixed
 	function useAnalysis(next: Analysis) {
 		analysis = next;
-		selected = Object.fromEntries(next.path_entries.filter((e) => e.fixable).map((e) => [e.index, true]));
+		selected = Object.fromEntries(
+			next.path_entries.filter((e) => e.fixable).map((e) => [e.index, true])
+		);
 	}
 
 	async function load() {
@@ -120,8 +132,9 @@
 				<button class="btn btn-secondary" disabled={isSaving} onclick={undo}>Undo last fix</button>
 			{/if}
 			{#if fixable.length > 0}
+				<!-- removal can be undone, so it is the main action, not a red one -->
 				<button
-					class="btn btn-danger"
+					class="btn btn-primary"
 					disabled={chosen.length === 0 || isSaving}
 					onclick={() => (showConfirm = true)}
 				>
@@ -129,18 +142,25 @@
 					{chosen.length === 1 ? 'entry' : 'entries'}
 				</button>
 			{/if}
-			<button class="btn btn-secondary" disabled={isLoading || isSaving} onclick={load}>Refresh</button>
+			<button class="btn btn-secondary" disabled={isLoading || isSaving} onclick={load}
+				>Refresh</button
+			>
 		</div>
 	</div>
 
 	{#if statusMessage}
-		<div class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate" title={statusMessage}>
+		<div
+			class="text-xs font-semibold text-green-700 dark:text-green-400 px-1 shrink-0 truncate"
+			title={statusMessage}
+		>
 			{statusMessage}
 		</div>
 	{/if}
 
 	{#if isLoading && !analysis}
-		<div class="flex-1 flex items-center justify-center"><BusyArt kind="read" size={64} label="Reading PATH..." /></div>
+		<div class="flex-1 flex items-center justify-center">
+			<BusyArt kind="read" size={64} label="Reading PATH..." />
+		</div>
 	{:else if analysis}
 		<div class="text-muted shrink-0">
 			{analysis.total_entries} entries ·
@@ -151,31 +171,57 @@
 					{analysis.invalid_entries} missing, {analysis.duplicates_count} repeated
 				</span>
 				{#if fixable.length < problems && analysis.editable}
-					· {problems - fixable.length} in the system PATH need administrator rights
+					· {problems - fixable.length} in the system PATH
+					{problems - fixable.length === 1 ? 'needs' : 'need'} administrator rights
 				{/if}
 			{/if}
 		</div>
 
-		<div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1.5">
-			{#each SCOPES as scope (scope.id)}
-				{@const entries = analysis.path_entries.filter((e) => e.scope === scope.id)}
+		<div
+			class="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-5 [mask-image:linear-gradient(to_bottom,#000_calc(100%-20px),transparent)] pr-1.5"
+		>
+			{#each scopes as scope (scope.id)}
+				<!-- missing and repeated folders first, so the problems are on screen -->
+				{@const entries = analysis.path_entries
+					.filter((e) => e.scope === scope.id)
+					.sort(
+						(a, b) => Number(a.is_valid && !a.is_duplicate) - Number(b.is_valid && !b.is_duplicate)
+					)}
 				{#if entries.length > 0}
-					<div class="flex items-baseline justify-between gap-2 pt-2 pb-1 sticky top-0 bg-tile z-10">
-						<span class="text-[10px] uppercase tracking-wider font-semibold text-muted">{scope.label}</span>
+					<div
+						class="flex items-baseline justify-between gap-2 pt-2 pb-1 sticky top-0 bg-tile z-10"
+					>
+						<span class="text-[10px] uppercase tracking-wider font-semibold text-muted"
+							>{scope.label}</span
+						>
 						<span class="text-[10px] text-muted">{scope.note}</span>
 					</div>
 					{#each entries as entry (entry.scope + entry.index)}
 						<label
-							class="flex items-center gap-2.5 h-8 border-b border-line {entry.fixable ? 'cursor-pointer' : ''}"
+							class="flex items-center gap-2.5 h-8 border-b border-line {entry.fixable
+								? 'cursor-pointer'
+								: ''}"
 						>
-							<input
-								type="checkbox"
-								class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent disabled:opacity-0"
-								disabled={!entry.fixable || isSaving}
-								bind:checked={selected[entry.index]}
-							/>
+							{#if entry.fixable}
+								<input
+									type="checkbox"
+									class="rounded border-line bg-tile checked:bg-accent text-accent focus:ring-accent"
+									disabled={isSaving}
+									bind:checked={selected[entry.index]}
+								/>
+							{:else if !entry.is_valid || entry.is_duplicate}
+								<!-- a problem that needs administrator rights to fix -->
+								<span
+									class="size-4 shrink-0 grid place-items-center text-amber-600 dark:text-amber-400 font-bold"
+									title="Needs administrator rights to remove"
+									aria-hidden="true">!</span
+								>
+							{:else}
+								<span class="size-4 shrink-0" aria-hidden="true"></span>
+							{/if}
 							<span
-								class="flex-1 min-w-0 font-mono text-[11px] truncate {entry.is_valid && !entry.is_duplicate
+								class="flex-1 min-w-0 font-mono text-[11px] truncate {entry.is_valid &&
+								!entry.is_duplicate
 									? 'text-ink'
 									: 'text-muted line-through decoration-muted/50'}"
 								title={entry.raw === entry.path ? entry.path : `${entry.raw}\n${entry.path}`}
@@ -183,11 +229,15 @@
 								{entry.raw}
 							</span>
 							{#if entry.is_duplicate}
-								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold">
+								<span
+									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold"
+								>
 									Repeated
 								</span>
 							{:else if !entry.is_valid}
-								<span class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-700 dark:text-red-400 font-semibold">
+								<span
+									class="shrink-0 text-[10px] px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-700 dark:text-red-400 font-semibold"
+								>
 									Missing folder
 								</span>
 							{/if}
@@ -221,7 +271,9 @@
 		</p>
 	</div>
 	{#snippet actions()}
-		<button class="btn btn-secondary" disabled={isSaving} onclick={() => (showConfirm = false)}>Cancel</button>
+		<button class="btn btn-secondary" disabled={isSaving} onclick={() => (showConfirm = false)}
+			>Cancel</button
+		>
 		<button class="btn btn-danger" disabled={isSaving} onclick={removeChosen}>
 			{isSaving ? 'Removing...' : 'Remove'}
 		</button>

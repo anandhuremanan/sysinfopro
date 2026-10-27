@@ -13,6 +13,7 @@
 	import RatingPrompt from '$lib/components/ui/RatingPrompt.svelte';
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
 	import ReportModal from '$lib/components/ui/ReportModal.svelte';
+	import ScoreView from '$lib/components/advanced/ScoreView.svelte';
 	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
 	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
@@ -39,7 +40,7 @@
 			: 160;
 	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
 
-	type View = 'home' | 'processes' | 'tools' | ToolId;
+	type View = 'home' | 'processes' | 'tools' | 'score' | ToolId;
 
 	const WIDGET_ICON = 'M3 5h18v14H3zM12 12h7v5h-7z';
 	const SHARE_ICON = 'M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5';
@@ -50,7 +51,8 @@
 	let error = $state('');
 	let view = $state<View>('home');
 	// Where Back returns to: a tool opened from the tools list goes back to the list
-	let parentView = $state<'home' | 'tools'>('home');
+	// where Back returns to: home, or the screen a tool was opened from
+	let parentView = $state<'home' | 'tools' | 'score'>('home');
 	let showQuitConfirm = $state(false);
 	let showSettings = $state(false);
 	let isLoading = $state(false);
@@ -81,9 +83,11 @@
 			? 'Processes'
 			: view === 'tools'
 				? 'All tools'
-				: view === 'home'
-					? ''
-					: getTool(view).name
+				: view === 'score'
+					? 'Health score'
+					: view === 'home'
+						? ''
+						: getTool(view).name
 	);
 
 	function showLog(message: string, duration = 2000) {
@@ -98,7 +102,7 @@
 			openSpeedTest();
 			return;
 		}
-		parentView = view === 'tools' ? 'tools' : 'home';
+		parentView = view === 'tools' || view === 'score' ? view : 'home';
 		view = target as View;
 	}
 
@@ -110,7 +114,7 @@
 			return;
 		}
 
-		parentView = view === 'tools' ? 'tools' : 'home';
+		parentView = view === 'tools' || view === 'score' ? view : 'home';
 		view = 'speed';
 	}
 
@@ -160,12 +164,6 @@
 
 	// Cheap local checks only; Software and Speed test run when opened
 	function loadToolStatus() {
-		GetActiveSockets()
-			.then((sockets) => {
-				if (sockets) toolStatus.ports = { hint: `${sockets.length} listening` };
-			})
-			.catch((err) => console.error('Failed to get sockets:', err));
-
 		GetStartupItems()
 			.then((items) => {
 				if (items) toolStatus.startup = { hint: `${items.length} apps` };
@@ -371,6 +369,8 @@
 									</div>
 								{:else if view === 'processes'}
 									<ProcessView />
+								{:else if view === 'score'}
+									<ScoreView onOpen={openView} />
 								{:else}
 									<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
 								{/if}
