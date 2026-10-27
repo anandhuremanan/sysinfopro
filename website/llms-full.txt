@@ -1,0 +1,83 @@
+# SysInfo Pro: full description
+
+> SysInfo Pro is a free, open-source (MIT) Windows 10 and 11 app that explains in plain words why a PC is slow, what is filling its drive and what is wrong with a developer setup, and helps fix it. Every tool works without administrator rights. Published by Probably Fine Labs. Website: https://sysinfopro.imanandhu.in
+
+## At a glance
+
+- Platform: Windows 10 and Windows 11, 64-bit. Not available for macOS or Linux.
+- Price: free. No account, no ads, no telemetry, no in-app purchases.
+- Install: Microsoft Store (https://apps.microsoft.com/detail/9pd2g09hcxk3, product ID 9PD2G09HCXK3, also installable with `winget install 9PD2G09HCXK3`), or the single program file from GitHub releases (https://github.com/anandhuremanan/sysinfopro/releases/latest), which needs no installer.
+- License: MIT. Source: https://github.com/anandhuremanan/sysinfopro
+- Current version: 3.2
+- Permissions: runs as a standard user. Works on locked-down work PCs where administrator rights are not available.
+- Safety: read-only until the user confirms a change. Files removed as duplicates go to the Recycle Bin; PATH changes can be undone.
+- Honesty: numbers are what Windows and the drives report (for example, processor use matches Task Manager). No invented "junk found" counts or scare tactics.
+
+## Tools
+
+The 22 tools are grouped by what they are for. The All tools screen can be filtered to Everyday, Developer or Gaming tools (any combination); search always covers every tool.
+
+### System
+
+- **Specs**: full hardware inventory (processor, graphics, memory modules, drives, firmware, Windows version) and a shareable spec card image in four styles.
+- **Security check**: read-only check of antivirus, firewall, Windows updates, BitLocker drive encryption, Secure Boot, User Account Control, pending restart and Remote Desktop.
+- **Why so slow**: watches the PC for a few seconds and explains what is holding it back right now, such as a Defender scan, Windows Update, search indexing, WSL or a virtual machine holding memory, low memory, a nearly full drive, or a processor slowed by heat or power saving, with what to try.
+- **Battery**: real battery capacity from Windows' own battery report, how it changed week by week, wear per year, and how long a charge lasts now compared with new.
+- **Hand over**: a checklist before selling or returning a PC: signed-in Windows, Microsoft and work accounts, browser sign-ins, OneDrive, saved Wi-Fi networks and sign-ins, developer keys and tokens (existence only, never contents), personal files, drive encryption and Windows licence type. Nothing is changed.
+- **What changed**: compares startup programs, installed software, listening ports and PATH with the last time you looked.
+- **File locks**: shows which program holds a file or folder that won't delete or move, and can end it.
+- **Stress test**: runs the processor flat out for 10 seconds and compares the result with earlier runs to spot slowdowns.
+
+### Clean up
+
+- **Disk & health**: drive health as the drive reports it (wear, temperature, hours, written data) and temporary files cleared with live progress.
+- **Disk usage**: the largest folders and files on any drive, measured in the background.
+- **Disk growth**: watch a drive or folder and see what is growing and how fast.
+- **Startup**: programs that start when you sign in.
+- **Software**: checks developer tools against their latest releases and updates installed apps through Windows Package Manager (winget).
+- **Duplicates**: finds files with exactly the same contents, checked byte for byte; extra copies go to the Recycle Bin and one copy is always kept. Program and project folders are skipped.
+
+### Developer
+
+- **Dev caches**: sizes and clears package-manager caches (npm, pnpm, yarn, pip, NuGet, Gradle, Maven, Cargo, Go) and finds old project leftovers (node_modules, Rust target, .NET bin/obj, Python virtual environments) with when each was last used.
+- **WSL & Docker**: the real size of each WSL and Docker virtual disk, and removal of unused Docker data.
+- **Git projects**: finds every git repository under a folder or drive and lists work that exists only on this PC: commits never pushed (by branch), stashes, uncommitted changes, projects with no remote, and passwords written into remote addresses. Read-only; nothing is fetched, and repositories whose own git settings would start other programs are skipped.
+- **Dev doctor**: for Python, Node.js, Java, Git, Go, .NET and Rust, which copy actually runs in a new terminal, which others are installed, and settings that point builds elsewhere (the Microsoft Store python placeholder, nvm or pyenv having no effect, JAVA_HOME or GOROOT mismatches).
+- **PATH**: finds broken and duplicate PATH entries and removes them from the user's own PATH in one click, with undo.
+
+### Network
+
+- **Speed test**: download and upload speed, latency and jitter, through Cloudflare or Measurement Lab.
+- **Network doctor**: checks each link in turn (this PC, the router, name lookup, the internet, and any site you type) and says where the connection breaks; spots sign-in pages, proxies and hosts-file redirects.
+- **Ports**: which program is using each listening port, with its project and git branch, and can stop it.
+
+### Also
+
+- Home screen with a health score worked out only from measured values (free space, memory in use, drive health, battery capacity, security checks), with every lost point explained.
+- Processor screen: live use (as Task Manager counts it), real current speed and every logical processor.
+- A small always-on-top widget (Ctrl+Alt+W) showing CPU, memory, battery and free space.
+- Alerts before a drive fills up, and an optional monthly cleanup reminder.
+- A one-page HTML report to share, with serial numbers, PC name, user name, network addresses and emails left out by default.
+- Light, dark and pure-black AMOLED themes with any accent colour.
+
+## Privacy
+
+SysInfo Pro has no account and sends no telemetry. Information it reads about the PC is shown to the user and stays on the PC. It contacts other services only for specific checks, all listed in the privacy policy (https://sysinfopro.imanandhu.in/privacy.html): the speed test (Cloudflare, or Measurement Lab, which publishes test results as open data), Network doctor and a short internet connection check, version lookups when the Software tool is opened (nodejs.org, go.dev, endoflife.date, GitHub), and winget for app updates.
+
+## Common questions
+
+**Is SysInfo Pro free?** Yes. It is free and open source under the MIT license, with no ads or paid tiers.
+
+**Does it need administrator rights?** No. Every tool works as a standard user, including on managed work PCs.
+
+**Is it a PC cleaner or optimizer?** No. It diagnoses and explains, and only removes things the user selects after confirming: temporary files, developer caches, project build folders and duplicate copies. It does not "boost" or tweak hidden settings.
+
+**Does it work on macOS or Linux?** No, it is Windows only (Windows 10 and 11, 64-bit).
+
+**Where are its settings stored?** In %APPDATA%\SysInfoPro. The GitHub version is a single program file; delete it to remove it.
+
+**How is it different from Task Manager, CCleaner or WizTree?** It combines diagnosis in plain words (why the PC is slow, where a network connection breaks, which runtime actually runs) with developer-specific tools (unpushed git work, dev caches, PATH, WSL disks) in one app that needs no administrator rights. Its processor numbers match Task Manager; it does not use cleaner-style scare counts.
+
+**How do I report a bug or a security problem?** Bugs: https://github.com/anandhuremanan/sysinfopro/issues. Security problems: privately through GitHub's security advisories, as described in https://github.com/anandhuremanan/sysinfopro/blob/main/SECURITY.md
+
+**Who makes it?** Probably Fine Labs. Source and releases are on GitHub at https://github.com/anandhuremanan/sysinfopro

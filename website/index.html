@@ -3,11 +3,101 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SysInfo Pro: plain answers for your Windows PC, built for developers</title>
+    <title>SysInfo Pro – Free Windows PC Diagnostics &amp; Developer Tools</title>
     <meta
       name="description"
-      content="SysInfo Pro finds out why your PC is slow, what is filling your drive and what is wrong with your developer setup, in plain words, with what to try next. 22 tools that work without administrator rights. Free for Windows 10 and 11, on the Microsoft Store."
+      content="Free, open-source Windows app that explains why your PC is slow, what is filling your drive and what is wrong with your dev setup. No admin rights needed."
     />
+    <link rel="canonical" href="https://sysinfopro.imanandhu.in/" />
+    <link rel="alternate" type="text/plain" title="SysInfo Pro for AI assistants" href="https://sysinfopro.imanandhu.in/llms.txt" />
+    <link rel="sitemap" type="application/xml" href="https://sysinfopro.imanandhu.in/sitemap.xml" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Probably Fine Labs" />
+    <meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)" />
+    <meta name="msapplication-TileColor" content="#0f766e" />
+
+    <!-- link previews (chat apps, social sites) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="SysInfo Pro" />
+    <meta property="og:url" content="https://sysinfopro.imanandhu.in/" />
+    <meta property="og:title" content="SysInfo Pro – Find out why. Then fix it." />
+    <meta
+      property="og:description"
+      content="Free, open-source diagnostics and fixes for Windows PCs and developer machines. Plain words, real numbers, no admin rights."
+    />
+    <meta property="og:image" content="https://sysinfopro.imanandhu.in/img/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SysInfo Pro: Find out why. Then fix it. A Windows app showing CPU, memory, storage and battery health." />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="SysInfo Pro – Find out why. Then fix it." />
+    <meta
+      name="twitter:description"
+      content="Free, open-source diagnostics and fixes for Windows PCs and developer machines. No admin rights needed."
+    />
+    <meta name="twitter:image" content="https://sysinfopro.imanandhu.in/img/og-image.png" />
+
+    <!-- what this page is about, for search engines and assistants -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://sysinfopro.imanandhu.in/#app",
+            "name": "SysInfo Pro",
+            "alternateName": ["SysInfoPro", "Sys Info Pro"],
+            "description": "Free, open-source Windows utility that explains in plain words why a PC is slow, what is filling the drive and what is wrong with a developer setup, and helps fix it without administrator rights.",
+            "url": "https://sysinfopro.imanandhu.in/",
+            "applicationCategory": "UtilitiesApplication",
+            "applicationSubCategory": "System diagnostics",
+            "operatingSystem": "Windows 10, Windows 11",
+            "softwareVersion": "3.2.0",
+            "isAccessibleForFree": true,
+            "license": "https://github.com/anandhuremanan/sysinfopro/blob/main/LICENSE",
+            "downloadUrl": "https://apps.microsoft.com/detail/9pd2g09hcxk3",
+            "installUrl": "https://apps.microsoft.com/detail/9pd2g09hcxk3",
+            "codeRepository": "https://github.com/anandhuremanan/sysinfopro",
+            "screenshot": "https://sysinfopro.imanandhu.in/img/home-light.webp",
+            "image": "https://sysinfopro.imanandhu.in/img/og-image.png",
+            "featureList": [
+              "Why so slow: what is holding the PC back right now",
+              "Git projects: unpushed commits, stashes and projects with no remote",
+              "Dev doctor: which python, node or java really runs",
+              "Network doctor: where an internet connection breaks",
+              "Disk usage, disk growth and duplicate file finder",
+              "Developer cache cleanup: npm, pip, NuGet, Gradle, Maven, Cargo, Go",
+              "WSL and Docker virtual disk sizes",
+              "PATH fixer with undo",
+              "Battery capacity history",
+              "Security check and drive health",
+              "Always-on-top widget and low-space alerts"
+            ],
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "publisher": { "@id": "https://sysinfopro.imanandhu.in/#org" },
+            "sameAs": ["https://apps.microsoft.com/detail/9pd2g09hcxk3", "https://github.com/anandhuremanan/sysinfopro"]
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://sysinfopro.imanandhu.in/#org",
+            "name": "Probably Fine Labs",
+            "url": "https://sysinfopro.imanandhu.in/",
+            "logo": "https://sysinfopro.imanandhu.in/img/icon-180.png",
+            "sameAs": ["https://github.com/anandhuremanan/sysinfopro"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://sysinfopro.imanandhu.in/#site",
+            "url": "https://sysinfopro.imanandhu.in/",
+            "name": "SysInfo Pro",
+            "publisher": { "@id": "https://sysinfopro.imanandhu.in/#org" },
+            "inLanguage": "en"
+          }
+        ]
+      }
+    </script>
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="img/favicon.png" />
     <link rel="apple-touch-icon" href="img/icon-180.png" />
@@ -21,6 +111,7 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <a class="skip-link" href="#top">Skip to content</a>
     <header class="nav">
       <a class="brand" href="#top" aria-label="SysInfo Pro home">
         <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
@@ -39,7 +130,7 @@
 
     <main id="top">
       <section class="hero">
-        <p class="eyebrow">Version 3.2 · Windows 10 and 11</p>
+        <p class="eyebrow">SysInfo Pro 3.2 · free for Windows 10 and 11</p>
         <h1>Find out why. Then fix it.</h1>
         <p class="lead">
           Why your PC is slow, what is filling your drive and what is wrong with your dev setup, in

@@ -1,0 +1,6 @@
+# SysInfo Pro website: everything here is public and may be indexed,
+# including by AI assistants and their search tools.
+User-agent: *
+Allow: /
+
+Sitemap: https://sysinfopro.imanandhu.in/sitemap.xml

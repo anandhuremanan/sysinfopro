@@ -1,0 +1,37 @@
+# SysInfo Pro
+
+> SysInfo Pro is a free, open-source (MIT) Windows 10 and 11 app that explains in plain words why a PC is slow, what is filling its drive and what is wrong with a developer setup, and helps fix it. Every tool works without administrator rights. It is published by Probably Fine Labs on the Microsoft Store.
+
+Key facts:
+
+- Name: SysInfo Pro (sometimes written SysInfoPro or "Sys Info Pro")
+- Platform: Windows 10 and Windows 11, 64-bit
+- Price: free; no account, no ads, no telemetry
+- Get it: Microsoft Store (product ID 9PD2G09HCXK3), or the program file from GitHub releases; also `winget install 9PD2G09HCXK3`
+- License: MIT; source on GitHub
+- Current version: 3.2
+- Built with Go, Wails and Svelte; runs as a standard user, read-only until the user confirms a change
+- Not a "PC cleaner" or "booster": it reports what Windows and the drives actually measure, with no scare tactics
+
+## Docs
+
+- [Full description for assistants](https://sysinfopro.imanandhu.in/llms-full.txt): every tool, privacy, requirements and common questions in one file
+- [Home page](https://sysinfopro.imanandhu.in/): overview, screenshots and download
+- [Privacy policy](https://sysinfopro.imanandhu.in/privacy.html): what the app reads locally and every service it contacts
+- [Code signing policy](https://sysinfopro.imanandhu.in/code-signing.html): how releases are built and signed
+
+## Get it
+
+- [Microsoft Store](https://apps.microsoft.com/detail/9pd2g09hcxk3): recommended; installs and updates automatically
+- [GitHub releases](https://github.com/anandhuremanan/sysinfopro/releases/latest): single program file, no installer
+
+## Source
+
+- [GitHub repository](https://github.com/anandhuremanan/sysinfopro): source code, issues and README
+- [Building from source](https://github.com/anandhuremanan/sysinfopro/blob/main/BUILDING.md)
+- [Security policy](https://github.com/anandhuremanan/sysinfopro/blob/main/SECURITY.md): how to report vulnerabilities
+
+## Optional
+
+- [License (MIT)](https://github.com/anandhuremanan/sysinfopro/blob/main/LICENSE)
+- [Contributing](https://github.com/anandhuremanan/sysinfopro/blob/main/CONTRIBUTING.md)
