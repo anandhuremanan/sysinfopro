@@ -205,7 +205,7 @@
 		class="relative h-screen w-screen flex flex-col gap-3 px-4 pt-3 pb-3.5 bg-ground text-ink text-xs overflow-hidden select-none"
 	>
 		<!-- Fixed Height Header Bar -->
-		<header class="flex justify-between items-center gap-3 h-10 shrink-0">
+		<header class="drag-region flex justify-between items-center gap-3 h-10 shrink-0">
 			<div class="flex items-center gap-2.5 min-w-0">
 				<div class="flex items-center shrink-0">
 					<Logo />

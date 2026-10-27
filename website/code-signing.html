@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Code signing policy · SysInfo Pro</title>
+    <meta name="description" content="How SysInfo Pro releases are built and signed." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="img/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="index.html" aria-label="SysInfo Pro home">
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="1" y="1" width="22" height="22" rx="6" />
+          <path d="M4.5 12.5h3.2l2.1-5 3.4 9.5 2.2-4.5h4.1" />
+        </svg>
+        <span>SysInfo <span class="brand-pro">Pro</span></span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="index.html">Home</a>
+        <a href="index.html#download">Download</a>
+      </nav>
+    </header>
+
+    <main class="policy">
+      <h1>Code signing policy</h1>
+      <p class="policy-meta">SysInfo Pro by Probably Fine Labs · Last updated 27 October 2026</p>
+
+      <p>
+        Free code signing provided by <a href="https://signpath.io">SignPath.io</a>, certificate by
+        <a href="https://signpath.org">SignPath Foundation</a>.
+      </p>
+
+      <h2>What is signed</h2>
+      <p>
+        The SysInfo Pro program file (<code>sysinfopro-&lt;version&gt;.exe</code>) published on the
+        <a href="https://github.com/anandhuremanan/sysinfopro/releases">GitHub releases page</a>. The
+        Microsoft Store version is signed by Microsoft as part of the Store.
+      </p>
+      <p>
+        Every signed file is built by GitHub Actions from the public source code at
+        <a href="https://github.com/anandhuremanan/sysinfopro">github.com/anandhuremanan/sysinfopro</a>,
+        from a tagged release. Nothing built on a personal computer is signed.
+      </p>
+
+      <h2>Team roles</h2>
+      <ul>
+        <li>
+          Committers and reviewers:
+          <a href="https://github.com/anandhuremanan">anandhuremanan</a>
+        </li>
+        <li>
+          Approvers, who approve each signing request:
+          <a href="https://github.com/anandhuremanan">anandhuremanan</a>
+        </li>
+      </ul>
+      <p>
+        Changes from outside contributors are reviewed before they are merged, and every release is
+        approved by hand before it is signed.
+      </p>
+
+      <h2>Privacy</h2>
+      <p>
+        SysInfo Pro has no account and no telemetry. It contacts other systems only for the checks
+        described in the <a href="privacy.html">privacy policy</a>: tests you start, such as the speed
+        test and Network doctor, version lookups when you open Software, and a short internet
+        connection check. The privacy policy lists every service it contacts and when.
+      </p>
+
+      <h2>License</h2>
+      <p>
+        SysInfo Pro is open source under the
+        <a href="https://github.com/anandhuremanan/sysinfopro/blob/main/LICENSE">MIT License</a>.
+      </p>
+    </main>
+
+    <footer class="footer">
+      <span>© 2026 Probably Fine Labs</span>
+      <a href="index.html">SysInfo Pro</a>
+    </footer>
+  </body>
+</html>

@@ -62,6 +62,43 @@ jobs:
           wails-go127 build -o "sysinfopro-$env:VERSION.exe"
           if ($LASTEXITCODE -ne 0) { throw 'wails build failed' }
 
+      # Code signing through the SignPath Foundation (free for open-source projects).
+      # Switched on once these are set in the repository settings:
+      #   variables SIGNPATH_ORGANIZATION_ID, SIGNPATH_PROJECT_SLUG, SIGNPATH_POLICY_SLUG
+      #   secret    SIGNPATH_API_TOKEN
+      # SignPath signs only what this workflow built and uploaded; the signed exe
+      # replaces the unsigned one before the final upload.
+      - name: Upload the unsigned exe for signing
+        id: unsigned
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-exe
+          path: build/bin/sysinfopro-${{ env.VERSION }}.exe
+          if-no-files-found: error
+
+      - name: Sign the exe with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: build/signed
+
+      - name: Use the signed exe
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        run: |
+          $signed = Get-ChildItem build/signed -Recurse -Filter "sysinfopro-$env:VERSION.exe" | Select-Object -First 1
+          if (-not $signed) { throw 'SignPath returned no signed exe' }
+          Copy-Item $signed.FullName "build/bin/sysinfopro-$env:VERSION.exe" -Force
+          $sig = Get-AuthenticodeSignature "build/bin/sysinfopro-$env:VERSION.exe"
+          if ($sig.Status -ne 'Valid') { throw "The signed exe's signature is $($sig.Status)" }
+          "Signed by: $($sig.SignerCertificate.Subject)"
+
       # identity values come from Partner Center (Product identity); store them as
       # repository variables MSIX_IDENTITY_NAME, MSIX_PUBLISHER, MSIX_PUBLISHER_DISPLAY_NAME
       - name: Package the MSIX

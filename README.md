@@ -42,4 +42,13 @@ Node 22, and the Wails CLI built by `scripts/build-wails-cli.ps1`; then
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for commit conventions and the manual
-release checklist.
+release checklist. Security problems: see [SECURITY.md](SECURITY.md).
+
+## License
+
+[MIT](LICENSE) © 2025-2026 Probably Fine Labs.
+
+Releases on GitHub are signed. Free code signing provided by
+[SignPath.io](https://signpath.io), certificate by
+[SignPath Foundation](https://signpath.org); see the
+[code signing policy](https://sysinfopro.imanandhu.in/code-signing.html).

@@ -113,6 +113,27 @@ body {
 	}
 }
 
+.drag-region {
+	widows: 1;
+}
+.drag-region
+	:is(
+		button,
+		a,
+		input,
+		select,
+		textarea,
+		label,
+		summary,
+		[role='button'],
+		[role='tab'],
+		[role='radio'],
+		[role='menuitem'],
+		[tabindex]
+	) {
+	widows: 2;
+}
+
 .no-select {
 	user-select: none;
 	-webkit-user-select: none; /* Safari */

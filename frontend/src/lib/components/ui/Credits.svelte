@@ -55,8 +55,8 @@
 				<p class="mt-3 text-muted">sysinfopro.imanandhu.in</p>
 			</div>
 			<div class="flex flex-col gap-2 items-center justify-center shrink-0">
-				<img src="/Open_Source_Initiative.svg" alt="oss" class="w-20 h-20" />
-				<div class="text-center text-muted">We love and Support <br /> Open Source</div>
+				<img src="/Open_Source_Initiative.svg" alt="Open Source Initiative logo" class="w-20 h-20" />
+				<div class="text-center text-muted">Open source under the <br /> MIT License</div>
 			</div>
 		</div>
 	{/if}

@@ -101,3 +101,27 @@ every check, refuses to continue if the tag doesn't match `wails.json`, builds
 the exe and, if the repository variables `MSIX_IDENTITY_NAME`,
 `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` are set, the MSIX. Both are
 kept as artifacts. Nothing is published: upload the package in Partner Center.
+
+## Code signing (SignPath Foundation)
+
+The exe on the GitHub releases page is signed for free through the
+[SignPath Foundation](https://signpath.org) open-source programme. The Store
+package doesn't need this: Microsoft signs it.
+
+One-time setup:
+
+1. Apply at signpath.org with the public repository. The project needs its
+   [MIT license](LICENSE), a public release history and the
+   [code signing policy](website/code-signing.html) page on the website.
+2. Once approved, SignPath gives you an organization ID and sets up a project
+   and a signing policy. In the GitHub repository settings add:
+   - variables `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`,
+     `SIGNPATH_POLICY_SLUG`
+   - secret `SIGNPATH_API_TOKEN` (a SignPath CI user token)
+3. Push a tag. The release workflow uploads the exe it built, sends it to
+   SignPath, waits for your approval and the signature, checks the signature,
+   and keeps the signed exe as the artifact.
+
+Until the variables are set, the signing steps are skipped and the release
+builds exactly as before. The signed exe shows "SignPath Foundation" as the
+publisher; that is how the free programme works.

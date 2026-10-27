@@ -197,7 +197,7 @@
 </script>
 
 <section
-	class="h-screen w-screen flex flex-col px-2 pt-1 pb-1.5 bg-ground text-ink text-xs overflow-hidden select-none"
+	class="drag-region h-screen w-screen flex flex-col px-2 pt-1 pb-1.5 bg-ground text-ink text-xs overflow-hidden select-none"
 >
 	<header class="flex items-center justify-between h-5 shrink-0">
 		<Logo size={14} showWordmark={false} />
