@@ -34,7 +34,14 @@ function readPalette(): Palette {
 	};
 }
 
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+function roundRect(
+	ctx: CanvasRenderingContext2D,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	r: number
+) {
 	ctx.beginPath();
 	ctx.moveTo(x + r, y);
 	ctx.arcTo(x + w, y, x + w, y + h, r);
@@ -53,7 +60,14 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) 
 }
 
 // The largest font size (down to min) at which text fits; long names shrink before they get cut
-function fitFont(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, weight: number, size: number, min: number) {
+function fitFont(
+	ctx: CanvasRenderingContext2D,
+	text: string,
+	maxWidth: number,
+	weight: number,
+	size: number,
+	min: number
+) {
 	for (let s = size; s >= min; s--) {
 		ctx.font = `${weight} ${s}px ${FONT}`;
 		if (ctx.measureText(text).width <= maxWidth) return text;
@@ -95,7 +109,9 @@ const DISCRETE = /nvidia|geforce|quadro|rtx|gtx|radeon (rx|pro)|arc a\d/i;
 function pickGPU(gpus: any[]) {
 	const real = (gpus || []).filter((g) => g?.name && !/basic display|remote/i.test(g.name));
 	const discrete = real.filter((g) => DISCRETE.test(g.name));
-	return [...(discrete.length ? discrete : real)].sort((a, b) => (b.vram_bytes || 0) - (a.vram_bytes || 0))[0];
+	return [...(discrete.length ? discrete : real)].sort(
+		(a, b) => (b.vram_bytes || 0) - (a.vram_bytes || 0)
+	)[0];
 }
 
 function rigName(specs: any): string {
@@ -123,12 +139,15 @@ function describeRig(systemInfo: any, specs: any): Rig {
 
 	const gpu = pickGPU(specs?.gpus);
 	const modules: any[] = (specs?.memory || []).filter((m: any) => m?.size_bytes > 0);
-	const memBytes = modules.reduce((sum, m) => sum + m.size_bytes, 0) || (systemInfo.total_ram_mb || 0) * 1024 * 1024;
+	const memBytes =
+		modules.reduce((sum, m) => sum + m.size_bytes, 0) ||
+		(systemInfo.total_ram_mb || 0) * 1024 * 1024;
 	const speed = Math.max(0, ...modules.map((m) => Number(m.speed_mhz) || 0));
 	const sameSize = new Set(modules.map((m) => m.size_bytes)).size === 1;
 
 	const disks: any[] = (specs?.disks || []).filter((d: any) => d?.size_bytes > 0);
-	const diskBytes = disks.reduce((sum, d) => sum + d.size_bytes, 0) || systemInfo.total_disk_bytes || 0;
+	const diskBytes =
+		disks.reduce((sum, d) => sum + d.size_bytes, 0) || systemInfo.total_disk_bytes || 0;
 	const diskKind = (d: any) => {
 		const text = `${d?.interface || ''} ${d?.media || ''} ${d?.model || ''}`;
 		if (/nvme/i.test(text)) return 'NVMe SSD';
@@ -137,7 +156,10 @@ function describeRig(systemInfo: any, specs: any): Rig {
 		return systemInfo.disk_type || 'Drive';
 	};
 
-	const osName = String(specs?.os?.name || systemInfo.host_platform || 'Windows').replace(/^Microsoft /, '');
+	const osName = String(specs?.os?.name || systemInfo.host_platform || 'Windows').replace(
+		/^Microsoft /,
+		''
+	);
 	const osVersion = systemInfo.host_platform_version || specs?.os?.version || '';
 	return {
 		name: rigName(specs),
@@ -148,31 +170,42 @@ function describeRig(systemInfo: any, specs: any): Rig {
 				.replace(/\s+(Processor|CPU)\s*$/i, '')
 				.trim() || 'Processor',
 		cpuDetail:
-			[cores ? `${cores} cores` : '', threads ? `${threads} threads` : ''].filter(Boolean).join(' · ') ||
+			[cores ? `${cores} cores` : '', threads ? `${threads} threads` : '']
+				.filter(Boolean)
+				.join(' · ') ||
 			systemInfo.cpu_vendor ||
 			'',
 		cores,
-		gpu: String(gpu?.name || 'Graphics').replace(/\((R|TM)\)/gi, '').replace(/\s+/g, ' ').trim(),
+		gpu: String(gpu?.name || 'Graphics')
+			.replace(/\((R|TM)\)/gi, '')
+			.replace(/\s+/g, ' ')
+			.trim(),
 		gpuDiscrete: DISCRETE.test(gpu?.name || ''),
-		// built-in graphics borrow system memory rather than having their own
+		// built-in graphics borrow system memory as needed, so no size is claimed;
+		// Windows caps a card's reported memory near 4 GB, so a capped value says "4 GB+"
 		gpuDetail: DISCRETE.test(gpu?.name || '')
 			? gpu?.vram_bytes
-				? `${trimSize(gpu.vram_bytes)} video memory`
+				? gpu.vram_bytes >= 4 * 1024 ** 3 - 1024 ** 2
+					? '4 GB+ video memory'
+					: `${trimSize(gpu.vram_bytes)} video memory`
 				: 'Graphics card'
-			: gpu?.vram_bytes
-				? `Built-in · ${trimSize(gpu.vram_bytes)} shared memory`
-				: 'Built-in graphics',
+			: 'Built-in graphics',
 		memory: trimSize(memBytes),
 		memoryDetail:
 			[
-				modules.length ? (sameSize ? `${modules.length} × ${trimSize(modules[0].size_bytes)}` : `${modules.length} modules`) : '',
-				speed ? `${speed} MHz` : ''
+				modules.length
+					? sameSize
+						? `${modules.length} × ${trimSize(modules[0].size_bytes)}`
+						: `${modules.length} modules`
+					: '',
+				speed ? `${speed} MT/s` : ''
 			]
 				.filter(Boolean)
 				.join(' · ') || 'Installed',
 		modules: Math.max(1, Math.min(4, modules.length || 2)),
 		storage: trimSize(diskBytes),
-		storageDetail: disks.length > 1 ? `${disks.length} drives · ${diskKind(disks[0])}` : diskKind(disks[0]),
+		storageDetail:
+			disks.length > 1 ? `${disks.length} drives · ${diskKind(disks[0])}` : diskKind(disks[0]),
 		display: gpu?.width && gpu?.height ? `${gpu.width} × ${gpu.height}` : 'Display',
 		displayDetail: gpu?.refresh_hz ? `${gpu.refresh_hz} Hz` : '',
 		os: osVersion ? `${osName} · ${osVersion}` : osName
@@ -198,11 +231,19 @@ function background(ctx: CanvasRenderingContext2D, p: Palette) {
 	}
 	withAlpha(ctx, 0.06, () => {
 		ctx.fillStyle = p.ink;
-		for (let x = 14; x < WIDTH; x += 18) for (let y = 14; y < HEIGHT; y += 18) ctx.fillRect(x, y, 1.2, 1.2);
+		for (let x = 14; x < WIDTH; x += 18)
+			for (let y = 14; y < HEIGHT; y += 18) ctx.fillRect(x, y, 1.2, 1.2);
 	});
 }
 
-function tile(ctx: CanvasRenderingContext2D, p: Palette, x: number, y: number, w: number, h: number) {
+function tile(
+	ctx: CanvasRenderingContext2D,
+	p: Palette,
+	x: number,
+	y: number,
+	w: number,
+	h: number
+) {
 	ctx.fillStyle = p.tile;
 	roundRect(ctx, x, y, w, h, 16);
 	ctx.fill();
@@ -242,7 +283,14 @@ function tileText(
 }
 
 // a processor with one square per core (up to 16), or with a label in place of the cores
-function chip(ctx: CanvasRenderingContext2D, p: Palette, cx: number, cy: number, cores: number, label?: string) {
+function chip(
+	ctx: CanvasRenderingContext2D,
+	p: Palette,
+	cx: number,
+	cy: number,
+	cores: number,
+	label?: string
+) {
 	const size = 92;
 	const x = cx - size / 2;
 	const y = cy - size / 2;
@@ -292,7 +340,14 @@ function chip(ctx: CanvasRenderingContext2D, p: Palette, cx: number, cy: number,
 	const gh = rows * cell + (rows - 1) * gap;
 	ctx.fillStyle = p.accent;
 	for (let i = 0; i < shown; i++) {
-		roundRect(ctx, cx - gw / 2 + (i % cols) * (cell + gap), cy - gh / 2 + Math.floor(i / cols) * (cell + gap), cell, cell, 3.5);
+		roundRect(
+			ctx,
+			cx - gw / 2 + (i % cols) * (cell + gap),
+			cy - gh / 2 + Math.floor(i / cols) * (cell + gap),
+			cell,
+			cell,
+			3.5
+		);
 		ctx.fill();
 	}
 	ctx.restore();
@@ -348,7 +403,13 @@ function graphicsCard(ctx: CanvasRenderingContext2D, p: Palette, cx: number, cy:
 }
 
 // memory sticks, one per installed module (up to 4)
-function memorySticks(ctx: CanvasRenderingContext2D, p: Palette, right: number, cy: number, count: number) {
+function memorySticks(
+	ctx: CanvasRenderingContext2D,
+	p: Palette,
+	right: number,
+	cy: number,
+	count: number
+) {
 	ctx.save();
 	ctx.strokeStyle = p.accent;
 	ctx.fillStyle = p.accent;
@@ -541,7 +602,18 @@ function drawRig(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 
 	tile(ctx, p, cells[2], rowY, cellW, rowH);
 	monitor(ctx, p, cells[2] + cellW - 18, rowY + 38, rig.displayDetail);
-	tileText(ctx, p, cells[2], rowY, rowH, 'Display', rig.display, rig.displayDetail ? `${rig.displayDetail} refresh rate` : 'Main display', 24, cellW - 40);
+	tileText(
+		ctx,
+		p,
+		cells[2],
+		rowY,
+		rowH,
+		'Display',
+		rig.display,
+		rig.displayDetail ? `${rig.displayDetail} refresh rate` : 'Main display',
+		24,
+		cellW - 40
+	);
 
 	ctx.fillStyle = p.muted;
 	ctx.font = `500 12px ${FONT}`;
@@ -567,7 +639,14 @@ function logoAscii(cols = 22, rows = 11): string[] {
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
 	ctx.beginPath();
-	[[4.5, 12.5], [7.7, 12.5], [9.8, 7.5], [13.2, 17], [15.4, 12.5], [19.5, 12.5]].forEach(([x, y], i) => {
+	[
+		[4.5, 12.5],
+		[7.7, 12.5],
+		[9.8, 7.5],
+		[13.2, 17],
+		[15.4, 12.5],
+		[19.5, 12.5]
+	].forEach(([x, y], i) => {
 		if (i === 0) ctx.moveTo(x * unit, y * unit);
 		else ctx.lineTo(x * unit, y * unit);
 	});
@@ -636,7 +715,11 @@ function drawTerminal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 	let y = 84;
 	ctx.font = `700 17px ${MONO}`;
 	ctx.fillStyle = accent;
-	ctx.fillText(fitText(ctx, `you@${rig.name.toLowerCase().replace(/\s+/g, '-')}`, WIDTH - x - 30), x, y);
+	ctx.fillText(
+		fitText(ctx, `you@${rig.name.toLowerCase().replace(/\s+/g, '-')}`, WIDTH - x - 30),
+		x,
+		y
+	);
 	y += 12;
 	ctx.fillStyle = dim;
 	ctx.fillText('─'.repeat(24), x, y + 6);
@@ -647,7 +730,10 @@ function drawTerminal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 		['Host', rig.name],
 		['CPU', rig.cores ? `${rig.cpu} (${rig.cores})` : rig.cpu],
 		['GPU', rig.gpu],
-		['Memory', rig.memoryDetail === 'Installed' ? rig.memory : `${rig.memory} · ${rig.memoryDetail}`],
+		[
+			'Memory',
+			rig.memoryDetail === 'Installed' ? rig.memory : `${rig.memory} · ${rig.memoryDetail}`
+		],
 		['Disk', `${rig.storage} · ${rig.storageDetail}`],
 		['Display', rig.displayDetail ? `${rig.display} @ ${rig.displayDetail}` : rig.display]
 	];
@@ -662,10 +748,12 @@ function drawTerminal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 
 	// the colour blocks neofetch ends with
 	y += 4;
-	['#1e1e24', '#ff5f57', '#28c840', '#febc2e', '#3b82f6', '#a855f7', '#22d3ee', '#e7e7ea'].forEach((c, i) => {
-		ctx.fillStyle = c;
-		ctx.fillRect(x + i * 30, y, 30, 18);
-	});
+	['#1e1e24', '#ff5f57', '#28c840', '#febc2e', '#3b82f6', '#a855f7', '#22d3ee', '#e7e7ea'].forEach(
+		(c, i) => {
+			ctx.fillStyle = c;
+			ctx.fillRect(x + i * 30, y, 30, 18);
+		}
+	);
 
 	ctx.fillStyle = dim;
 	ctx.font = `500 12px ${MONO}`;
@@ -727,7 +815,16 @@ function drawNeon(ctx: CanvasRenderingContext2D, base: Palette, rig: Rig) {
 	ctx.fillText('SysInfo Pro', WIDTH - 128, 60);
 
 	// panels: outlines that glow
-	const panel = (x: number, y: number, w: number, h: number, label: string, value: string, detail: string, size: number) => {
+	const panel = (
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+		label: string,
+		value: string,
+		detail: string,
+		size: number
+	) => {
 		glow(16, () => {
 			ctx.strokeStyle = p.accent;
 			ctx.lineWidth = 1.6;
@@ -759,7 +856,16 @@ function drawNeon(ctx: CanvasRenderingContext2D, base: Palette, rig: Rig) {
 	const w3 = (WIDTH - m * 2 - gap * 2) / 3;
 	panel(m, 228, w3, 104, 'RAM', rig.memory, rig.memoryDetail, 26);
 	panel(m + w3 + gap, 228, w3, 104, 'STORAGE', rig.storage, rig.storageDetail, 26);
-	panel(m + (w3 + gap) * 2, 228, w3, 104, 'DISPLAY', rig.display, rig.displayDetail ? `${rig.displayDetail}` : 'Main display', 24);
+	panel(
+		m + (w3 + gap) * 2,
+		228,
+		w3,
+		104,
+		'DISPLAY',
+		rig.display,
+		rig.displayDetail ? `${rig.displayDetail}` : 'Main display',
+		24
+	);
 
 	ctx.fillStyle = '#b8bcc6';
 	ctx.font = `500 12px ${FONT}`;
@@ -771,8 +877,6 @@ function drawNeon(ctx: CanvasRenderingContext2D, base: Palette, rig: Rig) {
 function drawMinimal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 	ctx.fillStyle = p.tile;
 	ctx.fillRect(0, 0, WIDTH, HEIGHT);
-	ctx.fillStyle = p.accent;
-	ctx.fillRect(0, 0, 6, HEIGHT);
 
 	const m = 52;
 	ctx.fillStyle = p.muted;
@@ -784,7 +888,10 @@ function drawMinimal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 	const rows: [string, string][] = [
 		['Processor', rig.cores ? `${rig.cpu} · ${rig.cpuDetail}` : rig.cpu],
 		['Graphics', rig.gpu],
-		['Memory', rig.memoryDetail === 'Installed' ? rig.memory : `${rig.memory} · ${rig.memoryDetail}`],
+		[
+			'Memory',
+			rig.memoryDetail === 'Installed' ? rig.memory : `${rig.memory} · ${rig.memoryDetail}`
+		],
 		['Storage', `${rig.storage} · ${rig.storageDetail}`],
 		['Display', rig.displayDetail ? `${rig.display} · ${rig.displayDetail}` : rig.display],
 		['System', rig.os]
@@ -809,7 +916,10 @@ function drawMinimal(ctx: CanvasRenderingContext2D, p: Palette, rig: Rig) {
 
 // ---------- the card ----------
 
-export async function generateSpecCardPNG(systemInfo?: any, style: CardStyle = getCardStyle()): Promise<string> {
+export async function generateSpecCardPNG(
+	systemInfo?: any,
+	style: CardStyle = getCardStyle()
+): Promise<string> {
 	// the Specs screen's data, usually already fetched in the background
 	const specs = await load('specs', GetHardwareSpecs).catch(() => undefined);
 	const rig = describeRig(systemInfo || recall('sysinfo') || {}, specs);

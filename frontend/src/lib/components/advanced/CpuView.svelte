@@ -21,7 +21,11 @@
 	let now = $state<Detail | null>(null);
 	let uptimeSec = $state(0);
 	let cpu = $state<any>(null); // from the hardware inventory: cores, threads, socket
-	let hover = $state<number | null>(null);
+	// the hovered moment, as seconds before now; it stays put as new readings arrive
+	let hoverAgo = $state<number | null>(null);
+	let hover = $derived(
+		hoverAgo !== null && usage.length - 1 - hoverAgo >= 0 ? usage.length - 1 - hoverAgo : null
+	);
 
 	let model = $derived(
 		cpu?.name ? shortCpuName(cpu.name) : shortCpuName(systemInfo?.cpu_model ?? '')
@@ -78,7 +82,7 @@
 		if (!n) return;
 		let best = 0;
 		for (let i = 0; i < n; i++) if (Math.abs(x(i, n) - px) < Math.abs(x(best, n) - px)) best = i;
-		hover = best;
+		hoverAgo = n - 1 - best;
 	}
 
 	onMount(() => {
@@ -113,17 +117,18 @@
 		<!-- live usage, last minute -->
 		<section class="min-h-0 flex flex-col gap-2">
 			<div class="rounded-xl bg-ground px-3 pt-2.5 pb-2 flex flex-col gap-1.5">
-				<div class="flex items-baseline justify-between">
+				<div class="flex items-baseline justify-between h-8">
 					<span class="text-xs text-muted">Use, last 60 seconds</span>
-					<span class="text-xs text-muted">
-						{#if hover !== null}
-							{usage.length - 1 - hover === 0 ? 'now' : `${usage.length - 1 - hover} s ago`}:
-							<span class="font-semibold text-ink">{usage[hover].toFixed(0)}%</span>
-						{:else}
-							<span class="text-2xl font-semibold text-ink tabular-nums"
-								>{(now?.usage ?? 0).toFixed(0)}</span
-							><span class="text-ink">%</span>
-						{/if}
+					<span class="flex items-baseline gap-1.5">
+						<span class="text-[11px] text-muted w-14 text-right">
+							{hover !== null ? (hoverAgo === 0 ? 'now' : `${hoverAgo} s ago`) : ''}
+						</span>
+						<!-- number and % together, in a fixed width so nothing shifts as it changes -->
+						<span class="w-16 text-right"
+							><span class="text-2xl font-semibold text-ink tabular-nums"
+								>{(hover !== null ? usage[hover] : (now?.usage ?? 0)).toFixed(0)}</span
+							><span class="text-ink">%</span></span
+						>
 					</span>
 				</div>
 				<svg
@@ -135,7 +140,7 @@
 						0
 					)} percent"
 					onpointermove={onMove}
-					onpointerleave={() => (hover = null)}
+					onpointerleave={() => (hoverAgo = null)}
 				>
 					{#each [25, 50, 75] as g (g)}
 						<line

@@ -134,7 +134,11 @@
 
 	<div class="flex flex-col gap-0.5">
 		{#if isThrottling}
-			<span class="font-semibold text-red-500">Slowed down by heat</span>
+			<span
+				class="font-semibold text-amber-600 dark:text-amber-400"
+				title="Busy, yet running below its base speed: usually heat or a power-saving setting"
+				>Running below base speed</span
+			>
 		{:else if sustainedLoad}
 			<span class="font-semibold text-amber-600 dark:text-amber-400">Busy for a while now</span>
 		{:else}

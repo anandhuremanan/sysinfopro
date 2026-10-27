@@ -62,7 +62,11 @@ type Report struct {
 
 // Sample is what was measured; analyse turns it into a Report
 type Sample struct {
-	CPUPct         float64
+	CPUPct float64 // as Task Manager shows it (% Processor Utility)
+	// share of time the processor was not idle; 0 when only CPUPct is known.
+	// Utility shrinks when the processor slows down, so "is it busy?" for the
+	// slowed-down check is answered from this instead.
+	CPUTimePct     float64
 	PerformancePct float64 // -1 unknown
 	Procs          []Proc  // one per process, Count 1
 	MemTotal       uint64
@@ -115,7 +119,9 @@ var culprits = map[string]culprit{
 	"wmiprvse.exe": {"wmi", "A program keeps asking Windows for system details",
 		"The Windows service that answers questions about the hardware is busy, usually because some program asks it over and over.",
 		"If it stays busy, close monitoring or vendor utilities one at a time to find which one."},
-	"vmmem":    wslCulprit,
+	// vmmemWSL is WSL 2; plain vmmem is any Hyper-V virtual machine (Windows
+	// Sandbox, Hyper-V, Docker on Hyper-V), so it is not called WSL
+	"vmmem":    vmCulprit,
 	"vmmemwsl": wslCulprit,
 	"com.docker.backend.exe": {"docker", "Docker is busy",
 		"Docker Desktop's background service is using the processor or drive.",
@@ -129,6 +135,9 @@ var (
 	indexCulprit = culprit{"indexing", "Windows is indexing files for search",
 		"Search is reading files so it can find them quickly later.",
 		"It calms down once the index is built. To index less: Settings > Privacy & security > Searching Windows."}
+	vmCulprit = culprit{"vm", "A virtual machine is busy",
+		"A virtual machine (Windows Sandbox, Hyper-V, or Docker on Hyper-V) is using the processor.",
+		"Close virtual machines you are not using."}
 	wslCulprit = culprit{"wsl", "WSL is busy",
 		"The Linux virtual machine of WSL (or Docker, which runs inside it) is using the processor.",
 		"Run wsl --shutdown in a terminal when you are not using Linux tools."}
@@ -257,10 +266,10 @@ func analyse(s Sample) Report {
 		reported[c.id] = true
 	}
 
-	// WSL holding memory, busy or not
+	// WSL or another virtual machine holding memory, busy or not
 	for _, g := range groups {
 		c, ok := culpritFor(g.Name)
-		if !ok || c.id != "wsl" || g.MemoryBytes < 2*gb {
+		if !ok || (c.id != "wsl" && c.id != "vm") || g.MemoryBytes < 2*gb {
 			continue
 		}
 		level := "info"
@@ -268,6 +277,13 @@ func analyse(s Sample) Report {
 			level = "high"
 		} else if r.Memory.UsedPct >= 65 {
 			level = "medium"
+		}
+		if c.id == "vm" {
+			add(Finding{ID: "vm-memory", Level: level, Title: fmt.Sprintf("A virtual machine is holding %s of memory", gbText(g.MemoryBytes)),
+				Detail: "A Hyper-V virtual machine (Windows Sandbox, Hyper-V, or Docker on Hyper-V) has this much memory set aside.",
+				Fix:    "Shut down virtual machines you are not using.",
+				PID:    g.PID, Process: g.Name})
+			continue
 		}
 		add(Finding{ID: "wsl-memory", Level: level, Title: fmt.Sprintf("WSL is holding %s of memory", gbText(g.MemoryBytes)),
 			Detail: "The Linux virtual machine of WSL (and Docker, which runs inside it) keeps memory it once used, even when idle.",
@@ -319,8 +335,12 @@ func analyse(s Sample) Report {
 		for _, t := range r.Memory.Top[:min(3, len(r.Memory.Top))] {
 			names = append(names, fmt.Sprintf("%s %s", friendly(t), gbText(t.MemoryBytes)))
 		}
+		state := "getting full"
+		if level == "high" {
+			state = "almost full"
+		}
 		f := Finding{ID: "memory", Level: level,
-			Title: fmt.Sprintf("Memory is almost full: %s of %s in use", gbText(s.MemTotal-s.MemAvailable), gbText(s.MemTotal)),
+			Title: fmt.Sprintf("Memory is %s: %s of %s in use", state, gbText(s.MemTotal-s.MemAvailable), gbText(s.MemTotal)),
 			Detail: "When memory runs out, Windows moves things to the drive, which is much slower. Using the most: " +
 				strings.Join(names, ", ") + ".",
 			Fix: "Close programs and browser tabs you are not using."}
@@ -349,18 +369,22 @@ func analyse(s Sample) Report {
 		add(f)
 	}
 
-	// the processor held back
+	// the processor held back: busy, yet running well below its base speed
+	busy := s.CPUTimePct
+	if busy <= 0 {
+		busy = s.CPUPct
+	}
 	switch {
-	case s.PerformancePct >= 0 && s.PerformancePct < 70 && s.CPUPct >= 40:
+	case s.PerformancePct >= 0 && s.PerformancePct < 70 && busy >= 40:
 		f := Finding{ID: "throttled", Level: "high",
-			Title: fmt.Sprintf("The processor is running at %.0f%% of its normal speed", s.PerformancePct)}
+			Title: fmt.Sprintf("The processor is running at %.0f%% of its base speed", s.PerformancePct)}
 		switch {
 		case s.BatterySaver:
 			f.Detail, f.Fix = "Battery saver is on, which holds the processor back.", "Plug in, or turn off battery saver in Settings > System > Power & battery."
 		case s.OnBattery:
 			f.Detail, f.Fix = "The PC is on battery, and Windows slows the processor to save it.", "Plug in, or set Power mode to Best performance in Settings > System > Power & battery."
 		default:
-			f.Detail, f.Fix = "It is busy but not running at full speed, which usually means it is too hot.", "Make sure the vents are not blocked (not on a bed or lap), and clean dust out of them."
+			f.Detail, f.Fix = "It is busy but running below its base speed, which often means it is too hot.", "Make sure the vents are not blocked (not on a bed or lap), and clean dust out of them."
 		}
 		add(f)
 	case s.BatterySaver:

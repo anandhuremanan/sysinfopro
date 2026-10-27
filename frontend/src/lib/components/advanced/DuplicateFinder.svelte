@@ -128,10 +128,9 @@
 			status = {
 				ok: r.failed.length === 0,
 				text:
-					`${r.removed} ${r.removed === 1 ? 'file' : 'files'} moved to the Recycle Bin, ${formatBytes(r.freed)} freed.` +
-					(r.failed.length
-						? ` ${r.failed.length} could not be moved (in use, or gone).`
-						: ' Empty the Recycle Bin to get the space back.')
+					// the files are in the Recycle Bin, so the space is not free until it is emptied
+					`${r.removed} ${r.removed === 1 ? 'file' : 'files'} (${formatBytes(r.freed)}) moved to the Recycle Bin. Empty it to get the space back.` +
+					(r.failed.length ? ` ${r.failed.length} could not be moved (in use, or gone).` : '')
 			};
 		} catch (err) {
 			status = { ok: false, text: `${err}` };

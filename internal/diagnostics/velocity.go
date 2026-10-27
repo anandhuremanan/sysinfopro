@@ -36,8 +36,6 @@ func GetMemoryVelocity() (*MemoryVelocitySample, error) {
 
 	now := time.Now()
 	usedMB := float64(v.Used) / 1024 / 1024
-	totalMB := float64(v.Total) / 1024 / 1024
-	freeMB := totalMB - usedMB
 
 	sample := &MemoryVelocitySample{
 		Timestamp:       now.Format(time.RFC3339),
@@ -58,16 +56,12 @@ func GetMemoryVelocity() (*MemoryVelocitySample, error) {
 			sample.VelocityMBps = math.Round(smoothedVelocity*10) / 10
 			globalTracker.lastVelocity = smoothedVelocity
 
+			// no "runs out in N seconds" forecast: a few seconds of growth say
+			// little about the next minute, so EstimatedOOMSec stays -1
 			if smoothedVelocity > 150 {
 				sample.StatusText = "Rapid Memory Spike"
-				if freeMB > 0 {
-					sample.EstimatedOOMSec = math.Round(freeMB / smoothedVelocity)
-				}
 			} else if smoothedVelocity > 50 {
 				sample.StatusText = "Memory Climbing"
-				if freeMB > 0 {
-					sample.EstimatedOOMSec = math.Round(freeMB / smoothedVelocity)
-				}
 			} else if smoothedVelocity < -50 {
 				sample.StatusText = "Memory Reclaiming"
 			} else {

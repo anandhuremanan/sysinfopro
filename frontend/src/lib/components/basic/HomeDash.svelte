@@ -2,10 +2,12 @@
 	import { formatBytes, isBatteryCharging, usageBarColor } from '$lib';
 	import { ALL_TOOLS_ICON, getTool, pinnedTools, tools, type ToolStatus } from '$lib/tools';
 	import {
+		CheckInternetConnection,
 		GetBatteryDetails,
 		GetDriveHealth,
 		GetDrives,
 		GetMemoryStats,
+		GetBatteryReport,
 		GetSecurityReport,
 		GetTopProcesses
 	} from '$lib/wailsjs/go/main/App';
@@ -30,7 +32,14 @@
 
 	let battery: any = $state(undefined);
 	let batteryLoaded = $state(false);
+	// share of original capacity, from Windows' battery report (the Battery tool's source)
+	let batteryHealth = $state<number | undefined>(undefined);
 	let topProcess: any = $state(undefined);
+	// rechecked while home is open; until the first check, the startup reading
+	let online = $state<boolean | null>(null);
+	async function checkOnline() {
+		online = await CheckInternetConnection().catch(() => null);
+	}
 	let memoryUsedPct = $state<number | undefined>(undefined);
 	let driveHealth = $state<any[] | null>(null);
 	let security = $state<any>(null);
@@ -73,8 +82,7 @@
 				totalBytes: diskTotalBytes,
 				memoryUsedPct,
 				drive: driveHealth?.find((d) => /^c:/i.test(d.drive ?? '')) ?? driveHealth?.[0] ?? null,
-				batteryHealthPct:
-					battery && battery.design_capacity > 0 ? 100 - (battery.degradation_pct ?? 0) : undefined,
+				batteryHealthPct: batteryHealth,
 				security
 			},
 			formatBytes
@@ -126,6 +134,11 @@
 		load('security', GetSecurityReport, 5 * 60_000)
 			.then((r) => (security = r))
 			.catch(() => {});
+		load('battery-report', GetBatteryReport, 10 * 60_000)
+			.then(
+				(r: any) => (batteryHealth = r?.has_battery && r.health_pct > 0 ? r.health_pct : undefined)
+			)
+			.catch(() => {});
 	}
 
 	async function refreshDisk() {
@@ -147,11 +160,16 @@
 	$effect(() => {
 		refreshDisk();
 		refreshMemory();
+		checkOnline();
+		const netTimer = setInterval(checkOnline, 30_000);
 		const timer = setInterval(() => {
 			refreshDisk();
 			refreshMemory();
 		}, DISK_REFRESH_MS);
-		return () => clearInterval(timer);
+		return () => {
+			clearInterval(timer);
+			clearInterval(netTimer);
+		};
 	});
 </script>
 
@@ -251,7 +269,7 @@
 					{topProcess.name}
 				</span>
 				<span class="text-muted truncate">
-					Top consumer · {topProcess.memory_mb.toFixed(0)} MB
+					Most memory · {topProcess.memory_mb.toFixed(0)} MB
 				</span>
 			</span>
 		{:else}
@@ -263,7 +281,7 @@
 	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={onSpeedTest}>
 		<span class="text-muted font-medium">Network</span>
 		<span class="text-xl font-semibold tracking-tight leading-none capitalize truncate w-full">
-			{systemInfo.network_status}
+			{online === null ? systemInfo.network_status : online ? 'Connected' : 'No internet'}
 		</span>
 		<span class="font-semibold text-accent">Run speed test →</span>
 	</button>
@@ -287,12 +305,11 @@
 				/>
 			</span>
 			<span class="text-muted truncate w-full">
-				{#if battery.health_status}
-					{battery.health_status} health{battery.degradation_pct !== undefined
-						? ` · ${battery.degradation_pct}% wear`
-						: ''}
+				<!-- capacity from Windows' battery report, worded like the Battery tool -->
+				{#if batteryHealth !== undefined}
+					Health {Math.round(batteryHealth)}% of new
 				{:else}
-					{battery.current_capacity} of {battery.design_capacity} mWh
+					Battery health: see Battery
 				{/if}
 			</span>
 		{:else}

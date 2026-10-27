@@ -204,3 +204,17 @@ func TestBuildCompanyPC(t *testing.T) {
 		t.Errorf("got %+v", r)
 	}
 }
+
+func TestSuspendedBitLockerIsNotProtection(t *testing.T) {
+	five := 5
+	r := build(facts{bitlocker: &five})
+	for _, it := range r.Items {
+		if it.ID == "encryption" {
+			if it.Status != "todo" || strings.Contains(it.Detail, "cannot be read") {
+				t.Errorf("suspended BitLocker = %+v", it)
+			}
+			return
+		}
+	}
+	t.Error("no encryption item")
+}

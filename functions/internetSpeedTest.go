@@ -151,7 +151,8 @@ func measureLatencyMetrics(progress SpeedProgressFunc) (float64, float64, float6
 	}
 
 	if len(latencies) == 0 {
-		return 0, 0, 100.0
+		// nothing answered: latency unknown (-1), not a perfect 0 ms
+		return -1, -1, 100.0
 	}
 
 	loss := (float64(latencySamples-len(latencies)) / latencySamples) * 100.0

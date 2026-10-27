@@ -18,7 +18,7 @@ $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 		realtime       = [bool]$mp.RealTimeProtectionEnabled
 		signature_days = if ($null -ne $mp -and $mp.AntivirusSignatureLastUpdated) { [int]((Get-Date) - $mp.AntivirusSignatureLastUpdated).TotalDays } else { -1 }
 	}
-	firewall = @(Get-NetFirewallProfile | ForEach-Object {
+	firewall = @(Get-NetFirewallProfile -PolicyStore ActiveStore | ForEach-Object {
 		[pscustomobject]@{ name = [string]$_.Name; enabled = [bool]($_.Enabled -eq 'True' -or $_.Enabled -eq 1) }
 	})
 	uac          = Reg 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' 'EnableLUA'
@@ -27,5 +27,5 @@ $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 	reboot_pending = [bool]((Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') -or (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'))
 	last_update_days = if ($hotfix) { [int]((Get-Date) - $hotfix.InstalledOn).TotalDays } else { -1 }
 	is_admin     = [bool](New-Object Security.Principal.WindowsPrincipal($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-	rdp_enabled  = [bool]((Reg 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' 'fDenyTSConnections') -eq 0)
+	rdp_deny     = Reg 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' 'fDenyTSConnections'
 } | ConvertTo-Json -Depth 4 -Compress

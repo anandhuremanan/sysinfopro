@@ -5,6 +5,13 @@ $cs = Get-CimInstance Win32_ComputerSystem
 $bios = Get-CimInstance Win32_BIOS
 $board = Get-CimInstance Win32_BaseBoard
 $os = Get-CimInstance Win32_OperatingSystem
+# each display driver's own 64-bit memory size, by adapter name (readable without admin)
+$vram = @{}
+Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}' | ForEach-Object {
+	$p = Get-ItemProperty -LiteralPath $_.PSPath
+	$size = $p.'HardwareInformation.qwMemorySize'
+	if ($p.DriverDesc -and $size) { $vram[[string]$p.DriverDesc] = [int64]$size }
+}
 [pscustomobject]@{
 	system = [pscustomobject]@{
 		manufacturer = [string]$cs.Manufacturer
@@ -39,10 +46,14 @@ $os = Get-CimInstance Win32_OperatingSystem
 		}
 	})
 	gpus = @(Get-CimInstance Win32_VideoController | ForEach-Object {
+		# AdapterRAM is 32-bit, so cards with more than 4 GB read as 4 GB; the
+		# display driver's own 64-bit value is used when it is there
+		$name = [string]$_.Name
+		$vramBytes = if ($vram.ContainsKey($name)) { $vram[$name] } else { [int64]$_.AdapterRAM }
 		[pscustomobject]@{
-			name       = [string]$_.Name
+			name       = $name
 			driver     = [string]$_.DriverVersion
-			vram_bytes = [int64]$_.AdapterRAM
+			vram_bytes = $vramBytes
 			width      = [int]$_.CurrentHorizontalResolution
 			height     = [int]$_.CurrentVerticalResolution
 			refresh_hz = [int]$_.CurrentRefreshRate

@@ -149,7 +149,7 @@
 			</div>
 
 			<div class="grid grid-cols-4 gap-2">
-				{#each [{ label: 'Full charge now', value: wh(report.batteries.reduce((s, b) => s + b.full_mwh, 0)), sub: `was ${wh(report.batteries.reduce((s, b) => s + b.design_mwh, 0))} new` }, { label: 'Lasts about', value: hours(report.runtime_now_min), sub: `was ${hours(report.runtime_new_min)} new` }, { label: 'Charge cycles', value: report.batteries[0].cycles >= 0 ? `${report.batteries[0].cycles}` : 'Not reported', sub: report.batteries[0].cycles >= 0 ? 'counted by the battery' : 'this battery does not count them' }, { label: 'Wear per year', value: report.loss_per_year > 0 ? `${report.loss_per_year.toFixed(1)}%` : 'Too early', sub: report.loss_per_year > 0 ? 'of original capacity' : 'needs 3 months of history' }] as s (s.label)}
+				{#each [{ label: 'Full charge now', value: wh(report.batteries.reduce((s, b) => s + b.full_mwh, 0)), sub: `was ${wh(report.batteries.reduce((s, b) => s + b.design_mwh, 0))} new` }, { label: 'Lasts about', value: hours(report.runtime_now_min), sub: `Windows' estimate · ${hours(report.runtime_new_min)} new` }, { label: 'Charge cycles', value: report.batteries[0].cycles >= 0 ? `${report.batteries[0].cycles}` : 'Not reported', sub: report.batteries[0].cycles >= 0 ? 'counted by the battery' : 'this battery does not count them' }, { label: 'Wear per year', value: report.loss_per_year > 0 ? `${report.loss_per_year.toFixed(1)}%` : 'Too early', sub: report.loss_per_year > 0 ? 'of original capacity' : 'needs 3 months of history' }] as s (s.label)}
 					<div class="rounded-xl bg-tile border border-line px-3 py-2">
 						<div class="text-[10px] uppercase tracking-wider font-semibold text-muted">
 							{s.label}

@@ -36,13 +36,15 @@
 	] as const;
 
 	let analysis = $state<Analysis | null>(null);
+	// a missing folder or a repeat; an entry using a variable nobody defines cannot
+	// be checked, so it is not counted as a problem (and is never offered for removal)
+	const isProblem = (e: { is_valid: boolean; is_duplicate: boolean; status_text: string }) =>
+		e.is_duplicate || (!e.is_valid && e.status_text !== 'Uses an undefined variable');
 	// a list with problems comes first, so they are on screen without scrolling
 	let scopes = $derived(
 		[...SCOPES].sort((a, b) => {
 			const bad = (id: string) =>
-				analysis?.path_entries.some((e) => e.scope === id && (!e.is_valid || e.is_duplicate))
-					? 0
-					: 1;
+				analysis?.path_entries.some((e) => e.scope === id && isProblem(e)) ? 0 : 1;
 			return bad(a.id) - bad(b.id);
 		})
 	);
@@ -184,9 +186,7 @@
 				<!-- missing and repeated folders first, so the problems are on screen -->
 				{@const entries = analysis.path_entries
 					.filter((e) => e.scope === scope.id)
-					.sort(
-						(a, b) => Number(a.is_valid && !a.is_duplicate) - Number(b.is_valid && !b.is_duplicate)
-					)}
+					.sort((a, b) => Number(!isProblem(a)) - Number(!isProblem(b)))}
 				{#if entries.length > 0}
 					<div
 						class="flex items-baseline justify-between gap-2 pt-2 pb-1 sticky top-0 bg-tile z-10"
@@ -209,7 +209,7 @@
 									disabled={isSaving}
 									bind:checked={selected[entry.index]}
 								/>
-							{:else if !entry.is_valid || entry.is_duplicate}
+							{:else if isProblem(entry)}
 								<!-- a problem that needs administrator rights to fix -->
 								<span
 									class="size-4 shrink-0 grid place-items-center text-amber-600 dark:text-amber-400 font-bold"
@@ -220,8 +220,7 @@
 								<span class="size-4 shrink-0" aria-hidden="true"></span>
 							{/if}
 							<span
-								class="flex-1 min-w-0 font-mono text-[11px] truncate {entry.is_valid &&
-								!entry.is_duplicate
+								class="flex-1 min-w-0 font-mono text-[11px] truncate {!isProblem(entry)
 									? 'text-ink'
 									: 'text-muted line-through decoration-muted/50'}"
 								title={entry.raw === entry.path ? entry.path : `${entry.raw}\n${entry.path}`}

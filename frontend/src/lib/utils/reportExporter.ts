@@ -53,6 +53,19 @@ export const tidyName = (name: string) =>
 		.replace(/\s{2,}/g, ' ')
 		.trim();
 
+// Windows reports video memory as a 32-bit number, so a card with more than
+// 4 GB reads as about 4 GB; built-in graphics report only the slice set aside
+// for them, and borrow more system memory as needed
+const VRAM_CAP = 4 * 1024 ** 3 - 1024 ** 2;
+const DISCRETE_GPU = /nvidia|geforce|quadro|rtx|gtx|radeon (rx|pro)|arc a\d/i;
+export function videoMemory(gpu: any): string {
+	const v = Number(gpu?.vram_bytes) || 0;
+	if (v <= 0) return '';
+	if (!DISCRETE_GPU.test(gpu?.name || ''))
+		return `${formatBytes(v)} set aside, borrows more as needed`;
+	return v >= VRAM_CAP ? '4 GB or more (Windows cannot report higher)' : formatBytes(v);
+}
+
 // Sections shared by the on-screen specs view and the exported report
 export function buildSpecSections(specs: any): Section[] {
 	if (!specs) return [];
@@ -73,7 +86,8 @@ export function buildSpecSections(specs: any): Section[] {
 		add(specs.cpus.length > 1 ? `Processor ${i + 1}` : 'Processor', [
 			['Model', tidyName(cpu.name)],
 			['Cores', `${cpu.cores} cores, ${cpu.threads} threads`],
-			['Max speed', cpu.max_mhz ? `${(cpu.max_mhz / 1000).toFixed(2)} GHz` : ''],
+			// Windows' "max clock speed" is the base speed, not the boost speed
+			['Base speed', cpu.max_mhz ? `${(cpu.max_mhz / 1000).toFixed(2)} GHz` : ''],
 			['Socket', cpu.socket]
 		]);
 	});
@@ -81,8 +95,7 @@ export function buildSpecSections(specs: any): Section[] {
 	specs.gpus.forEach((gpu: any, i: number) => {
 		add(specs.gpus.length > 1 ? `Graphics ${i + 1}` : 'Graphics', [
 			['Adapter', tidyName(gpu.name)],
-			// Windows reports this as a 32-bit value, so cards over 4 GB read low
-			['Video memory', gpu.vram_bytes > 0 ? formatBytes(gpu.vram_bytes) : ''],
+			['Video memory', videoMemory(gpu)],
 			['Display', gpu.width ? `${gpu.width} × ${gpu.height} at ${gpu.refresh_hz} Hz` : ''],
 			['Driver', gpu.driver]
 		]);
@@ -96,7 +109,13 @@ export function buildSpecSections(specs: any): Section[] {
 			(m: any, i: number): Row => [
 				// Windows names slots like "Controller0-ChannelA-DIMM0"; a number is clearer
 				specs.memory.length > 1 ? `Slot ${i + 1}` : 'Module',
-				[formatBytes(m.size_bytes), m.speed_mhz ? `${m.speed_mhz} MHz` : '', m.manufacturer, m.part]
+				// Windows' memory "speed" is in transfers a second (DDR4-3200 = 3200 MT/s)
+				[
+					formatBytes(m.size_bytes),
+					m.speed_mhz ? `${m.speed_mhz} MT/s` : '',
+					m.manufacturer,
+					m.part
+				]
 					.filter(Boolean)
 					.join(' · ')
 			]

@@ -239,7 +239,9 @@ func rebootPending() bool {
 
 const (
 	cpuPerfCounter = `\Processor Information(_Total)\% Processor Performance`
-	diskIdle       = `\PhysicalDisk(_Total)\% Idle Time`
+	// what Task Manager shows as processor use (Windows 11 22H2 and later)
+	cpuUtility = `\Processor Information(_Total)\% Processor Utility`
+	diskIdle   = `\PhysicalDisk(_Total)\% Idle Time`
 )
 
 func collect(ctx context.Context) Sample {
@@ -249,7 +251,7 @@ func collect(ctx context.Context) Sample {
 	plan := make(chan string, 1)
 	go func() { plan <- activePowerPlan(ctx) }()
 
-	q := openPDH(cpuPerfCounter, diskIdle)
+	q := openPDH(cpuPerfCounter, cpuUtility, diskIdle)
 	defer q.close()
 	idle1, kernel1, user1, sysOK := systemTimes()
 	procs := openProcesses()
@@ -293,6 +295,18 @@ func collect(ctx context.Context) Sample {
 	}
 	if v := q.value(cpuPerfCounter); v >= 0 {
 		s.PerformancePct = v
+	}
+	// report use as Task Manager does, and scale each program's share the same
+	// way, so the numbers here match what people see there
+	if u := q.value(cpuUtility); u >= 0 {
+		s.CPUTimePct = s.CPUPct
+		if s.CPUPct > 0.5 {
+			ratio := u / s.CPUPct
+			for i := range s.Procs {
+				s.Procs[i].CPUPct = min(100, s.Procs[i].CPUPct*ratio)
+			}
+		}
+		s.CPUPct = max(0, min(100, u))
 	}
 	if v := q.value(diskIdle); v >= 0 {
 		s.DiskBusyPct = max(0, min(100, 100-v))

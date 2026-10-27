@@ -31,7 +31,9 @@ type apiTarget struct {
 	versionRegex     string
 	apiURL           string
 	officialDownload string
-	parseFunc        func(data []byte) (string, string)
+	// pick reads the release list and returns the version to compare with and
+	// its release date; "" for either when it cannot tell
+	pick func(data []byte, current string) (latest, date string)
 }
 
 func GetSoftwareHealthDetails() ([]SoftwareItem, error) {
@@ -48,10 +50,16 @@ func GetSoftwareHealthDetails() ([]SoftwareItem, error) {
 		mergedMap[strings.ToLower(item.Name)] = item
 	}
 
+	keys := make([]string, 0, len(mergedMap))
+	for k := range mergedMap {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
 	for _, item := range cliApps {
 		found := false
-		for k, regItem := range mergedMap {
-			if strings.Contains(k, strings.ToLower(item.Name)) || strings.Contains(strings.ToLower(item.Name), k) {
+		for _, k := range keys {
+			regItem := mergedMap[k]
+			if sameProduct(k, item.Name) {
 				regItem.CurrentVersion = item.CurrentVersion
 				regItem.LatestVersion = item.LatestVersion
 				regItem.IsOutdated = item.IsOutdated
@@ -170,101 +178,104 @@ func scanRegistryInstalledApps() []SoftwareItem {
 	return results
 }
 
+// sameProduct reports whether an installed program's name is the tool's: the
+// tool's name as a whole word ("Go Programming Language" is Go, "Google Chrome"
+// is not)
+func sameProduct(installed, tool string) bool {
+	re := regexp.MustCompile(`(^|[^a-z0-9])` + regexp.QuoteMeta(strings.ToLower(tool)) + `($|[^a-z0-9])`)
+	return re.MatchString(strings.ToLower(installed))
+}
+
+// majorMinor turns "3.13.7" into "3.13"; majorOf turns it into "3"
+func majorMinor(v string) string {
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) < 2 {
+		return v
+	}
+	return parts[0] + "." + parts[1]
+}
+
+func majorOf(v string) string { return strings.SplitN(v, ".", 2)[0] }
+
+// pickNode compares with the newest release of the same major version, so
+// someone on a supported LTS line is not told to jump to the newest major
+func pickNode(data []byte, current string) (string, string) {
+	var list []struct {
+		Version string `json:"version"`
+		Date    string `json:"date"`
+	}
+	if json.Unmarshal(data, &list) != nil || len(list) == 0 {
+		return "", ""
+	}
+	for _, r := range list { // newest first
+		v := strings.TrimPrefix(r.Version, "v")
+		if majorOf(v) == majorOf(current) {
+			return v, r.Date
+		}
+	}
+	return strings.TrimPrefix(list[0].Version, "v"), list[0].Date
+}
+
+// pickPython compares with the newest release of the same 3.x line, or the
+// newest line when the user's line is no longer listed
+func pickPython(data []byte, current string) (string, string) {
+	var list []struct {
+		Cycle             string `json:"cycle"`
+		Latest            string `json:"latest"`
+		LatestReleaseDate string `json:"latestReleaseDate"`
+	}
+	if json.Unmarshal(data, &list) != nil || len(list) == 0 {
+		return "", ""
+	}
+	for _, r := range list {
+		if r.Cycle == majorMinor(current) {
+			return r.Latest, r.LatestReleaseDate
+		}
+	}
+	return list[0].Latest, list[0].LatestReleaseDate
+}
+
+// pickGo compares with the newest release of the same 1.x line; go.dev lists the
+// two supported lines, and an older one is compared with the newest
+func pickGo(data []byte, current string) (string, string) {
+	var list []struct {
+		Version string `json:"version"`
+	}
+	if json.Unmarshal(data, &list) != nil || len(list) == 0 {
+		return "", ""
+	}
+	for _, r := range list {
+		v := strings.TrimPrefix(r.Version, "go")
+		if majorMinor(v) == majorMinor(current) {
+			return v, "" // go.dev does not give release dates
+		}
+	}
+	return strings.TrimPrefix(list[0].Version, "go"), ""
+}
+
+func pickGitHub(data []byte, _ string) (string, string) { return parseGitHubRelease(data) }
+
 func scanCLITools() []SoftwareItem {
 	targets := []apiTarget{
-		{
-			name:             "Node.js",
-			cmd:              "node",
-			cmdArgs:          []string{"-v"},
-			versionRegex:     `v?(\d+\.\d+\.\d+)`,
-			apiURL:           "https://nodejs.org/dist/index.json",
-			officialDownload: "https://nodejs.org",
-			parseFunc: func(data []byte) (string, string) {
-				var list []struct {
-					Version string `json:"version"`
-					Date    string `json:"date"`
-				}
-				if err := json.Unmarshal(data, &list); err == nil && len(list) > 0 {
-					return strings.TrimPrefix(list[0].Version, "v"), list[0].Date
-				}
-				return "20.11.0", "2024-01-18"
-			},
-		},
-		{
-			name:             "Git",
-			cmd:              "git",
-			cmdArgs:          []string{"--version"},
-			versionRegex:     `(\d+\.\d+\.\d+)`,
-			apiURL:           "https://api.github.com/repos/git-for-windows/git/releases/latest",
-			officialDownload: "https://git-scm.com",
-			parseFunc:        parseGitHubRelease,
-		},
-		{
-			name:             "Python",
-			cmd:              "python",
-			cmdArgs:          []string{"--version"},
-			versionRegex:     `(\d+\.\d+\.\d+)`,
-			apiURL:           "https://endoflife.date/api/python.json",
-			officialDownload: "https://www.python.org",
-			parseFunc: func(data []byte) (string, string) {
-				var list []struct {
-					Latest            string `json:"latest"`
-					LatestReleaseDate string `json:"latestReleaseDate"`
-				}
-				if err := json.Unmarshal(data, &list); err == nil && len(list) > 0 {
-					return list[0].Latest, list[0].LatestReleaseDate
-				}
-				return "3.12.1", "2023-12-08"
-			},
-		},
-		{
-			name:             "Go",
-			cmd:              "go",
-			cmdArgs:          []string{"version"},
-			versionRegex:     `go(\d+\.\d+\.\d+)`,
-			apiURL:           "https://go.dev/dl/?mode=json",
-			officialDownload: "https://go.dev",
-			parseFunc: func(data []byte) (string, string) {
-				var list []struct {
-					Version string `json:"version"`
-				}
-				if err := json.Unmarshal(data, &list); err == nil && len(list) > 0 {
-					ver := strings.TrimPrefix(list[0].Version, "go")
-					return ver, time.Now().Format("2006-01-02")
-				}
-				return "1.22.0", "2024-02-06"
-			},
-		},
-		{
-			name:             "Visual Studio Code",
-			cmd:              "code",
-			cmdArgs:          []string{"--version"},
-			versionRegex:     `(\d+\.\d+\.\d+)`,
-			apiURL:           "https://api.github.com/repos/microsoft/vscode/releases/latest",
-			officialDownload: "https://code.visualstudio.com",
-			parseFunc:        parseGitHubRelease,
-		},
-		{
-			name:             "Rust",
-			cmd:              "rustc",
-			cmdArgs:          []string{"--version"},
-			versionRegex:     `(\d+\.\d+\.\d+)`,
-			apiURL:           "https://api.github.com/repos/rust-lang/rust/releases/latest",
-			officialDownload: "https://www.rust-lang.org",
-			parseFunc:        parseGitHubRelease,
-		},
-		{
-			name:             "PowerShell",
-			cmd:              "powershell",
-			cmdArgs:          []string{"$PSVersionTable.PSVersion.ToString()"},
-			versionRegex:     `(\d+\.\d+\.\d+)`,
-			apiURL:           "https://api.github.com/repos/PowerShell/PowerShell/releases/latest",
-			officialDownload: "https://github.com/PowerShell/PowerShell",
-			parseFunc:        parseGitHubRelease,
-		},
+		{name: "Node.js", cmd: "node", cmdArgs: []string{"-v"}, versionRegex: `v?(\d+\.\d+\.\d+)`,
+			apiURL: "https://nodejs.org/dist/index.json", officialDownload: "https://nodejs.org", pick: pickNode},
+		{name: "Git", cmd: "git", cmdArgs: []string{"--version"}, versionRegex: `(\d+\.\d+\.\d+)`,
+			apiURL: "https://api.github.com/repos/git-for-windows/git/releases/latest", officialDownload: "https://git-scm.com", pick: pickGitHub},
+		{name: "Python", cmd: "python", cmdArgs: []string{"--version"}, versionRegex: `(\d+\.\d+\.\d+)`,
+			apiURL: "https://endoflife.date/api/python.json", officialDownload: "https://www.python.org", pick: pickPython},
+		{name: "Go", cmd: "go", cmdArgs: []string{"version"}, versionRegex: `go(\d+\.\d+\.\d+)`,
+			apiURL: "https://go.dev/dl/?mode=json", officialDownload: "https://go.dev", pick: pickGo},
+		{name: "Visual Studio Code", cmd: "code", cmdArgs: []string{"--version"}, versionRegex: `(\d+\.\d+\.\d+)`,
+			apiURL: "https://api.github.com/repos/microsoft/vscode/releases/latest", officialDownload: "https://code.visualstudio.com", pick: pickGitHub},
+		{name: "Rust", cmd: "rustc", cmdArgs: []string{"--version"}, versionRegex: `(\d+\.\d+\.\d+)`,
+			apiURL: "https://api.github.com/repos/rust-lang/rust/releases/latest", officialDownload: "https://www.rust-lang.org", pick: pickGitHub},
+		// PowerShell 7 (pwsh). Windows PowerShell 5.1, built into Windows, is a
+		// different product with no newer version, so it is not compared with 7.x
+		{name: "PowerShell", cmd: "pwsh", cmdArgs: []string{"--version"}, versionRegex: `(\d+\.\d+\.\d+)`,
+			apiURL: "https://api.github.com/repos/PowerShell/PowerShell/releases/latest", officialDownload: "https://github.com/PowerShell/PowerShell", pick: pickGitHub},
 	}
 
-	httpClient := &http.Client{Timeout: 2 * time.Second}
+	httpClient := &http.Client{Timeout: 4 * time.Second}
 	results := []SoftwareItem{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -277,16 +288,16 @@ func scanCLITools() []SoftwareItem {
 			if currentVer == "" {
 				return
 			}
-
-			latestVer, releaseDate := fetchLatestVersion(httpClient, t.apiURL, t.parseFunc)
-			isOutdated := isVersionOlder(currentVer, latestVer)
+			latestVer, releaseDate := fetchLatestVersion(httpClient, t.apiURL, func(data []byte) (string, string) {
+				return t.pick(data, currentVer)
+			})
 
 			mu.Lock()
 			results = append(results, SoftwareItem{
 				Name:             t.name,
 				CurrentVersion:   currentVer,
-				LatestVersion:    latestVer,
-				IsOutdated:       isOutdated,
+				LatestVersion:    latestVer, // "" when it could not be looked up
+				IsOutdated:       isVersionOlder(currentVer, latestVer),
 				ReleaseDate:      releaseDate,
 				OfficialDownload: t.officialDownload,
 			})
@@ -298,25 +309,27 @@ func scanCLITools() []SoftwareItem {
 	return results
 }
 
+// fetchLatestVersion asks the publisher; ("", "") when that fails, never a guess
 func fetchLatestVersion(client *http.Client, url string, parseFn func([]byte) (string, string)) (string, string) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return "Vendor Managed", "Recent"
+		return "", ""
 	}
 	req.Header.Set("User-Agent", "SysInfoPro-Diagnostics")
 
 	resp, err := client.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return "Vendor Managed", "Recent"
+	if err != nil {
+		return "", ""
 	}
 	defer resp.Body.Close()
-
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(resp.Body)
-	if err != nil {
-		return "Vendor Managed", "Recent"
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
 	}
 
+	var buf bytes.Buffer
+	if _, err := buf.ReadFrom(resp.Body); err != nil {
+		return "", ""
+	}
 	return parseFn(buf.Bytes())
 }
 
@@ -325,60 +338,77 @@ func parseGitHubRelease(data []byte) (string, string) {
 		TagName     string `json:"tag_name"`
 		PublishedAt string `json:"published_at"`
 	}
-	if err := json.Unmarshal(data, &release); err == nil && release.TagName != "" {
-		re := regexp.MustCompile(`(\d+\.\d+\.\d+)`)
-		match := re.FindString(release.TagName)
-		if match == "" {
-			match = release.TagName
-		}
-
-		dateStr := "Recent"
-		if len(release.PublishedAt) >= 10 {
-			dateStr = release.PublishedAt[:10]
-		}
-		return match, dateStr
+	if err := json.Unmarshal(data, &release); err != nil || release.TagName == "" {
+		return "", ""
 	}
-	return "Vendor Managed", "Recent"
+	match := regexp.MustCompile(`(\d+\.\d+\.\d+)`).FindString(release.TagName)
+	if match == "" {
+		return "", "" // a tag that is not a version number cannot be compared
+	}
+	date := ""
+	if len(release.PublishedAt) >= 10 {
+		date = release.PublishedAt[:10]
+	}
+	return match, date
 }
 
 func checkCommandVersion(cmdName string, args []string, regexPattern string) string {
 	cmd := exec.Command(cmdName, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW (0x08000000)
+		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
 	}
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return ""
 	}
 
-	output := strings.TrimSpace(out.String())
-	re := regexp.MustCompile(regexPattern)
-	matches := re.FindStringSubmatch(output)
+	matches := regexp.MustCompile(regexPattern).FindStringSubmatch(strings.TrimSpace(out.String()))
 	if len(matches) > 1 {
 		return matches[1]
 	}
-	return output
+	return "" // no version number in the output: unknown, not the raw text
 }
 
-func isVersionOlder(current string, latest string) bool {
-	cleanCur := strings.TrimPrefix(strings.TrimSpace(current), "v")
-	cleanLat := strings.TrimPrefix(strings.TrimSpace(latest), "v")
-
-	if cleanCur == cleanLat || latest == "Vendor Managed" || latest == "Latest" {
-		return false
+// compareVersions compares dotted versions number by number (so 1.22.10 is newer
+// than 1.22.9, and 10.0 newer than 9.4); missing parts count as 0
+func compareVersions(a, b string) int {
+	num := func(s string) int {
+		n := 0
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				break
+			}
+			n = n*10 + int(r-'0')
+		}
+		return n
 	}
-
-	curParts := strings.Split(cleanCur, ".")
-	latParts := strings.Split(cleanLat, ".")
-
-	for i := 0; i < len(curParts) && i < len(latParts); i++ {
-		if curParts[i] != latParts[i] {
-			return curParts[i] < latParts[i]
+	ap := strings.Split(strings.TrimPrefix(strings.TrimSpace(a), "v"), ".")
+	bp := strings.Split(strings.TrimPrefix(strings.TrimSpace(b), "v"), ".")
+	for i := 0; i < len(ap) || i < len(bp); i++ {
+		var x, y int
+		if i < len(ap) {
+			x = num(ap[i])
+		}
+		if i < len(bp) {
+			y = num(bp[i])
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
 		}
 	}
-	return len(curParts) < len(latParts)
+	return 0
+}
+
+// isVersionOlder is true only when the latest version is known and newer
+func isVersionOlder(current, latest string) bool {
+	if current == "" || latest == "" || latest == "Vendor Managed" || latest == "Latest" {
+		return false
+	}
+	return compareVersions(current, latest) < 0
 }

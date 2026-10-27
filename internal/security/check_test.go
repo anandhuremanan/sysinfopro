@@ -29,7 +29,7 @@ func parse(t *testing.T, data string) rawState {
 const healthy = `{"antivirus":[{"name":"Windows Defender","state":393472},{"name":"eScan Total Security","state":266240}],
 "defender":{"available":true,"realtime":false,"signature_days":-1},
 "firewall":[{"name":"Domain","enabled":true},{"name":"Private","enabled":true},{"name":"Public","enabled":true}],
-"uac":1,"secure_boot":1,"bitlocker":1,"reboot_pending":false,"last_update_days":10,"is_admin":false,"rdp_enabled":false}`
+"uac":1,"secure_boot":1,"bitlocker":1,"reboot_pending":false,"last_update_days":10,"is_admin":false,"rdp_deny":1}`
 
 func TestEvaluateHealthy(t *testing.T) {
 	report := evaluate(parse(t, healthy))
@@ -46,7 +46,7 @@ func TestEvaluateProblems(t *testing.T) {
 	report := evaluate(parse(t, `{"antivirus":[{"name":"Windows Defender","state":393472}],
 "defender":{"available":true,"realtime":false,"signature_days":3},
 "firewall":[{"name":"Domain","enabled":true},{"name":"Public","enabled":false}],
-"uac":0,"secure_boot":0,"bitlocker":2,"reboot_pending":true,"last_update_days":91,"rdp_enabled":true}`))
+"uac":0,"secure_boot":0,"bitlocker":2,"reboot_pending":true,"last_update_days":91,"rdp_deny":0}`))
 
 	want := map[string]string{
 		"antivirus":   StatusFail,
@@ -72,9 +72,9 @@ func TestEvaluateProblems(t *testing.T) {
 
 func TestEvaluateUnreadable(t *testing.T) {
 	report := evaluate(parse(t, `{"antivirus":[],"defender":{"available":false},"firewall":[],
-"uac":null,"secure_boot":null,"bitlocker":null,"reboot_pending":false,"last_update_days":-1,"rdp_enabled":false}`))
+"uac":null,"secure_boot":null,"bitlocker":null,"reboot_pending":false,"last_update_days":-1,"rdp_deny":null}`))
 
-	for _, id := range []string{"antivirus", "firewall", "uac", "secure_boot", "encryption", "updates"} {
+	for _, id := range []string{"antivirus", "firewall", "uac", "secure_boot", "encryption", "updates", "rdp"} {
 		if got := statusOf(t, report, id); got.Status != StatusUnknown {
 			t.Errorf("%s = %s, want unknown when the value cannot be read", id, got.Status)
 		}
@@ -89,5 +89,24 @@ func TestStaleDefinitionsWarn(t *testing.T) {
 	report := evaluate(parse(t, `{"antivirus":[{"name":"Windows Defender","state":397328}],"defender":{"available":true,"realtime":true}}`))
 	if got := statusOf(t, report, "antivirus"); got.Status != StatusWarn {
 		t.Errorf("antivirus = %s (%s), want warn for stale definitions", got.Status, got.Detail)
+	}
+}
+
+func TestSnoozedAntivirusIsNotProtection(t *testing.T) {
+	// 0x041100: third-party antivirus snoozed (0x11); Defender passive
+	report := evaluate(parse(t, `{"antivirus":[{"name":"Windows Defender","state":393472},{"name":"Acme AV","state":266496}],"defender":{"available":true,"realtime":false}}`))
+	if got := statusOf(t, report, "antivirus"); got.Status != StatusWarn {
+		t.Errorf("antivirus = %s (%s), want warn: a snoozed antivirus is not scanning", got.Status, got.Detail)
+	}
+}
+
+func TestBitLockerStates(t *testing.T) {
+	want := map[int]string{1: StatusPass, 6: StatusPass, 3: StatusPass, 2: StatusWarn, 4: StatusWarn, 5: StatusWarn, 8: StatusWarn, 0: StatusUnknown}
+	for code, status := range want {
+		v := code
+		got := encryptionCheck(rawState{BitLocker: &v})
+		if got.Status != status {
+			t.Errorf("BitLocker %d = %s (%s), want %s", code, got.Status, got.Detail, status)
+		}
 	}
 }

@@ -90,6 +90,12 @@ func TestFindWithGit(t *testing.T) {
 	run(local, "init", "-q")
 	commit(local, "x.txt")
 
+	// commits made on a detached HEAD belong to no branch
+	detached := filepath.Join(root, "work", "detached")
+	run(root, "clone", "-q", server, detached)
+	run(detached, "checkout", "-q", "--detach")
+	commit(detached, "lost.txt")
+
 	edited := filepath.Join(root, "work", "edited")
 	run(root, "clone", "-q", server, edited)
 	os.WriteFile(filepath.Join(edited, "a.txt"), []byte("changed"), 0o644)
@@ -107,7 +113,11 @@ func TestFindWithGit(t *testing.T) {
 	for _, r := range res.Repos {
 		by[r.Name] = r
 	}
-	if len(res.Repos) != 4 {
+	if r := by["detached"]; r.Status != "at-risk" || r.LocalOnly != 1 || len(r.Branches) != 1 || r.Branches[0].Name != "(detached HEAD)" {
+		t.Errorf("detached = %+v", r)
+	}
+	delete(by, "detached")
+	if len(res.Repos) != 5 {
 		t.Fatalf("found %d projects: %+v", len(res.Repos), res.Repos)
 	}
 	if r := by["pushed"]; r.Status != "clean" || r.LocalOnly != 0 || r.NoRemote {
@@ -122,7 +132,7 @@ func TestFindWithGit(t *testing.T) {
 	if r := by["edited"]; r.Status != "changes" || r.Changed != 1 {
 		t.Errorf("edited = %+v", r)
 	}
-	if res.AtRisk != 2 || res.WithChanges != 1 || res.Repos[0].Status != "at-risk" {
+	if res.AtRisk != 3 || res.WithChanges != 1 || res.Repos[0].Status != "at-risk" {
 		t.Errorf("totals: %d at risk, %d with changes, first %s", res.AtRisk, res.WithChanges, res.Repos[0].Name)
 	}
 	if strings.Contains(by["ahead"].Remote, "@") {

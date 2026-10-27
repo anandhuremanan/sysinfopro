@@ -143,10 +143,16 @@ func EvaluateSystemHealth(input EvaluationInput) DiagnosticReport {
 			})
 		}
 		batteryScore = math.Max(0.0, math.Min(100.0, batteryScore))
+		batteryStatus := "Good"
+		if input.BatteryDegradation > 30 {
+			batteryStatus = "Worn"
+		} else if input.BatteryDegradation > 15 {
+			batteryStatus = "Fair"
+		}
 		factors = append(factors, FactorScore{
 			Name:    "Battery Health",
 			Score:   round2(batteryScore),
-			Status:  "Good",
+			Status:  batteryStatus,
 			Details: fmt.Sprintf("%.0f%% Capacity Retained", 100.0-input.BatteryDegradation),
 		})
 	}
@@ -167,11 +173,18 @@ func EvaluateSystemHealth(input EvaluationInput) DiagnosticReport {
 		netScore = 70.0
 		netStatus = "High Latency"
 	}
+	// latency is shown only when it was measured (a negative value means it was not)
+	netDetails := "Connected"
+	if !input.NetworkConnected {
+		netDetails = "Not connected"
+	} else if input.PingLatencyMs >= 0 {
+		netDetails = fmt.Sprintf("%.0f ms Latency", input.PingLatencyMs)
+	}
 	factors = append(factors, FactorScore{
 		Name:    "Network Health",
 		Score:   round2(netScore),
 		Status:  netStatus,
-		Details: fmt.Sprintf("%.0f ms Latency", input.PingLatencyMs),
+		Details: netDetails,
 	})
 
 	// Calculate overall weighted score

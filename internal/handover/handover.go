@@ -356,13 +356,14 @@ func build(f facts) Report {
 
 	if accounts := uniqueFold(f.msAccounts); len(accounts) > 0 {
 		add(Item{ID: "microsoft-account", Group: "Accounts", Status: "todo",
-			Title:  "Microsoft account: " + joinAnd(maskAll(accounts)),
-			Detail: "The PC is linked to your Microsoft account, which also holds your device list and, often, the Windows licence.",
-			How:    "Reset this PC removes it from the PC. Afterwards, remove the PC from account.microsoft.com/devices so it no longer shows up there."})
+			Title: "Microsoft account: " + joinAnd(maskAll(accounts)),
+			// this list holds accounts saved by Windows and by Microsoft apps (Office, the Store), so it does not claim which
+			Detail: "This Microsoft account is saved on the PC, for signing in to Windows or to Microsoft apps such as Office and the Store.",
+			How:    "Sign out of Microsoft apps, and Reset this PC removes the account. If you signed in to Windows with it, also remove the PC from account.microsoft.com/devices."})
 	} else {
 		add(Item{ID: "microsoft-account", Group: "Accounts", Status: "ok",
 			Title:  "No Microsoft account saved",
-			Detail: "Windows has no Microsoft account remembered for you."})
+			Detail: "Neither Windows nor Microsoft apps have a Microsoft account remembered for you."})
 	}
 
 	if accounts := uniqueFold(f.oneDrive); len(accounts) > 0 {
@@ -474,13 +475,21 @@ func build(f facts) Report {
 
 	// Device
 	if f.bitlocker != nil {
+		// System.Volume.BitLockerProtection: 1 on, 2 off, 3 encrypting, 4 decrypting,
+		// 5 suspended, 6 on (locked), 8 waiting for activation
 		switch *f.bitlocker {
-		case 1, 3, 5:
+		case 1, 3, 6:
 			add(Item{ID: "encryption", Group: "Device", Status: "ok",
 				Title:  "The system drive is encrypted",
 				Detail: "BitLocker protects the drive, so files cannot be read by taking the drive out.",
 				How:    "When resetting, still turn on \"Clean data\" if you are selling the PC."})
-		case 2, 4:
+		case 5:
+			// suspended: the key is stored unprotected on the drive, so it does not protect anything
+			add(Item{ID: "encryption", Group: "Device", Status: "todo",
+				Title:  "Drive encryption is paused",
+				Detail: "BitLocker is suspended, so its key is stored unprotected on the drive and the files can be read by anyone who takes the drive out.",
+				How:    "Resume BitLocker before handing the PC over, and turn on \"Clean data\" when resetting."})
+		case 2, 4, 8:
 			add(Item{ID: "encryption", Group: "Device", Status: "info",
 				Title:  "The system drive is not encrypted",
 				Detail: "A plain reset leaves deleted files recoverable with the right tools.",

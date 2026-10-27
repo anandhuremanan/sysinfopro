@@ -115,7 +115,7 @@
 		<div>
 			<div class="font-bold text-base text-ink">Top Resource Consumers</div>
 			<div class="text-xs text-muted">
-				Memory, memory growth, CPU load & energy impact, updated every 5 seconds
+				Memory, memory growth and processor time, updated every 5 seconds
 			</div>
 		</div>
 
@@ -158,8 +158,12 @@
 						<th class="py-2 text-right">PID</th>
 						<th class="py-2 text-right pr-4">RAM Footprint</th>
 						<th class="py-2 text-right pr-4">Growth</th>
-						<th class="py-2 text-right pr-4">CPU %</th>
-						<th class="py-2 text-center">Energy Drain</th>
+						<!-- each program's share of the whole processor since the list was last read -->
+						<th
+							class="py-2 text-right pr-4"
+							title="Share of the whole processor each program used since the list was last refreshed. On processors that speed up past their base speed, Task Manager counts this differently and can show higher numbers."
+							>CPU</th
+						>
 						<th class="py-2 text-center">Action</th>
 					</tr>
 				</thead>
@@ -173,26 +177,19 @@
 							<td class="py-2 text-right pr-4 font-mono font-bold text-ink">
 								{proc.memory_mb.toFixed(1)} MB
 							</td>
-							<td class="py-2 text-right pr-4 font-mono whitespace-nowrap {growthColor(growth[proc.pid])}">
+							<td
+								class="py-2 text-right pr-4 font-mono whitespace-nowrap {growthColor(
+									growth[proc.pid]
+								)}"
+							>
 								{growthLabel(growth[proc.pid])}
 							</td>
-							<td class="py-2 text-right pr-4 font-mono {proc.cpu_percent > 10 ? 'text-amber-700 dark:text-amber-400 font-bold' : ''}">
+							<td
+								class="py-2 text-right pr-4 font-mono {proc.cpu_percent > 10
+									? 'text-amber-700 dark:text-amber-400 font-bold'
+									: ''}"
+							>
 								{proc.cpu_percent.toFixed(1)}%
-							</td>
-							<td class="py-2 text-center font-mono text-[10px]">
-								{#if proc.energy_impact_label === 'High'}
-									<span class="px-2 py-0.5 rounded-full bg-red-500/20 text-red-600 dark:text-red-400 font-semibold border border-red-500/30">
-										High ({proc.energy_impact?.toFixed(0)})
-									</span>
-								{:else if proc.energy_impact_label === 'Moderate'}
-									<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/30">
-										Med ({proc.energy_impact?.toFixed(0)})
-									</span>
-								{:else}
-									<span class="px-2 py-0.5 rounded-full bg-ground text-muted font-medium">
-										Low ({proc.energy_impact ? proc.energy_impact.toFixed(0) : '0'})
-									</span>
-								{/if}
 							</td>
 							<td class="py-2 text-center">
 								<button

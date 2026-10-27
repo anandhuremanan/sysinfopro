@@ -633,6 +633,7 @@ export namespace gitsweep {
 	    git_missing: boolean;
 	    at_risk: number;
 	    with_changes: number;
+	    unreadable: number;
 	    duration_ms: number;
 	
 	    static createFrom(source: any = {}) {
@@ -646,6 +647,7 @@ export namespace gitsweep {
 	        this.git_missing = source["git_missing"];
 	        this.at_risk = source["at_risk"];
 	        this.with_changes = source["with_changes"];
+	        this.unreadable = source["unreadable"];
 	        this.duration_ms = source["duration_ms"];
 	    }
 	
@@ -1000,10 +1002,8 @@ export namespace hardware {
 	export class StressResult {
 	    duration_sec: number;
 	    ops_completed: number;
-	    thermal_score: number;
 	    baseline_load_pct: number;
 	    peak_load_pct: number;
-	    status_text: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new StressResult(source);
@@ -1013,10 +1013,8 @@ export namespace hardware {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.duration_sec = source["duration_sec"];
 	        this.ops_completed = source["ops_completed"];
-	        this.thermal_score = source["thermal_score"];
 	        this.baseline_load_pct = source["baseline_load_pct"];
 	        this.peak_load_pct = source["peak_load_pct"];
-	        this.status_text = source["status_text"];
 	    }
 	}
 
@@ -1682,6 +1680,7 @@ export namespace storage {
 	    free_bytes: number;
 	    used_bytes: number;
 	    used_pct: number;
+	    is_system: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new DriveInfo(source);
@@ -1695,6 +1694,7 @@ export namespace storage {
 	        this.free_bytes = source["free_bytes"];
 	        this.used_bytes = source["used_bytes"];
 	        this.used_pct = source["used_pct"];
+	        this.is_system = source["is_system"];
 	    }
 	}
 	export class UsageEntry {

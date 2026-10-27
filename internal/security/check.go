@@ -56,7 +56,8 @@ type rawState struct {
 	BitLocker      *int `json:"bitlocker"`
 	RebootPending  bool `json:"reboot_pending"`
 	LastUpdateDays int  `json:"last_update_days"`
-	RDPEnabled     bool `json:"rdp_enabled"`
+	// fDenyTSConnections: 0 = Remote Desktop on, 1 = off, nil = could not read
+	RDPDeny *int `json:"rdp_deny"`
 }
 
 // GetSecurityReport runs read-only checks of the machine's protection settings
@@ -104,14 +105,18 @@ func antivirusCheck(raw rawState) Check {
 	c := Check{ID: "antivirus", Title: "Antivirus"}
 
 	// productState is 0xAABBCC: BB = 0x10/0x11 when protection is on, CC = 0x10 when definitions are stale
-	active, stale := []string{}, []string{}
+	// BB = 0x10 is on; 0x11 is "snoozed", turned off for a while
+	active, stale, snoozed := []string{}, []string{}, []string{}
 	for _, av := range raw.Antivirus {
 		status := (av.State >> 8) & 0xFF
-		if status == 0x10 || status == 0x11 {
+		switch status {
+		case 0x10:
 			active = append(active, av.Name)
 			if av.State&0xFF == 0x10 {
 				stale = append(stale, av.Name)
 			}
+		case 0x11:
+			snoozed = append(snoozed, av.Name)
 		}
 	}
 
@@ -126,6 +131,10 @@ func antivirusCheck(raw rawState) Check {
 	case raw.Defender.Available && raw.Defender.Realtime:
 		c.Status = StatusPass
 		c.Detail = "Microsoft Defender real-time protection is on"
+	case len(snoozed) > 0:
+		c.Status = StatusWarn
+		c.Detail = strings.Join(snoozed, ", ") + " is paused for now, so nothing is scanning"
+		c.Advice = "Turn real-time protection back on."
 	case len(raw.Antivirus) == 0 && !raw.Defender.Available:
 		c.Status = StatusUnknown
 		c.Detail = "Could not read antivirus status"
@@ -186,8 +195,10 @@ func encryptionCheck(raw rawState) Check {
 		c.Detail = "Could not read BitLocker status"
 		return c
 	}
+	// System.Volume.BitLockerProtection: 1 on, 2 off, 3 encrypting, 4 decrypting,
+	// 5 suspended, 6 on (locked), 8 waiting for activation
 	switch *raw.BitLocker {
-	case 1:
+	case 1, 6:
 		c.Status = StatusPass
 		c.Detail = "System drive is encrypted with BitLocker"
 	case 3:
@@ -197,7 +208,15 @@ func encryptionCheck(raw rawState) Check {
 		c.Status = StatusWarn
 		c.Detail = "BitLocker protection is suspended"
 		c.Advice = "Resume BitLocker protection."
-	case 2, 4:
+	case 8:
+		c.Status = StatusWarn
+		c.Detail = "Encryption is waiting to be turned on, so files are not protected yet"
+		c.Advice = "Finish turning on device encryption in Settings > Privacy & security > Device encryption."
+	case 4:
+		c.Status = StatusWarn
+		c.Detail = "BitLocker is being turned off"
+		c.Advice = "If you did not mean to turn it off, turn BitLocker back on."
+	case 2:
 		c.Status = StatusWarn
 		c.Detail = "System drive is not encrypted"
 		c.Advice = "Turn on BitLocker or device encryption so a lost laptop does not expose your files."
@@ -257,7 +276,12 @@ func rebootCheck(raw rawState) Check {
 
 func remoteDesktopCheck(raw rawState) Check {
 	c := Check{ID: "rdp", Title: "Remote Desktop"}
-	if raw.RDPEnabled {
+	if raw.RDPDeny == nil {
+		c.Status = StatusUnknown
+		c.Detail = "Could not read the setting"
+		return c
+	}
+	if *raw.RDPDeny == 0 {
 		c.Status = StatusWarn
 		c.Detail = "On: this PC accepts remote connections"
 		c.Advice = "Turn Remote Desktop off if you do not use it."

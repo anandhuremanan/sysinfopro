@@ -5,41 +5,57 @@ import (
 	"math"
 	"time"
 
+	"myproject/internal/cpuinfo"
+
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 var (
 	recentHighLoadCount = 0
+
+	// Task Manager's own "use" and the live speed, read from Windows' counters
+	meter  cpuinfo.Meter
+	primed bool
 )
 
-// GetCPUStats returns the current CPU utilization percentage and frequency metrics
+// GetCPUStats returns processor use, as Task Manager shows it, and the live speed
 func GetCPUStats() (*CPUStats, error) {
-	percentages, err := cpu.Percent(time.Second, false)
-	if err != nil {
-		return nil, err
+	if !primed {
+		// the counters compare with the previous reading, so take a first one
+		meter.Read()
+		time.Sleep(time.Second)
+		primed = true
 	}
+	usage, currentMHz, ok := meter.Read()
 
-	usage := percentages[0]
-
-	// Sample CPU clock frequency
-	freqGHz := 2.5
-	info, err := cpu.Info()
-	if err == nil && len(info) > 0 && info[0].Mhz > 0 {
-		freqGHz = math.Round((info[0].Mhz/1000.0)*100) / 100
+	baseMHz := 0.0
+	if info, err := cpu.Info(); err == nil && len(info) > 0 {
+		baseMHz = info[0].Mhz
 	}
+	if !ok {
+		// counters unavailable: share of time not idle, over a second
+		percentages, err := cpu.Percent(time.Second, false)
+		if err != nil {
+			return nil, err
+		}
+		usage = percentages[0]
+	}
+	mhz := currentMHz
+	if mhz <= 0 {
+		mhz = baseMHz
+	}
+	freqGHz := math.Round(mhz/10) / 100
 
-	// Detect sustained load (e.g. usage > 80% for multiple samples)
+	// busy for several readings in a row
 	if usage > 80.0 {
 		recentHighLoadCount++
-	} else {
-		if recentHighLoadCount > 0 {
-			recentHighLoadCount--
-		}
+	} else if recentHighLoadCount > 0 {
+		recentHighLoadCount--
 	}
-
 	sustained := recentHighLoadCount >= 3
-	isThrottling := sustained && freqGHz < 2.0
+	// slowed down: busy, yet running below its own base speed (heat or power saving)
+	isThrottling := sustained && currentMHz > 0 && baseMHz > 0 && currentMHz < baseMHz*0.9
 
 	return &CPUStats{
 		Usage:         usage,

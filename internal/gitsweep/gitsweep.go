@@ -55,7 +55,9 @@ type Result struct {
 	GitMissing  bool   `json:"git_missing"`
 	AtRisk      int    `json:"at_risk"`
 	WithChanges int    `json:"with_changes"`
-	DurationMs  int64  `json:"duration_ms"`
+	// projects git could not read; never counted as pushed
+	Unreadable int   `json:"unreadable"`
+	DurationMs int64 `json:"duration_ms"`
 }
 
 type Progress struct {
@@ -155,7 +157,7 @@ func find(ctx context.Context, root string, run runner, onProgress func(Progress
 		return nil, ctx.Err()
 	}
 
-	rank := map[string]int{"at-risk": 0, "changes": 1, "clean": 2}
+	rank := map[string]int{"at-risk": 0, "changes": 1, "unreadable": 2, "clean": 3}
 	sort.SliceStable(repos, func(i, j int) bool {
 		if rank[repos[i].Status] != rank[repos[j].Status] {
 			return rank[repos[i].Status] < rank[repos[j].Status]
@@ -168,6 +170,8 @@ func find(ctx context.Context, root string, run runner, onProgress func(Progress
 			res.AtRisk++
 		case "changes":
 			res.WithChanges++
+		case "unreadable":
+			res.Unreadable++
 		}
 	}
 	res.Repos = repos
@@ -224,7 +228,7 @@ func check(ctx context.Context, dir string, run runner) Repo {
 		if r.Error == "" {
 			r.Error = err.Error()
 		}
-		r.Status = "clean"
+		r.Status = "unreadable" // not known to be clean
 		return r
 	}
 	parseStatus(out, &r)
@@ -273,6 +277,20 @@ func check(ctx context.Context, dir string, run runner) Repo {
 					if n, _ := strconv.Atoi(strings.TrimSpace(out)); n > 0 {
 						r.Branches = append(r.Branches, Branch{Name: name, LocalOnly: n, Upstream: upstream != ""})
 					}
+				}
+			}
+		}
+		// on a detached HEAD, commits made since are on no branch at all, so the
+		// count above misses them; they are the easiest work to lose
+		if r.Branch == "" {
+			a := []string{"rev-list", "--count", "HEAD", "--not", "--branches"}
+			if !r.NoRemote {
+				a = append(a, "--remotes")
+			}
+			if out, err := run(ctx, dir, a...); err == nil {
+				if n, _ := strconv.Atoi(strings.TrimSpace(out)); n > 0 {
+					r.LocalOnly += n
+					r.Branches = append(r.Branches, Branch{Name: "(detached HEAD)", LocalOnly: n})
 				}
 			}
 		}

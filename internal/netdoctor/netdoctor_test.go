@@ -92,3 +92,26 @@ func TestSummaryPicksFirstBreak(t *testing.T) {
 		t.Errorf("a router that ignores ping is not a problem on its own: %q", ok.Summary)
 	}
 }
+
+func TestOddRepliesAreNotAlwaysSignInPages(t *testing.T) {
+	if d, _ := describeOddReply(407); !strings.Contains(d, "proxy") {
+		t.Errorf("407 = %q, want the proxy wanting a sign-in", d)
+	}
+	if d, _ := describeOddReply(403); strings.Contains(d, "sign-in") || !strings.Contains(d, "blocking") {
+		t.Errorf("403 = %q, want a filter or firewall, not a sign-in page", d)
+	}
+	if d, _ := describeOddReply(302); !strings.Contains(d, "sign-in") {
+		t.Errorf("302 = %q, want a sign-in page", d)
+	}
+	if d, _ := describeOddReply(502); strings.Contains(d, "sign-in") {
+		t.Errorf("502 = %q, must not claim a sign-in page", d)
+	}
+}
+
+func TestSitePointedAtThisPC(t *testing.T) {
+	hosts := []HostsEntry{{IP: "127.0.0.1", Names: []string{"facebook.com"}, Kind: "local"}}
+	s := siteStep(t.Context(), "facebook.com", Proxy{}, hosts)
+	if s.Status != "fail" || !strings.Contains(s.Detail, "this PC itself") {
+		t.Errorf("got %+v", s)
+	}
+}

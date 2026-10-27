@@ -199,7 +199,9 @@
 							>Latency</span
 						>
 						<span class="font-bold text-sm font-mono text-ink mt-0.5 whitespace-nowrap">
-							{speedTestResult.ping_latency_ms} ms
+							{speedTestResult.ping_latency_ms < 0
+								? 'not measured'
+								: `${speedTestResult.ping_latency_ms} ms`}
 						</span>
 					</div>
 					<div class="flex flex-col items-center">
@@ -208,7 +210,7 @@
 							>Jitter</span
 						>
 						<span class="font-bold text-sm font-mono text-ink mt-0.5 whitespace-nowrap">
-							{speedTestResult.jitter_ms} ms
+							{speedTestResult.jitter_ms < 0 ? 'not measured' : `${speedTestResult.jitter_ms} ms`}
 						</span>
 					</div>
 					<div class="flex flex-col items-center">

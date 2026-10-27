@@ -9,11 +9,13 @@ import (
 )
 
 type StartupItem struct {
-	Name        string `json:"name"`
-	Command     string `json:"command"`
-	Location    string `json:"location"`
-	Impact      string `json:"impact"`       // High, Medium, Low
-	ImpactScore int    `json:"impact_score"` // 1-100
+	Name     string `json:"name"`
+	Command  string `json:"command"`
+	Location string `json:"location"`
+	// not measured: left empty. (They used to be guessed from the length of the
+	// command line, which says nothing about how much a program slows startup.)
+	Impact      string `json:"impact"`
+	ImpactScore int    `json:"impact_score"`
 	IsEnabled   bool   `json:"is_enabled"`
 }
 
@@ -54,23 +56,11 @@ func scanRegistryKey(rootKey registry.Key, path string, locationName string) ([]
 			continue
 		}
 
-		impact := "Low"
-		score := 25
-		if len(val) > 80 {
-			impact = "High"
-			score = 85
-		} else if len(val) > 40 {
-			impact = "Medium"
-			score = 55
-		}
-
 		results = append(results, StartupItem{
-			Name:        n,
-			Command:     val,
-			Location:    locationName,
-			Impact:      impact,
-			ImpactScore: score,
-			IsEnabled:   true,
+			Name:      n,
+			Command:   val,
+			Location:  locationName,
+			IsEnabled: true,
 		})
 	}
 
@@ -96,12 +86,10 @@ func scanStartupFolder() ([]StartupItem, error) {
 			continue
 		}
 		results = append(results, StartupItem{
-			Name:        e.Name(),
-			Command:     filepath.Join(startupPath, e.Name()),
-			Location:    "Startup Folder",
-			Impact:      "Medium",
-			ImpactScore: 50,
-			IsEnabled:   true,
+			Name:      e.Name(),
+			Command:   filepath.Join(startupPath, e.Name()),
+			Location:  "Startup Folder",
+			IsEnabled: true,
 		})
 	}
 

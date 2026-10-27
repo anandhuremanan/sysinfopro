@@ -79,9 +79,28 @@ func TestWSLMemory(t *testing.T) {
 	}
 	// an idle WSL holding memory on a PC with room to spare is only worth a note
 	s = calm()
-	s.Procs = append(s.Procs, Proc{PID: 7, Name: "vmmem", MemoryBytes: 3 * gb, Count: 1})
+	s.Procs = append(s.Procs, Proc{PID: 7, Name: "VmmemWSL", MemoryBytes: 3 * gb, Count: 1})
 	if w := find(analyse(s), "wsl-memory"); w == nil || w.Level != "info" {
 		t.Errorf("idle wsl = %+v", w)
+	}
+	// plain vmmem is any Hyper-V virtual machine, not necessarily WSL
+	s = calm()
+	s.Procs = append(s.Procs, Proc{PID: 8, Name: "vmmem", MemoryBytes: 3 * gb, CPUPct: 10, Count: 1})
+	r = analyse(s)
+	if find(r, "wsl-memory") != nil || find(r, "wsl") != nil {
+		t.Errorf("vmmem must not be called WSL: %+v", r.Findings)
+	}
+	if find(r, "vm-memory") == nil || find(r, "vm") == nil {
+		t.Errorf("vmmem should be a virtual machine: %+v", r.Findings)
+	}
+}
+
+func TestThrottledUsesTimeBusy(t *testing.T) {
+	// slowed to 45% of base: utility reads low (30%), but the processor is busy 70% of the time
+	s := calm()
+	s.CPUPct, s.CPUTimePct, s.PerformancePct = 30, 70, 45
+	if f := find(analyse(s), "throttled"); f == nil {
+		t.Errorf("a slowed-down busy processor must be reported even when utility reads low")
 	}
 }
 
@@ -90,7 +109,7 @@ func TestThrottled(t *testing.T) {
 	s.CPUPct, s.PerformancePct = 70, 45
 	r := analyse(s)
 	f := find(r, "throttled")
-	if f == nil || !strings.Contains(f.Detail, "too hot") {
+	if f == nil || !strings.Contains(f.Detail, "too hot") || !strings.Contains(f.Title, "base speed") {
 		t.Fatalf("hot = %+v", f)
 	}
 	s.OnBattery, s.BatterySaver = true, true

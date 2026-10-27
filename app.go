@@ -20,9 +20,9 @@ import (
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/dupes"
-	"myproject/internal/hardware"
 	"myproject/internal/gitsweep"
 	"myproject/internal/handover"
+	"myproject/internal/hardware"
 	"myproject/internal/history"
 	"myproject/internal/hotkey"
 	"myproject/internal/locks"
@@ -597,15 +597,15 @@ func (a *App) GetWatchFolders() []WatchFolder {
 
 // currentSnapshot records startup programs, installed software, listening ports and PATH
 func currentSnapshot() history.Snapshot {
+	// a list that cannot be read is left nil (unknown) rather than empty, so What
+	// changed never reports everything in it as removed
 	snapshot := history.Snapshot{
 		TakenAt: time.Now(),
-		Startup: []string{},
-		Ports:   []string{},
-		Path:    []string{},
 		Apps:    system.InstalledApps(),
 	}
 
 	if items, err := system.GetStartupItems(); err == nil {
+		snapshot.Startup = []string{}
 		for _, item := range items {
 			snapshot.Startup = append(snapshot.Startup, fmt.Sprintf("%s (%s)", item.Name, item.Location))
 		}
@@ -614,6 +614,7 @@ func currentSnapshot() history.Snapshot {
 		snapshot.Ports = ports
 	}
 	if analysis, err := system.GetEnvPathAnalysis(); err == nil && analysis != nil {
+		snapshot.Path = []string{}
 		for _, entry := range analysis.PathEntries {
 			snapshot.Path = append(snapshot.Path, entry.Path)
 		}
@@ -691,7 +692,7 @@ func (a *App) GetDiagnosticReport() (diagnostics.DiagnosticReport, error) {
 
 	input := diagnostics.EvaluationInput{
 		NetworkConnected: functions.IsConnectedToInternet(),
-		PingLatencyMs:    24.0,
+		PingLatencyMs:    -1, // not measured here; never show a made-up number
 	}
 
 	if cpuStats != nil {

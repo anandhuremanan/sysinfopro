@@ -123,3 +123,21 @@ func readKind(t *testing.T, path string) (string, uint32, error) {
 	defer key.Close()
 	return key.GetStringValue("Path")
 }
+
+func TestUndefinedVariableIsNotMissing(t *testing.T) {
+	src := fakeSource(``, `%NOT_DEFINED_ANYWHERE%\\bin;C:\\gone`)
+	a := analysePath(src)
+	if len(a.PathEntries) != 2 {
+		t.Fatalf("entries = %+v", a.PathEntries)
+	}
+	undefined, gone := a.PathEntries[0], a.PathEntries[1]
+	if undefined.Fixable || undefined.StatusText == "Missing folder" {
+		t.Errorf("an unexpandable entry must not be called missing or offered for removal: %+v", undefined)
+	}
+	if !gone.Fixable || gone.StatusText != "Missing folder" {
+		t.Errorf("a real missing folder is still reported: %+v", gone)
+	}
+	if a.InvalidEntries != 1 {
+		t.Errorf("invalid = %d, want only the real missing folder", a.InvalidEntries)
+	}
+}

@@ -1,11 +1,5 @@
 <script lang="ts">
-	import {
-		ACCENT_PRESETS,
-		setAccent,
-		setTheme,
-		theme,
-		type ThemeMode
-	} from '$lib/theme.svelte';
+	import { ACCENT_PRESETS, setAccent, setTheme, theme, type ThemeMode } from '$lib/theme.svelte';
 	import { enterWidget, toggleWidgetMetric, widget, widgetOptions } from '$lib/widget.svelte';
 	import {
 		GetAlertSettings,
@@ -157,246 +151,269 @@
 <Modal bind:showModal title="Settings">
 	<div class="flex flex-col gap-5">
 		<div class="self-start">
-			<Segmented options={tabs} value={tab} onchange={(t) => (tab = t)} label="Settings sections" tabs />
+			<Segmented
+				options={tabs}
+				value={tab}
+				onchange={(t) => (tab = t)}
+				label="Settings sections"
+				tabs
+			/>
 		</div>
 
 		{#key tab}
 			<div class="flex flex-col gap-5" in:fade={{ duration: 160 }}>
-		{#if tab === 'general'}
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<div class="font-semibold">Theme</div>
-					<div class="text-muted">AMOLED is pure black for OLED screens</div>
-				</div>
-				{@render chips(
-					modes.map((m) => m.id),
-					theme.mode,
-					(id) => modes.find((m) => m.id === id)?.label ?? id,
-					setTheme,
-					false,
-					'Theme'
-				)}
-			</div>
-
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<div class="font-semibold">Accent</div>
-					<div class="text-muted">Buttons, bars and highlights</div>
-				</div>
-				<div role="radiogroup" aria-label="Accent colour" class="flex items-center gap-1.5">
-					{#each ACCENT_PRESETS as preset (preset.id)}
-						<button
-							role="radio"
-							aria-checked={theme.accent === preset.id}
-							aria-label={preset.label}
-							title={preset.label}
-							class="w-6 h-6 rounded-full cursor-pointer ring-offset-2 ring-offset-tile transition-shadow {theme.accent ===
-							preset.id
-								? 'ring-2 ring-ink'
-								: 'hover:ring-2 hover:ring-line'}"
-							style="background: {preset.color}"
-							onclick={() => setAccent(preset.id)}
-						></button>
-					{/each}
-					<label
-						title="Pick any colour"
-						class="relative w-6 h-6 rounded-full cursor-pointer ring-offset-2 ring-offset-tile overflow-hidden {isCustomAccent
-							? 'ring-2 ring-ink'
-							: 'hover:ring-2 hover:ring-line'}"
-						style="background: {isCustomAccent
-							? theme.accent
-							: 'conic-gradient(#ff3b3b, #ffd400, #39ff14, #00e5ff, #a855f7, #ff2bd6, #ff3b3b)'}"
-					>
-						<span class="sr-only">Custom colour</span>
-						<input
-							type="color"
-							class="absolute inset-0 opacity-0 cursor-pointer"
-							value={theme.accent || '#2dd4bf'}
-							oninput={(event) => setAccent(event.currentTarget.value)}
-						/>
-					</label>
-				</div>
-			</div>
-
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<div class="font-semibold">SysInfo Pro</div>
-					<div class="text-muted">About, credits and source code</div>
-				</div>
-				<Credits />
-			</div>
-		{:else if tab === 'card'}
-			<div class="flex flex-col gap-2.5">
-				<div class="flex items-center justify-between gap-4">
-					<div class="min-w-0">
-						<div class="font-semibold">Share card</div>
-						<div class="text-muted truncate">
-							{CARD_STYLES.find((s) => s.id === cardStyle)?.hint}
-						</div>
-					</div>
-					{@render chips(
-						CARD_STYLES.map((s) => s.id),
-						cardStyle,
-						(id) => CARD_STYLES.find((s) => s.id === id)?.label ?? id,
-						pickCardStyle,
-						false,
-						'Share card style'
-					)}
-				</div>
-				<div class="rounded-xl overflow-hidden bg-ground aspect-[16/9]">
-					{#if cardPreview}
-						<img src={cardPreview} alt="Preview of the share card" class="w-full h-full object-cover" />
-					{/if}
-				</div>
-			</div>
-		{:else if tab === 'widget'}
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<div class="font-semibold">Widget</div>
-					<div class="text-muted">A small window that stays on top of every app</div>
-				</div>
-				<button
-					class="btn btn-primary"
-					onclick={() => {
-						showModal = false;
-						enterWidget();
-					}}
-				>
-					Open widget
-				</button>
-			</div>
-			<div class="flex flex-col gap-2">
-				<span class="font-semibold">Show</span>
-				<div class="flex flex-wrap gap-1.5" role="group" aria-label="Readings shown in the widget">
-					{#each widgetOptions() as metric (metric.id)}
-						<button
-							aria-pressed={widget.metrics.includes(metric.id)}
-							class="h-7 px-2.5 rounded-lg border cursor-pointer font-medium transition-colors {widget.metrics.includes(
-								metric.id
-							)
-								? 'border-accent bg-accent text-on-accent'
-								: 'border-line text-muted hover:text-ink'}"
-							onclick={() => toggleWidgetMetric(metric.id)}
-						>
-							{metric.label}
-						</button>
-					{/each}
-				</div>
-			</div>
-			{#if hotkeySettings}
-				<div class="flex flex-col gap-2">
+				{#if tab === 'general'}
 					<div class="flex items-center justify-between gap-4">
 						<div>
-							<div class="font-semibold">Keyboard shortcut</div>
-							<div class="text-muted">Switch to the widget and back from any app</div>
+							<div class="font-semibold">Theme</div>
+							<div class="text-muted">AMOLED is pure black for OLED screens</div>
 						</div>
-						<Switch
-							label="Keyboard shortcut"
-							checked={hotkeySettings.enabled}
-							onchange={(enabled) => updateHotkey(enabled, hotkeySettings!.combo)}
-						/>
-					</div>
-					<div class="flex items-center justify-between gap-4">
-						{#if hotkeySettings.error}
-							<span class="text-amber-700 dark:text-amber-400 leading-snug">
-								{hotkeySettings.error}. Pick another.
-							</span>
-						{:else}
-							<span class={hotkeySettings.enabled ? 'text-muted' : 'text-muted opacity-60'}>
-								{hotkeySettings.enabled ? 'Works while SysInfo Pro is open' : 'Off'}
-							</span>
-						{/if}
 						{@render chips(
-							hotkeyCombos,
-							hotkeySettings.combo,
-							(combo) => combo,
-							(combo) => updateHotkey(hotkeySettings!.enabled, combo),
-							!hotkeySettings.enabled,
-							'Shortcut'
+							modes.map((m) => m.id),
+							theme.mode,
+							(id) => modes.find((m) => m.id === id)?.label ?? id,
+							setTheme,
+							false,
+							'Theme'
 						)}
 					</div>
-				</div>
-			{/if}
-		{:else if !alertSettings}
-			<div class="h-32 flex items-center justify-center text-muted animate-pulse">Loading...</div>
-		{:else}
-			<div class="flex items-center justify-between gap-4">
-				<div>
-					<div class="font-semibold">Low-space alerts</div>
-					<div class="text-muted">Checks every drive twice a minute while the app is open</div>
-				</div>
-				<Switch
-					label="Low-space alerts"
-					checked={alertSettings.enabled}
-					onchange={(enabled) => updateAlerts({ enabled })}
-				/>
-			</div>
 
-			<div class="flex flex-col gap-3">
-				<div class="flex items-center justify-between gap-4">
-					<span class={alertSettings.enabled ? '' : 'text-muted'}>When free space drops below</span>
-					{@render chips(
-						LOW_LIMITS,
-						alertSettings.min_free_gb,
-						(gb) => `${gb} GB`,
-						(gb) => updateAlerts({ min_free_gb: gb }),
-						!alertSettings.enabled,
-						'Low-space limit'
-					)}
-				</div>
-				<div class="flex items-center justify-between gap-4">
-					<span class={alertSettings.enabled ? '' : 'text-muted'}>When a drive loses, in 10 minutes</span>
-					{@render chips(
-						DROP_LIMITS,
-						alertSettings.drop_gb,
-						(gb) => (gb === 0 ? 'Off' : `${gb} GB`),
-						(gb) => updateAlerts({ drop_gb: gb }),
-						!alertSettings.enabled,
-						'Fast-drop limit'
-					)}
-				</div>
-			</div>
-
-			{#if reminder}
-				<div class="flex items-center justify-between gap-4">
-					<div class="min-w-0">
-						<div class="font-semibold">Monthly cleanup reminder</div>
-						<div class="text-muted leading-snug">
-							Package caches, temporary files and projects unused for 6 months in
-							<span class="text-ink" title={reminder.projects_root}>
-								{reminder.projects_root || 'the folder you search in Dev caches'}
-							</span>
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">Accent</div>
+							<div class="text-muted">Buttons, bars and highlights</div>
+						</div>
+						<div role="radiogroup" aria-label="Accent colour" class="flex items-center gap-1.5">
+							{#each ACCENT_PRESETS as preset (preset.id)}
+								<button
+									role="radio"
+									aria-checked={theme.accent === preset.id}
+									aria-label={preset.label}
+									title={preset.label}
+									class="w-6 h-6 rounded-full cursor-pointer ring-offset-2 ring-offset-tile transition-shadow {theme.accent ===
+									preset.id
+										? 'ring-2 ring-ink'
+										: 'hover:ring-2 hover:ring-line'}"
+									style="background: {preset.color}"
+									onclick={() => setAccent(preset.id)}
+								></button>
+							{/each}
+							<label
+								title="Pick any colour"
+								class="relative w-6 h-6 rounded-full cursor-pointer ring-offset-2 ring-offset-tile overflow-hidden {isCustomAccent
+									? 'ring-2 ring-ink'
+									: 'hover:ring-2 hover:ring-line'}"
+								style="background: {isCustomAccent
+									? theme.accent
+									: 'conic-gradient(#ff3b3b, #ffd400, #39ff14, #00e5ff, #a855f7, #ff2bd6, #ff3b3b)'}"
+							>
+								<span class="sr-only">Custom colour</span>
+								<input
+									type="color"
+									class="absolute inset-0 opacity-0 cursor-pointer"
+									value={theme.accent || '#2dd4bf'}
+									oninput={(event) => setAccent(event.currentTarget.value)}
+								/>
+							</label>
 						</div>
 					</div>
-					<Switch
-						label="Monthly cleanup reminder"
-						checked={reminder.enabled}
-						onchange={async (enabled) => {
-							reminder = await SetReminderEnabled(enabled);
-						}}
-					/>
-				</div>
-			{/if}
 
-			<div class="flex items-start justify-between gap-4">
-				<p
-					class="leading-snug {notificationStatus === 'enabled' || !notificationStatus
-						? 'text-muted'
-						: 'text-amber-700 dark:text-amber-400'}"
-				>
-					{notificationStatus ? NOTIFICATION_NOTE[notificationStatus] : 'Checking notifications...'}
-				</p>
-				<button
-					class="btn btn-secondary shrink-0"
-					onclick={() => {
-						showModal = false;
-						SendTestAlert();
-					}}
-				>
-					Send a test
-				</button>
-			</div>
-		{/if}
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">SysInfo Pro</div>
+							<div class="text-muted">About, credits and source code</div>
+						</div>
+						<Credits />
+					</div>
+				{:else if tab === 'card'}
+					<div class="flex flex-col gap-2.5">
+						<div class="flex items-center justify-between gap-4">
+							<div class="min-w-0">
+								<div class="font-semibold">Share card</div>
+								<div class="text-muted leading-snug">
+									{CARD_STYLES.find((s) => s.id === cardStyle)?.hint}
+								</div>
+							</div>
+							{@render chips(
+								CARD_STYLES.map((s) => s.id),
+								cardStyle,
+								(id) => CARD_STYLES.find((s) => s.id === id)?.label ?? id,
+								pickCardStyle,
+								false,
+								'Share card style'
+							)}
+						</div>
+						<!-- a faint outline, so a card the same colour as this window still shows its edges -->
+						<div class="rounded-xl overflow-hidden bg-ground aspect-[16/9] ring-1 ring-line">
+							{#if cardPreview}
+								<img
+									src={cardPreview}
+									alt="Preview of the share card"
+									class="w-full h-full object-cover"
+								/>
+							{/if}
+						</div>
+					</div>
+				{:else if tab === 'widget'}
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">Widget</div>
+							<div class="text-muted">A small window that stays on top of every app</div>
+						</div>
+						<button
+							class="btn btn-primary"
+							onclick={() => {
+								showModal = false;
+								enterWidget();
+							}}
+						>
+							Open widget
+						</button>
+					</div>
+					<div class="flex flex-col gap-2">
+						<span class="font-semibold">Show</span>
+						<div
+							class="flex flex-wrap gap-1.5"
+							role="group"
+							aria-label="Readings shown in the widget"
+						>
+							{#each widgetOptions() as metric (metric.id)}
+								<button
+									aria-pressed={widget.metrics.includes(metric.id)}
+									class="h-7 px-2.5 rounded-lg border cursor-pointer font-medium transition-colors {widget.metrics.includes(
+										metric.id
+									)
+										? 'border-accent bg-accent text-on-accent'
+										: 'border-line text-muted hover:text-ink'}"
+									onclick={() => toggleWidgetMetric(metric.id)}
+								>
+									{metric.label}
+								</button>
+							{/each}
+						</div>
+					</div>
+					{#if hotkeySettings}
+						<div class="flex flex-col gap-2">
+							<div class="flex items-center justify-between gap-4">
+								<div>
+									<div class="font-semibold">Keyboard shortcut</div>
+									<div class="text-muted">Switch to the widget and back from any app</div>
+								</div>
+								<Switch
+									label="Keyboard shortcut"
+									checked={hotkeySettings.enabled}
+									onchange={(enabled) => updateHotkey(enabled, hotkeySettings!.combo)}
+								/>
+							</div>
+							<div class="flex items-center justify-between gap-4">
+								{#if hotkeySettings.error}
+									<span class="text-amber-700 dark:text-amber-400 leading-snug">
+										{hotkeySettings.error}. Pick another.
+									</span>
+								{:else}
+									<span class={hotkeySettings.enabled ? 'text-muted' : 'text-muted opacity-60'}>
+										{hotkeySettings.enabled ? 'Works while SysInfo Pro is open' : 'Off'}
+									</span>
+								{/if}
+								{@render chips(
+									hotkeyCombos,
+									hotkeySettings.combo,
+									(combo) => combo,
+									(combo) => updateHotkey(hotkeySettings!.enabled, combo),
+									!hotkeySettings.enabled,
+									'Shortcut'
+								)}
+							</div>
+						</div>
+					{/if}
+				{:else if !alertSettings}
+					<div class="h-32 flex items-center justify-center text-muted animate-pulse">
+						Loading...
+					</div>
+				{:else}
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">Low-space alerts</div>
+							<div class="text-muted">Checks every drive twice a minute while the app is open</div>
+						</div>
+						<Switch
+							label="Low-space alerts"
+							checked={alertSettings.enabled}
+							onchange={(enabled) => updateAlerts({ enabled })}
+						/>
+					</div>
+
+					<div class="flex flex-col gap-3">
+						<div class="flex items-center justify-between gap-4">
+							<span class={alertSettings.enabled ? '' : 'text-muted'}
+								>When free space drops below</span
+							>
+							{@render chips(
+								LOW_LIMITS,
+								alertSettings.min_free_gb,
+								(gb) => `${gb} GB`,
+								(gb) => updateAlerts({ min_free_gb: gb }),
+								!alertSettings.enabled,
+								'Low-space limit'
+							)}
+						</div>
+						<div class="flex items-center justify-between gap-4">
+							<span class={alertSettings.enabled ? '' : 'text-muted'}
+								>When a drive loses, in 10 minutes</span
+							>
+							{@render chips(
+								DROP_LIMITS,
+								alertSettings.drop_gb,
+								(gb) => (gb === 0 ? 'Off' : `${gb} GB`),
+								(gb) => updateAlerts({ drop_gb: gb }),
+								!alertSettings.enabled,
+								'Fast-drop limit'
+							)}
+						</div>
+					</div>
+
+					{#if reminder}
+						<div class="flex items-center justify-between gap-4">
+							<div class="min-w-0">
+								<div class="font-semibold">Monthly cleanup reminder</div>
+								<div class="text-muted leading-snug">
+									Package caches, temporary files and projects unused for 6 months in
+									<span class="text-ink" title={reminder.projects_root}>
+										{reminder.projects_root || 'the folder you search in Dev caches'}
+									</span>
+								</div>
+							</div>
+							<Switch
+								label="Monthly cleanup reminder"
+								checked={reminder.enabled}
+								onchange={async (enabled) => {
+									reminder = await SetReminderEnabled(enabled);
+								}}
+							/>
+						</div>
+					{/if}
+
+					<div class="flex items-start justify-between gap-4">
+						<p
+							class="leading-snug {notificationStatus === 'enabled' || !notificationStatus
+								? 'text-muted'
+								: 'text-amber-700 dark:text-amber-400'}"
+						>
+							{notificationStatus
+								? NOTIFICATION_NOTE[notificationStatus]
+								: 'Checking notifications...'}
+						</p>
+						<button
+							class="btn btn-secondary shrink-0"
+							onclick={() => {
+								showModal = false;
+								SendTestAlert();
+							}}
+						>
+							Send a test
+						</button>
+					</div>
+				{/if}
 			</div>
 		{/key}
 	</div>

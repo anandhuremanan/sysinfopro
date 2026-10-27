@@ -61,6 +61,9 @@ type Report struct {
 	Healthy bool   `json:"healthy"`
 }
 
+// sent with the site check, so sites treat it like a normal browser visit
+const browserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 SysInfoPro"
+
 // Windows' own connectivity check: the same address it uses to decide whether
 // to show "No internet" in the taskbar
 const (
@@ -260,9 +263,27 @@ func internetStep(ctx context.Context, p Proxy) Step {
 		return s
 	}
 	s.Status = "warn"
-	s.Detail = "This network is showing its own page instead of the internet: usually a sign-in page (hotel, airport, café)."
-	s.Fix = "Open a browser and visit any site to see the sign-in page."
+	s.Detail, s.Fix = describeOddReply(resp.StatusCode)
 	return s
+}
+
+// describeOddReply explains a reply that is not Windows' own test page. Only a
+// redirect, or a normal page with other contents, points to a sign-in page.
+func describeOddReply(code int) (detail, fix string) {
+	switch {
+	case code == http.StatusProxyAuthRequired:
+		return "The proxy on this network wants you to sign in before it lets traffic through.",
+			"Sign in to the proxy in your browser, or ask IT for the proxy account to use."
+	case code == http.StatusForbidden || code == http.StatusUnavailableForLegalReasons:
+		return fmt.Sprintf("This network refused the connection (%d): a filter or firewall is blocking it.", code),
+			"Ask whoever runs this network (often IT) whether internet access is restricted."
+	case code >= 300 && code < 400, code == http.StatusOK:
+		return "This network is showing its own page instead of the internet: usually a sign-in page (hotel, airport, café).",
+			"Open a browser and visit any site to see the sign-in page."
+	default:
+		return fmt.Sprintf("Something on this network answered with an unexpected reply (%d) instead of the internet.", code),
+			"If web pages load in the browser, a proxy or filter is in the way; otherwise restart the router."
+	}
 }
 
 func siteName(site string) string {
@@ -279,11 +300,15 @@ func siteStep(ctx context.Context, site string, p Proxy, hosts []HostsEntry) Ste
 
 	for _, h := range hosts {
 		for _, n := range h.Names {
-			if strings.EqualFold(n, host) && h.Kind != "local" {
+			if strings.EqualFold(n, host) {
 				s.Status = "fail"
-				s.Detail = fmt.Sprintf("The hosts file sends %s to %s, so it never reaches the real site.", host, h.IP)
-				if h.Kind == "block" {
+				switch h.Kind {
+				case "block":
 					s.Detail = fmt.Sprintf("The hosts file blocks %s (it points it at %s).", host, h.IP)
+				case "local":
+					s.Detail = fmt.Sprintf("The hosts file sends %s to this PC itself (%s), so the real site is never reached.", host, h.IP)
+				default:
+					s.Detail = fmt.Sprintf("The hosts file sends %s to %s, so it never reaches the real site.", host, h.IP)
 				}
 				s.Fix = `Remove the line for it from C:\Windows\System32\drivers\etc\hosts (needs administrator rights).`
 				return s
@@ -304,7 +329,11 @@ func siteStep(ctx context.Context, site string, p Proxy, hosts []HostsEntry) Ste
 	if u, err := url.Parse(site); err == nil && u.Scheme != "" && u.Host != "" {
 		target = site
 	}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodHead, target, nil)
+	// ask like a browser: many sites refuse bare requests or HEAD with 403/405,
+	// which would wrongly look like the site blocking this network
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	req.Header.Set("User-Agent", browserAgent)
+	req.Header.Set("Accept", "text/html,*/*;q=0.8")
 	began := time.Now()
 	resp, err := clientFor(p, 8*time.Second).Do(req)
 	s.Ms = time.Since(began).Milliseconds()
@@ -314,14 +343,19 @@ func siteStep(ctx context.Context, site string, p Proxy, hosts []HostsEntry) Ste
 		s.Fix = "The site may be down, or this network may block it. Try it on another network, such as a phone hotspot."
 		return s
 	}
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 64*1024))
 	resp.Body.Close()
 	switch {
 	case resp.StatusCode < 400:
 		s.Status = "ok"
 		s.Detail = fmt.Sprintf("%s answered in %d ms", host, s.Ms)
-	case resp.StatusCode == 403 || resp.StatusCode == 451:
+	case resp.StatusCode == 403 || resp.StatusCode == 429:
+		// it answered, so the connection works; many sites refuse automated checks
+		s.Status = "ok"
+		s.Detail = fmt.Sprintf("%s is reachable (%d ms). It turned this check away (%d), as many sites do with tools; it should still open in a browser.", host, s.Ms, resp.StatusCode)
+	case resp.StatusCode == 451:
 		s.Status = "warn"
-		s.Detail = fmt.Sprintf("%s answered, but refused the request (%d). It may block this network or region.", host, resp.StatusCode)
+		s.Detail = fmt.Sprintf("%s is reachable but refused for legal reasons (451): it is blocked in this country or region.", host)
 	case resp.StatusCode >= 500:
 		s.Status = "warn"
 		s.Detail = fmt.Sprintf("%s answered with a server error (%d): the problem is on the site's side.", host, resp.StatusCode)

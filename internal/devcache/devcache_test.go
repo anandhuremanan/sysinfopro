@@ -29,7 +29,14 @@ func TestFindLeftovers(t *testing.T) {
 	write := func(rel string, size int) { writeFile(t, filepath.Join(root, rel), size) }
 
 	write("app-a/package.json", 10)
+	write("app-a/package-lock.json", 10)
 	write("app-a/node_modules/x/index.js", 4000)
+	// node_modules that a program or editor extension ships: install would not restore them
+	write("Editor/resources/app/package.json", 10)
+	write("Editor/resources/app/node_modules/dep/index.js", 7000)
+	write("dot-vscode/extensions/pub.ext-1.0.0/package.json", 10)
+	write("dot-vscode/extensions/pub.ext-1.0.0/node_modules/dep/index.js", 6000)
+	write("loose/node_modules/dep/index.js", 5500) // no package.json, no lock file
 	// nested node_modules belongs to app-a's total, not a separate result
 	write("app-a/node_modules/x/node_modules/y/index.js", 1000)
 	write("rust-tool/Cargo.toml", 10)
@@ -134,6 +141,7 @@ func TestDeleteOnlyAllowedFolders(t *testing.T) {
 	writeFile(t, filepath.Join(cache, "a.tgz"), 1000)
 	writeFile(t, filepath.Join(docker, "disk.vhdx"), 700)
 	writeFile(t, filepath.Join(modules, "x", "i.js"), 200)
+	npmProject(t, filepath.Join(root, "proj"))
 	writeFile(t, filepath.Join(source, "main.js"), 50)
 	rustTarget := filepath.Join(root, "tool", "target")
 	writeFile(t, filepath.Join(root, "tool", "Cargo.toml"), 10)
@@ -178,6 +186,7 @@ func TestDeleteReadOnlyFiles(t *testing.T) {
 	modules := filepath.Join(root, "node_modules")
 	file := filepath.Join(modules, "pkg", "locked.js")
 	writeFile(t, file, 100)
+	npmProject(t, root)
 	if err := os.Chmod(file, 0o444); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +198,9 @@ func TestDeleteReadOnlyFiles(t *testing.T) {
 }
 
 func TestDeleteMissingFolderReported(t *testing.T) {
-	result := deletePaths(context.Background(), []string{filepath.Join(t.TempDir(), "node_modules")}, nil, nil)
+	project := t.TempDir()
+	npmProject(t, project)
+	result := deletePaths(context.Background(), []string{filepath.Join(project, "node_modules")}, nil, nil)
 	if len(result.Failed) != 1 || !strings.Contains(result.Failed[0], "not found") {
 		t.Errorf("failed = %v, want one 'folder not found'", result.Failed)
 	}
@@ -202,6 +213,8 @@ func TestDeleteReportsProgress(t *testing.T) {
 	writeFile(t, filepath.Join(first, "x", "one.js"), 300)
 	writeFile(t, filepath.Join(first, "x", "two.js"), 200)
 	writeFile(t, filepath.Join(second, "three.js"), 100)
+	npmProject(t, filepath.Join(root, "a"))
+	npmProject(t, filepath.Join(root, "b"))
 
 	var reports []DeleteProgress
 	result := deletePaths(context.Background(), []string{first, second}, nil, func(p DeleteProgress) {
@@ -220,5 +233,39 @@ func TestDeleteReportsProgress(t *testing.T) {
 	last := reports[len(reports)-1]
 	if last.FreedBytes != 600 || last.FilesDeleted != 3 || last.Folder != 2 {
 		t.Errorf("last report = %+v, want 600 bytes in 3 files at folder 2", last)
+	}
+}
+
+// npmProject makes dir look like a project npm installed into
+func npmProject(t *testing.T, dir string) {
+	t.Helper()
+	writeFile(t, filepath.Join(dir, "package.json"), 2)
+	writeFile(t, filepath.Join(dir, "package-lock.json"), 2)
+}
+
+func TestNodeModulesOwnership(t *testing.T) {
+	root := t.TempDir()
+	marker := filepath.Join(root, "yarn-only")
+	writeFile(t, filepath.Join(marker, "package.json"), 2)
+	writeFile(t, filepath.Join(marker, "node_modules", ".yarn-integrity"), 2)
+	if !nodeModulesOwned(marker, filepath.Join(marker, "node_modules")) {
+		t.Error("an install marker inside node_modules is enough")
+	}
+	bare := filepath.Join(root, "bare")
+	writeFile(t, filepath.Join(bare, "package.json"), 2)
+	if nodeModulesOwned(bare, filepath.Join(bare, "node_modules")) {
+		t.Error("package.json alone is what shipped apps have; not enough")
+	}
+	for _, p := range []string{
+		`C:\Program Files\App\resources\app\node_modules`,
+		`D:\VSCode\dot-vscode\extensions\pub.ext-1.0\node_modules`,
+		`C:\Users\me\AppData\Roaming\npm\node_modules`,
+	} {
+		if !installedApp(p) {
+			t.Errorf("%s belongs to an installed program", p)
+		}
+	}
+	if installedApp(`D:\work\shop\node_modules`) {
+		t.Error("a project folder is not an installed program")
 	}
 }

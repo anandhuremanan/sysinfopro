@@ -11,20 +11,21 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 )
 
+// StressResult is what a stress test measured. It makes no claims about
+// temperature: nothing here reads a thermal sensor.
 type StressResult struct {
-	DurationSec      float64 `json:"duration_sec"`
-	OpsCompleted     int64   `json:"ops_completed"`
-	ThermalScore     float64 `json:"thermal_score"`      // 1-100 rating
-	BaselineLoadPct  float64 `json:"baseline_load_pct"`
-	PeakLoadPct      float64 `json:"peak_load_pct"`
-	StatusText       string  `json:"status_text"`
+	DurationSec     float64 `json:"duration_sec"`
+	OpsCompleted    int64   `json:"ops_completed"`
+	BaselineLoadPct float64 `json:"baseline_load_pct"`
+	// how busy the processor was while the test ran; -1 when it could not be read
+	PeakLoadPct float64 `json:"peak_load_pct"`
 }
 
 func RunThermalStressTest() (*StressResult, error) {
 	numCPU := runtime.NumCPU()
 	duration := 10 * time.Second
 
-	// 1. Measure Baseline CPU %
+	// 1. How busy the processor was before the test
 	beforePercent, _ := cpu.Percent(500*time.Millisecond, false)
 	baselineLoad := 0.0
 	if len(beforePercent) > 0 {
@@ -37,7 +38,7 @@ func RunThermalStressTest() (*StressResult, error) {
 
 	startTime := time.Now()
 
-	// 2. Launch CPU Burn Worker Goroutines
+	// 2. One worker per logical processor
 	for i := 0; i < numCPU; i++ {
 		wg.Add(1)
 		go func() {
@@ -49,7 +50,6 @@ func RunThermalStressTest() (*StressResult, error) {
 					atomic.AddInt64(&opsCounter, localOps)
 					return
 				default:
-					// CPU-intensive floating point & math operations
 					_ = math.Sin(rand.Float64()) * math.Cos(rand.Float64())
 					localOps++
 				}
@@ -57,38 +57,29 @@ func RunThermalStressTest() (*StressResult, error) {
 		}()
 	}
 
-	// Wait for 10-second stress duration
+	// 3. How busy the processor is while the workers run (measured mid-test,
+	//    not after they stop)
+	peakLoad := -1.0
+	peakDone := make(chan struct{})
+	go func() {
+		defer close(peakDone)
+		time.Sleep(3 * time.Second)
+		if during, err := cpu.Percent(2*time.Second, false); err == nil && len(during) > 0 {
+			peakLoad = math.Round(during[0]*10) / 10
+		}
+	}()
+
 	time.Sleep(duration)
 	close(doneChan)
 	wg.Wait()
+	<-peakDone
 
 	elapsed := time.Since(startTime).Seconds()
-
-	// 3. Measure Peak CPU Load
-	afterPercent, _ := cpu.Percent(500*time.Millisecond, false)
-	peakLoad := 98.5
-	if len(afterPercent) > 0 {
-		peakLoad = math.Round(afterPercent[0]*10) / 10
-	}
-
-	// Calculate Thermal Headroom Score (1-100)
-	opsPerSec := float64(opsCounter) / elapsed
-	score := math.Min(100, math.Max(10, (opsPerSec/10000000.0)*15.0))
-	score = math.Round(score*10) / 10
-
-	statusText := "Thermal Headroom Excellent"
-	if score < 50 {
-		statusText = "Thermal Throttling Detected"
-	} else if score < 75 {
-		statusText = "Moderate Fan Activity"
-	}
 
 	return &StressResult{
 		DurationSec:     math.Round(elapsed*10) / 10,
 		OpsCompleted:    opsCounter,
-		ThermalScore:    score,
 		BaselineLoadPct: baselineLoad,
 		PeakLoadPct:     peakLoad,
-		StatusText:      statusText,
 	}, nil
 }

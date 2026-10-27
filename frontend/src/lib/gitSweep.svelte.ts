@@ -19,7 +19,7 @@ export type GitRepo = {
 	secret_in_url: boolean;
 	empty: boolean;
 	last_commit: number;
-	status: 'at-risk' | 'changes' | 'clean';
+	status: 'at-risk' | 'changes' | 'clean' | 'unreadable';
 	error: string;
 };
 export type GitResult = {
@@ -28,6 +28,7 @@ export type GitResult = {
 	git_missing: boolean;
 	at_risk: number;
 	with_changes: number;
+	unreadable: number;
 	duration_ms: number;
 };
 type Progress = { phase: 'finding' | 'checking'; found: number; done: number; current: string };

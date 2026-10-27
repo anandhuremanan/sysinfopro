@@ -63,32 +63,3 @@ export async function copyStat(systemInfo: any): Promise<string> {
 		return `Failed to copy: ${err}`;
 	}
 }
-
-export function getSystemHealthScore(metrics: any): number {
-	if (!metrics) return 0;
-	const { battery, disk, ram } = metrics;
-
-	let totalScore = 0;
-	let factorsCount = 0;
-
-	if (ram && ram.total > 0) {
-		const ramHealth = (ram.available / ram.total) * 100;
-		totalScore += ramHealth;
-		factorsCount++;
-	}
-
-	if (disk && disk.total > 0) {
-		const diskHealth = (disk.free / disk.total) * 100;
-		totalScore += diskHealth;
-		factorsCount++;
-	}
-
-	if (battery && battery.designedCapacity > 0 && battery.currentCapacity > 0) {
-		const batteryHealth = Math.min(100, (battery.currentCapacity / battery.designedCapacity) * 100);
-		totalScore += batteryHealth;
-		factorsCount++;
-	}
-
-	if (factorsCount === 0) return 0;
-	return Math.round((totalScore / factorsCount) * 100) / 100;
-}

@@ -40,9 +40,14 @@ type Changes struct {
 	Categories  []CategoryDiff `json:"categories"`
 }
 
-// Compare describes how current differs from baseline
+// Compare describes how current differs from baseline. A list that could not be
+// read on either side (nil, or no installed apps at all) is not compared: an
+// empty reading would otherwise show everything in it as removed or added.
 func Compare(baseline, current Snapshot) *Changes {
 	apps := CategoryDiff{ID: "apps", Title: "Installed software", Added: []string{}, Removed: []string{}, Changed: []string{}}
+	if len(baseline.Apps) == 0 || len(current.Apps) == 0 {
+		current.Apps, baseline.Apps = nil, nil
+	}
 	for name, version := range current.Apps {
 		old, existed := baseline.Apps[name]
 		switch {
@@ -65,10 +70,11 @@ func Compare(baseline, current Snapshot) *Changes {
 		HasBaseline: true,
 		Since:       baseline.TakenAt.Format(time.RFC3339),
 		Categories: []CategoryDiff{
-			listDiff("startup", "Startup programs", baseline.Startup, current.Startup),
+			listDiff("startup", "Startup programs", baseline.Startup, current.Startup, exact),
 			apps,
-			listDiff("ports", "Listening ports", baseline.Ports, current.Ports),
-			listDiff("path", "PATH entries", baseline.Path, current.Path),
+			listDiff("ports", "Listening ports", baseline.Ports, current.Ports, exact),
+			// Windows ignores case and a trailing slash in PATH, so the comparison does too
+			listDiff("path", "PATH entries", baseline.Path, current.Path, pathKey),
 		},
 	}
 	for _, c := range changes.Categories {
@@ -77,23 +83,33 @@ func Compare(baseline, current Snapshot) *Changes {
 	return changes
 }
 
-func listDiff(id, title string, before, after []string) CategoryDiff {
+func exact(s string) string { return s }
+
+func pathKey(s string) string {
+	return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), `\/`))
+}
+
+func listDiff(id, title string, before, after []string, key func(string) string) CategoryDiff {
 	diff := CategoryDiff{ID: id, Title: title, Added: []string{}, Removed: []string{}, Changed: []string{}}
+	if before == nil || after == nil {
+		return diff // one side could not be read: nothing to compare
+	}
 	had := map[string]bool{}
 	for _, item := range before {
-		had[item] = true
+		had[key(item)] = true
 	}
 	has := map[string]bool{}
 	for _, item := range after {
-		if !has[item] && !had[item] {
+		k := key(item)
+		if !has[k] && !had[k] {
 			diff.Added = append(diff.Added, item)
 		}
-		has[item] = true
+		has[k] = true
 	}
 	for _, item := range before {
-		if !has[item] {
+		if k := key(item); !has[k] {
 			diff.Removed = append(diff.Removed, item)
-			has[item] = true // list each removal once
+			has[k] = true // list each removal once
 		}
 	}
 	return diff

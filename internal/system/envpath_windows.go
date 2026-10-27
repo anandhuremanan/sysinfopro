@@ -4,6 +4,7 @@ package system
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"unsafe"
 
@@ -45,12 +46,30 @@ func readStoredPath() (system, user string, err error) {
 	return system, user, err
 }
 
+var envVarRef = regexp.MustCompile(`%([^%]+)%`)
+
+// expandEnv expands %VARIABLES%. This app's own environment is used first; a
+// variable it lacks (one set after the app started, such as an installer's
+// NVM_HOME) is read from the stored user and system variables, which is what a
+// new terminal would see.
 func expandEnv(value string) string {
 	if !strings.Contains(value, "%") {
 		return value
 	}
 	if expanded, err := registry.ExpandString(value); err == nil {
-		return expanded
+		value = expanded
+	}
+	for i := 0; i < 3 && strings.Contains(value, "%"); i++ {
+		value = envVarRef.ReplaceAllStringFunc(value, func(ref string) string {
+			name := ref[1 : len(ref)-1]
+			if v, err := readValue(registry.CURRENT_USER, userEnvKey, name); err == nil && v != "" {
+				return v
+			}
+			if v, err := readValue(registry.LOCAL_MACHINE, systemEnvKey, name); err == nil && v != "" {
+				return v
+			}
+			return ref
+		})
 	}
 	return value
 }

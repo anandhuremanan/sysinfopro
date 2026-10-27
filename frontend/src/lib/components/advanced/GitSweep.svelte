@@ -137,6 +137,12 @@
 							>{plural(result.at_risk, 'project has', 'projects have')} work only on this PC</span
 						>
 						· {result.repos.length} found in {folderName(result.root)}
+					{:else if result.unreadable}
+						Nothing unpushed found in {folderName(result.root)}, but git could not read {plural(
+							result.unreadable,
+							'project',
+							'projects'
+						)}
 					{:else}
 						All {result.repos.length} projects in {folderName(result.root)} are pushed
 					{/if}

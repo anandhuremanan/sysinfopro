@@ -78,7 +78,7 @@ func knownCaches() []knownCache {
 	return []knownCache{
 		{"npm", "npm cache", filepath.Join(local, "npm-cache"), redownload, true},
 		{"yarn", "Yarn cache", filepath.Join(local, "Yarn", "Cache"), redownload, true},
-		{"pnpm-store", "pnpm store", filepath.Join(local, "pnpm", "store"), "Projects re-link packages from a fresh store on next install", true},
+		{"pnpm-store", "pnpm store", filepath.Join(local, "pnpm", "store"), "Its files are shared with your projects' node_modules, so space only comes back for packages no project uses. Projects re-link on next install", true},
 		{"pnpm-cache", "pnpm cache", filepath.Join(local, "pnpm-cache"), redownload, true},
 		{"pip", "pip cache", filepath.Join(local, "pip", "Cache"), redownload, true},
 		{"nuget", "NuGet packages", filepath.Join(home, ".nuget", "packages"), "Restored on the next build", true},
@@ -294,7 +294,6 @@ func deletePaths(ctx context.Context, paths []string, caches []knownCache, progr
 	report(true)
 	return result
 }
-
 
 func isLeftover(path string) bool {
 	_, ok := matchLeftover(path)

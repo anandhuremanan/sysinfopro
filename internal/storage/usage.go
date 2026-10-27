@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,6 +28,8 @@ type DriveInfo struct {
 	FreeBytes  uint64  `json:"free_bytes"`
 	UsedBytes  uint64  `json:"used_bytes"`
 	UsedPct    float64 `json:"used_pct"`
+	// the drive Windows itself is on
+	IsSystem bool `json:"is_system"`
 }
 
 type UsageEntry struct {
@@ -73,6 +76,10 @@ func ListDrives() ([]DriveInfo, error) {
 		return nil, err
 	}
 
+	system := strings.ToUpper(strings.TrimRight(os.Getenv("SystemDrive"), `\/`))
+	if system == "" {
+		system = "C:"
+	}
 	drives := []DriveInfo{}
 	for _, p := range partitions {
 		usage, err := disk.Usage(RootPath(p.Mountpoint))
@@ -86,8 +93,11 @@ func ListDrives() ([]DriveInfo, error) {
 			FreeBytes:  usage.Free,
 			UsedBytes:  usage.Used,
 			UsedPct:    usage.UsedPercent,
+			IsSystem:   strings.EqualFold(strings.TrimRight(p.Mountpoint, `\/`), system),
 		})
 	}
+	// the Windows drive first: screens that show "the" drive use the first entry
+	sort.SliceStable(drives, func(i, j int) bool { return drives[i].IsSystem && !drives[j].IsSystem })
 	return drives, nil
 }
 
@@ -177,11 +187,14 @@ func AnalyzeFolder(ctx context.Context, root string, progress ScanProgressFunc) 
 				continue
 			}
 			if info.Mode().IsRegular() {
-				entry.SizeBytes = info.Size()
+				size := onDisk(info)
+				entry.SizeBytes = size
 				entry.Files = 1
 				atomic.AddInt64(&files, 1)
-				atomic.AddInt64(&bytes, info.Size())
-				largest.offer(entry.Name, path, info.Size())
+				atomic.AddInt64(&bytes, size)
+				if size > 0 {
+					largest.offer(entry.Name, path, size)
+				}
 			}
 			continue
 		}
@@ -216,12 +229,15 @@ func AnalyzeFolder(ctx context.Context, root string, progress ScanProgressFunc) 
 					atomic.AddInt64(&skipped, 1)
 					return nil
 				}
-				size := info.Size()
+				// online-only cloud files take no space here, so they count as nothing
+				size := onDisk(info)
 				entry.SizeBytes += size
 				entry.Files++
 				atomic.AddInt64(&files, 1)
 				atomic.AddInt64(&bytes, size)
-				largest.offer(d.Name(), p, size)
+				if size > 0 {
+					largest.offer(d.Name(), p, size)
+				}
 				return nil
 			})
 		}()

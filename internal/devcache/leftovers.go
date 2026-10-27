@@ -41,9 +41,38 @@ func hasMatch(dir string, patterns ...string) bool {
 	return false
 }
 
-func always(string, string) bool { return true }
-
 func nodeProject(project, _ string) bool { return hasFile(project, "package.json") }
+
+// installedApp is true for folders that belong to an installed program rather
+// than a project of the user's: Electron apps keep their node_modules under
+// resources\app, editors keep extensions (each with its own node_modules) in an
+// extensions folder, and npm keeps global tools under AppData\Roaming\npm.
+// Nothing restores these with an install, so deleting them breaks the program.
+func installedApp(path string) bool {
+	p := strings.ToLower(filepath.ToSlash(path)) + "/"
+	for _, part := range []string{
+		"/resources/app/", "/resources/app.asar.unpacked/", "/extensions/",
+		"/program files/", "/program files (x86)/", "/programdata/", "/windows/",
+		"/appdata/local/programs/", "/appdata/roaming/npm/", "/appdata/local/microsoft/",
+	} {
+		if strings.Contains(p, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// nodeModulesOwned is true only for a node_modules a package manager installed
+// in a project: package.json beside it, and a lock file or the marker npm, yarn
+// or pnpm writes on every install. Apps and editor extensions ship node_modules
+// with neither, and running install would not bring theirs back.
+func nodeModulesOwned(project, folder string) bool {
+	if installedApp(folder) || !hasFile(project, "package.json") {
+		return false
+	}
+	return hasFile(project, "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml", "bun.lockb", "bun.lock") ||
+		hasFile(folder, ".package-lock.json", ".modules.yaml", ".yarn-state.yml", ".yarn-integrity")
+}
 
 func dotnetProject(project, _ string) bool {
 	return hasMatch(project, "*.csproj", "*.fsproj", "*.vbproj")
@@ -52,7 +81,7 @@ func dotnetProject(project, _ string) bool {
 const rebuildNote = "Recreated the next time the project's dev server or build runs"
 
 var leftoverRules = []leftoverRule{
-	{[]string{nodeModules}, "node_modules", "Restored by running your package manager's install in the project", always},
+	{[]string{nodeModules}, "node_modules", "Restored by running your package manager's install in the project", nodeModulesOwned},
 	{[]string{"target"}, "Rust build", "Rebuilt by the next cargo build",
 		func(project, _ string) bool { return hasFile(project, "Cargo.toml") }},
 	{[]string{"target"}, "Maven build", "Rebuilt by the next mvn package",

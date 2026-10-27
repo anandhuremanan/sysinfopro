@@ -2,6 +2,7 @@ package functions
 
 import (
 	"fmt"
+	stdnet "net"
 	"os/user"
 
 	"myproject/internal/storage"
@@ -37,11 +38,10 @@ func GetSystemInfo() (*SystemInfo, error) {
 	info.PlatformVersion = hostInfo.PlatformVersion
 
 	// User
-	u, err := user.Current()
-	if err != nil {
-		info.LoggedInUser = "unknown"
+	info.LoggedInUser = "unknown"
+	if u, err := user.Current(); err == nil {
+		info.LoggedInUser = u.Username
 	}
-	info.LoggedInUser = u.Username
 
 	// RAM
 	vmStat, err := mem.VirtualMemory()
@@ -76,7 +76,7 @@ func GetSystemInfo() (*SystemInfo, error) {
 	} else {
 		connected := false
 		for _, iface := range netInterfaces {
-			if len(iface.Addrs) > 0 && iface.Flags[0] == "up" {
+			if hasRoutableAddress(iface) {
 				connected = true
 				break
 			}
@@ -89,4 +89,32 @@ func GetSystemInfo() (*SystemInfo, error) {
 	}
 
 	return info, nil
+}
+
+// hasRoutableAddress is true for an adapter that is up, is not the loopback
+// adapter (which every PC has, connected or not), and has an address that is
+// not self-assigned (169.254.x.x / fe80::), which Windows gives when no network answered
+func hasRoutableAddress(iface net.InterfaceStat) bool {
+	up, loopback := false, false
+	for _, f := range iface.Flags {
+		switch f {
+		case "up":
+			up = true
+		case "loopback":
+			loopback = true
+		}
+	}
+	if !up || loopback {
+		return false
+	}
+	for _, a := range iface.Addrs {
+		ip, _, err := stdnet.ParseCIDR(a.Addr)
+		if err != nil {
+			ip = stdnet.ParseIP(a.Addr)
+		}
+		if ip != nil && !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsUnspecified() {
+			return true
+		}
+	}
+	return false
 }

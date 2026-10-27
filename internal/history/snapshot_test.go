@@ -122,3 +122,17 @@ func TestStoreSkipsCorruptFile(t *testing.T) {
 		t.Errorf("latest = %+v, %v; want the readable snapshot", latest, err)
 	}
 }
+
+func TestUnreadableListsAreNotCompared(t *testing.T) {
+	baseline := Snapshot{
+		Startup: []string{"OneDrive (Registry)"},
+		Path:    []string{`C:\Tools\`},
+		Apps:    map[string]string{"Git": "2.45"},
+	}
+	// startup could not be read now (nil), and no apps were read at all
+	current := Snapshot{Path: []string{`c:\tools`}, Apps: map[string]string{}}
+	c := Compare(baseline, current)
+	if c.Total != 0 {
+		t.Errorf("unreadable lists and case or slash differences are not changes: %+v", c.Categories)
+	}
+}

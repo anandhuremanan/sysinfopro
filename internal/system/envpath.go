@@ -73,22 +73,28 @@ func analysePath(src pathSource) *EnvPathAnalysis {
 			entry.IsDuplicate = seen[key]
 			seen[key] = true
 			entry.IsValid = src.isDir(expanded)
+			// a %VARIABLE% nobody defines cannot be checked: it is not known to be
+			// missing, and must never be offered for removal
+			unknown := !entry.IsValid && strings.Contains(expanded, "%")
 
 			switch {
 			case entry.IsDuplicate:
 				entry.StatusText = "Duplicate"
 				analysis.DuplicatesCount++
+			case unknown:
+				entry.StatusText = "Uses an undefined variable"
 			case !entry.IsValid:
 				entry.StatusText = "Missing folder"
 			default:
 				entry.StatusText = "Valid"
 			}
-			if entry.IsValid {
+			switch {
+			case entry.IsValid:
 				analysis.ValidEntries++
-			} else {
+			case !unknown:
 				analysis.InvalidEntries++
 			}
-			entry.Fixable = scope.name == "user" && (entry.IsDuplicate || !entry.IsValid)
+			entry.Fixable = scope.name == "user" && (entry.IsDuplicate || (!entry.IsValid && !unknown))
 			analysis.PathEntries = append(analysis.PathEntries, entry)
 		}
 	}
