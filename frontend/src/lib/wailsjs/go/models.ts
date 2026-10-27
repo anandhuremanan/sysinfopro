@@ -201,6 +201,33 @@ export namespace cleaner {
 
 }
 
+export namespace cpuinfo {
+	
+	export class Detail {
+	    usage: number;
+	    per_core: number[];
+	    base_mhz: number;
+	    current_mhz: number;
+	    processes: number;
+	    threads: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Detail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.usage = source["usage"];
+	        this.per_core = source["per_core"];
+	        this.base_mhz = source["base_mhz"];
+	        this.current_mhz = source["current_mhz"];
+	        this.processes = source["processes"];
+	        this.threads = source["threads"];
+	    }
+	}
+
+}
+
 export namespace devcache {
 	
 	export class DeleteResult {

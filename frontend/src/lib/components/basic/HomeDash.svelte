@@ -209,8 +209,8 @@
 	<div class="relative {tile} px-4 py-3.5 flex flex-col">
 		<button
 			class="absolute inset-0 rounded-[14px] cursor-pointer"
-			aria-label="See what is using the processor"
-			onclick={() => onOpen('slow')}
+			aria-label="Open processor details"
+			onclick={() => onOpen('cpu')}
 		></button>
 		<CpuStats onStress={() => onOpen('stress')} />
 	</div>

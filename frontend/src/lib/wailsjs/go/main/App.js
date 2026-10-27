@@ -86,6 +86,10 @@ export function GetBatteryReport() {
   return window['go']['main']['App']['GetBatteryReport']();
 }
 
+export function GetCPUDetail() {
+  return window['go']['main']['App']['GetCPUDetail']();
+}
+
 export function GetCPUStats() {
   return window['go']['main']['App']['GetCPUStats']();
 }

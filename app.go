@@ -16,6 +16,7 @@ import (
 	"myproject/internal/alerts"
 	"myproject/internal/batteryreport"
 	"myproject/internal/cleaner"
+	"myproject/internal/cpuinfo"
 	"myproject/internal/devcache"
 	"myproject/internal/diagnostics"
 	"myproject/internal/dupes"
@@ -56,6 +57,8 @@ type App struct {
 
 	cleanMu     sync.Mutex
 	cleanCancel context.CancelFunc
+
+	cpuSampler cpuinfo.Sampler
 
 	gitMu     sync.Mutex
 	gitCancel context.CancelFunc
@@ -257,6 +260,12 @@ func (a *App) GetInterNetSpeed() (string, error) {
 	}
 
 	return string(jsonBytes), nil
+}
+
+// GetCPUDetail reads the processor's live state: total and per-processor use,
+// the real current speed, and how many processes and threads are running
+func (a *App) GetCPUDetail() cpuinfo.Detail {
+	return a.cpuSampler.Sample()
 }
 
 // GetUptimeSeconds is how long Windows has been running since it last started

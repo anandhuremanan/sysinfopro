@@ -12,6 +12,7 @@ import {locks} from '../models';
 import {network} from '../models';
 import {alerts} from '../models';
 import {batteryreport} from '../models';
+import {cpuinfo} from '../models';
 import {functions} from '../models';
 import {history} from '../models';
 import {diagnostics} from '../models';
@@ -66,6 +67,8 @@ export function GetAlertSettings():Promise<alerts.Settings>;
 export function GetBatteryDetails():Promise<string>;
 
 export function GetBatteryReport():Promise<batteryreport.Report>;
+
+export function GetCPUDetail():Promise<cpuinfo.Detail>;
 
 export function GetCPUStats():Promise<functions.CPUStats>;
 

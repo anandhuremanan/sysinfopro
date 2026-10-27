@@ -14,6 +14,7 @@
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
 	import ReportModal from '$lib/components/ui/ReportModal.svelte';
 	import ScoreView from '$lib/components/advanced/ScoreView.svelte';
+	import CpuView from '$lib/components/advanced/CpuView.svelte';
 	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
 	import { getTool, tools, type ToolId, type ToolStatus } from '$lib/tools';
@@ -40,7 +41,7 @@
 			: 160;
 	import { EventsOn, Quit } from '$lib/wailsjs/runtime/runtime';
 
-	type View = 'home' | 'processes' | 'tools' | 'score' | ToolId;
+	type View = 'home' | 'processes' | 'tools' | 'score' | 'cpu' | ToolId;
 
 	const WIDGET_ICON = 'M3 5h18v14H3zM12 12h7v5h-7z';
 	const SHARE_ICON = 'M12 3v12M7 8l5-5 5 5M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5';
@@ -52,7 +53,7 @@
 	let view = $state<View>('home');
 	// Where Back returns to: a tool opened from the tools list goes back to the list
 	// where Back returns to: home, or the screen a tool was opened from
-	let parentView = $state<'home' | 'tools' | 'score'>('home');
+	let parentView = $state<'home' | 'tools' | 'score' | 'cpu'>('home');
 	let showQuitConfirm = $state(false);
 	let showSettings = $state(false);
 	let isLoading = $state(false);
@@ -85,9 +86,11 @@
 				? 'All tools'
 				: view === 'score'
 					? 'Health score'
-					: view === 'home'
-						? ''
-						: getTool(view).name
+					: view === 'cpu'
+						? 'Processor'
+						: view === 'home'
+							? ''
+							: getTool(view).name
 	);
 
 	function showLog(message: string, duration = 2000) {
@@ -102,7 +105,7 @@
 			openSpeedTest();
 			return;
 		}
-		parentView = view === 'tools' || view === 'score' ? view : 'home';
+		parentView = view === 'tools' || view === 'score' || view === 'cpu' ? view : 'home';
 		view = target as View;
 	}
 
@@ -114,7 +117,7 @@
 			return;
 		}
 
-		parentView = view === 'tools' || view === 'score' ? view : 'home';
+		parentView = view === 'tools' || view === 'score' || view === 'cpu' ? view : 'home';
 		view = 'speed';
 	}
 
@@ -260,7 +263,13 @@
 							onclick={goBack}
 						>
 							<StrokeIcon d="M15 6l-6 6 6 6" size={14} />
-							{view === 'tools' || parentView === 'home' ? 'Home' : 'Tools'}
+							{view === 'tools' || parentView === 'home'
+								? 'Home'
+								: parentView === 'score'
+									? 'Health score'
+									: parentView === 'cpu'
+										? 'Processor'
+										: 'Tools'}
 						</button>
 						<span class="text-muted">/</span>
 						<span aria-current="page" class="font-bold truncate">{viewTitle}</span>
@@ -371,6 +380,8 @@
 									<ProcessView />
 								{:else if view === 'score'}
 									<ScoreView onOpen={openView} />
+								{:else if view === 'cpu'}
+									<CpuView {systemInfo} onOpen={openView} />
 								{:else}
 									<AdvancedDash {systemInfo} tool={view} drive={usageDrive} />
 								{/if}

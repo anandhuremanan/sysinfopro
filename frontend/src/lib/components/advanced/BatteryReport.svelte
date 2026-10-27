@@ -123,7 +123,7 @@
 
 	{#if isLoading}
 		<div class="flex-1 flex items-center justify-center">
-			<BusyArt kind="read" size={64} label="Reading Windows' battery report..." />
+			<BusyArt kind="battery" size={64} label="Reading Windows' battery report..." />
 		</div>
 	{:else if error}
 		<div class="flex-1 flex items-center justify-center text-xs text-muted text-center px-8">

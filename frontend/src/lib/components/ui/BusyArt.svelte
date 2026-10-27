@@ -6,7 +6,7 @@
 		size = 64,
 		label = ''
 	}: {
-		kind?: 'scan' | 'search' | 'check' | 'measure' | 'read';
+		kind?: 'scan' | 'search' | 'check' | 'measure' | 'read' | 'battery';
 		size?: number;
 		// what is happening, for screen readers and shown under the drawing
 		label?: string;
@@ -30,8 +30,14 @@
 			</g>
 		{:else if kind === 'search'}
 			<!-- folders, with a magnifier gliding over them -->
-			<path d="M8 22a3 3 0 0 1 3-3h9l3 3h14a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" class="soft" />
-			<path d="M8 22a3 3 0 0 1 3-3h9l3 3h14a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" class="line" />
+			<path
+				d="M8 22a3 3 0 0 1 3-3h9l3 3h14a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z"
+				class="soft"
+			/>
+			<path
+				d="M8 22a3 3 0 0 1 3-3h9l3 3h14a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z"
+				class="line"
+			/>
 			<g class="glide">
 				<circle cx="40" cy="36" r="9" class="lens" />
 				<circle cx="40" cy="36" r="9" class="line thick" />
@@ -49,7 +55,31 @@
 			<!-- bars filling up one after another -->
 			{#each [0, 1, 2, 3] as i (i)}
 				<rect x={12 + i * 11} y="14" width="7" height="36" rx="3.5" class="soft" />
-				<rect x={12 + i * 11} y="14" width="7" height="36" rx="3.5" class="fill grow" style="animation-delay: {i * 0.18}s" />
+				<rect
+					x={12 + i * 11}
+					y="14"
+					width="7"
+					height="36"
+					rx="3.5"
+					class="fill grow"
+					style="animation-delay: {i * 0.18}s"
+				/>
+			{/each}
+		{:else if kind === 'battery'}
+			<!-- a battery, its cells lighting up one after another as if charging -->
+			<rect x="8" y="20" width="44" height="24" rx="5" class="soft" />
+			<rect x="8" y="20" width="44" height="24" rx="5" class="line" />
+			<rect x="53" y="27" width="4" height="10" rx="1.5" class="fill" />
+			{#each [0, 1, 2, 3] as i (i)}
+				<rect
+					x={12.5 + i * 9.5}
+					y="24.5"
+					width="7"
+					height="15"
+					rx="2"
+					class="fill charge"
+					style="animation-delay: {i * 0.3}s"
+				/>
 			{/each}
 		{:else}
 			<!-- a chip, with signals travelling along its pins -->
@@ -59,12 +89,22 @@
 			{#each [24, 32, 40] as p, i (p)}
 				<path d="M{p} 18V9M{p} 46v9M18 {p}H9M46 {p}h9" class="line" />
 				{#if !reduceMotion}
-				<circle r="2" class="fill">
-					<animateMotion dur="1.4s" begin="{i * 0.3}s" repeatCount="indefinite" path="M{p} 9V18" />
-				</circle>
-				<circle r="2" class="fill">
-					<animateMotion dur="1.4s" begin="{i * 0.3 + 0.15}s" repeatCount="indefinite" path="M55 {p}H46" />
-				</circle>
+					<circle r="2" class="fill">
+						<animateMotion
+							dur="1.4s"
+							begin="{i * 0.3}s"
+							repeatCount="indefinite"
+							path="M{p} 9V18"
+						/>
+					</circle>
+					<circle r="2" class="fill">
+						<animateMotion
+							dur="1.4s"
+							begin="{i * 0.3 + 0.15}s"
+							repeatCount="indefinite"
+							path="M55 {p}H46"
+						/>
+					</circle>
 				{/if}
 			{/each}
 		{/if}
@@ -122,39 +162,103 @@
 	.blink {
 		animation: blink 1s ease-in-out infinite;
 	}
+	.charge {
+		opacity: 0.15;
+		animation: charge 2.2s ease-in-out infinite;
+	}
 
 	@keyframes sweep {
-		from { transform: translateX(0); }
-		to { transform: translateX(34px); }
+		from {
+			transform: translateX(0);
+		}
+		to {
+			transform: translateX(34px);
+		}
 	}
 	@keyframes glide {
-		0%, 100% { transform: translate(0, 0); }
-		33% { transform: translate(-18px, -8px); }
-		66% { transform: translate(-8px, 4px); }
+		0%,
+		100% {
+			transform: translate(0, 0);
+		}
+		33% {
+			transform: translate(-18px, -8px);
+		}
+		66% {
+			transform: translate(-8px, 4px);
+		}
 	}
 	@keyframes pass {
-		from { transform: translateY(0); opacity: 0; }
-		20% { opacity: 1; }
-		80% { opacity: 1; }
-		to { transform: translateY(30px); opacity: 0; }
+		from {
+			transform: translateY(0);
+			opacity: 0;
+		}
+		20% {
+			opacity: 1;
+		}
+		80% {
+			opacity: 1;
+		}
+		to {
+			transform: translateY(30px);
+			opacity: 0;
+		}
 	}
 	@keyframes tick {
-		0%, 40% { stroke-dashoffset: 30; }
-		70%, 100% { stroke-dashoffset: 0; }
+		0%,
+		40% {
+			stroke-dashoffset: 30;
+		}
+		70%,
+		100% {
+			stroke-dashoffset: 0;
+		}
 	}
 	@keyframes grow {
-		from { transform: scaleY(0.2); }
-		to { transform: scaleY(1); }
+		from {
+			transform: scaleY(0.2);
+		}
+		to {
+			transform: scaleY(1);
+		}
+	}
+	@keyframes charge {
+		0% {
+			opacity: 0.15;
+		}
+		15%,
+		65% {
+			opacity: 1;
+		}
+		85%,
+		100% {
+			opacity: 0.15;
+		}
 	}
 	@keyframes blink {
-		0%, 100% { opacity: 1; }
-		50% { opacity: 0.35; }
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.35;
+		}
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.sweep, .glide, .pass, .tick, .grow, .blink {
+		.sweep,
+		.glide,
+		.pass,
+		.tick,
+		.grow,
+		.blink,
+		.charge {
 			animation: none;
 		}
-		.tick { stroke-dashoffset: 0; }
+		.charge {
+			opacity: 1;
+		}
+		.tick {
+			stroke-dashoffset: 0;
+		}
 	}
 </style>
