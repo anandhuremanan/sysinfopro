@@ -67,6 +67,8 @@
               "Git projects: unpushed commits, stashes and projects with no remote",
               "Dev doctor: which python, node or java really runs",
               "Network doctor: where an internet connection breaks",
+              "Hand over: a checklist before selling or passing on a PC",
+              "Health score worked out from measured values, with a live processor view",
               "Disk usage, disk growth and duplicate file finder",
               "Developer cache cleanup: npm, pip, NuGet, Gradle, Maven, Cargo, Go",
               "WSL and Docker virtual disk sizes",
@@ -133,10 +135,10 @@
         <p class="eyebrow">SysInfo Pro 3.2 · free for Windows 10 and 11</p>
         <h1>Find out why. Then fix it.</h1>
         <p class="lead">
-          Why your PC is slow, what is filling your drive and what is wrong with your dev setup, in
-          plain words, with what to try next. Every tool works without administrator rights, and
-          every number is what Windows and your drives actually report. Built for people who write
-          code on Windows.
+          Why your PC is slow, what is filling your drive, where your connection breaks and what is
+          wrong with your dev setup, in plain words, with what to try next. Every tool works without
+          administrator rights, and every number is what Windows and your drives actually report.
+          Built for people who write code on Windows, and just as useful for everyone else.
         </p>
         <div class="actions">
           <a class="btn btn-primary" href="https://apps.microsoft.com/detail/9pd2g09hcxk3?cid=DevShareMCLPCS">
@@ -155,7 +157,7 @@
             src="img/home-light.webp"
             width="1536"
             height="920"
-            alt="SysInfo Pro home screen: health score, CPU, memory, storage, processes, network and battery tiles above a row of tools"
+            alt="SysInfo Pro home screen: a health score of 90, CPU, memory, storage, processes, network and battery cards above a row of tools"
           />
         </picture>
       </section>
@@ -164,25 +166,140 @@
         <h2>22 tools, one click away</h2>
         <p class="section-lead">
           Each one answers a question you would otherwise open three programs to answer. Pick a card
-          to see it, or press Ctrl+K in the app and type what you need.
+          to see it. In the app, show the tools for everyday use, development or gaming, or press
+          Ctrl+K and type what you need.
         </p>
 
         <div class="bento" data-bento>
           <article class="tile is-open" data-tile>
             <h3>
-              <button type="button" aria-expanded="true" aria-controls="shot-ports">
+              <button type="button" aria-expanded="true" aria-controls="shot-slow">
+                Why so slow
+              </button>
+            </h3>
+            <p>What is holding the PC back right now, biggest first: a program eating the processor, memory WSL will not give back, a Defender scan, a restart Windows is waiting for. Each one comes with what to try.</p>
+            <picture class="shot tile-shot" id="shot-slow">
+              <source srcset="img/tile-slow-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-slow-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Why so slow listing WSL holding 7.8 GB of memory and a Defender scan as the causes, next to the busiest programs"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-git">
+                Git projects
+              </button>
+            </h3>
+            <p>Every project on a drive, checked read-only for work that exists only on this PC: commits never pushed, stashes, uncommitted changes and projects with no remote. Nothing is fetched or changed.</p>
+            <picture class="shot tile-shot" id="shot-git" hidden>
+              <source srcset="img/tile-git-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-git-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Git projects showing three projects with work only on this PC: unpushed commits, no remote, and stashes"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-devdoctor">
+                Dev doctor
+              </button>
+            </h3>
+            <p>Which python, node or java actually runs when you type it, every other copy on your PATH, and why the wrong one wins, such as the Store placeholder or an install that hides nvm.</p>
+            <picture class="shot tile-shot" id="shot-devdoctor" hidden>
+              <source srcset="img/tile-devdoctor-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-devdoctor-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Dev doctor explaining that typing python opens the Microsoft Store because the placeholder comes first in PATH"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-network">
+                Network doctor
+              </button>
+            </h3>
+            <p>Checks the adapter, router, name lookup and internet in order, then names the link that broke and how to fix it. Proxies and hosts-file entries are checked too.</p>
+            <picture class="shot tile-shot" id="shot-network" hidden>
+              <source srcset="img/tile-network-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-network-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Network doctor showing the PC, router and internet working but DNS failing, with the fix"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-dupes">
+                Duplicates
+              </button>
+            </h3>
+            <p>Files with exactly the same contents anywhere on a drive. Keep the oldest or the newest copy; the rest go to the Recycle Bin. Online-only OneDrive files are skipped.</p>
+            <picture class="shot tile-shot" id="shot-dupes" hidden>
+              <source srcset="img/tile-dupes-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-dupes-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Duplicates showing three copies of an Ubuntu ISO with the extra two selected, 4.3 GB in extra copies"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-handover">
+                Hand over
+              </button>
+            </h3>
+            <p>A checklist before you sell or pass on a PC: accounts still signed in, files to copy, developer keys and tokens to revoke, and the reset at the end. Passwords and keys are never read.</p>
+            <picture class="shot tile-shot" id="shot-handover" hidden>
+              <source srcset="img/tile-handover-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img
+                src="img/tile-handover-light.webp"
+                width="1536"
+                height="920"
+                loading="lazy"
+                alt="Hand over checklist with a Microsoft account and a signed-in browser marked to do"
+              />
+            </picture>
+          </article>
+
+          <article class="tile" data-tile>
+            <h3>
+              <button type="button" aria-expanded="false" aria-controls="shot-ports">
                 Ports that know their project
               </button>
             </h3>
-            <p>See which project and git branch opened each port, how long it has been running, and release it in one click.</p>
-            <picture class="shot tile-shot" id="shot-ports">
+            <p>See which project and git branch opened each port, how long it has been running, and stop it in one click.</p>
+            <picture class="shot tile-shot" id="shot-ports" hidden>
               <source srcset="img/tile-ports-dark.webp" media="(prefers-color-scheme: dark)" />
               <img
                 src="img/tile-ports-light.webp"
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="Ports screen listing each listening port with its process, project and git branch"
+                alt="Ports screen listing each listening port with its program, project, git branch and running time"
               />
             </picture>
           </article>
@@ -201,7 +318,7 @@
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="Dev Cache Cleaner listing the Go module, Go build, pnpm, pip and npm caches with their sizes"
+                alt="Dev caches listing package caches and old project folders such as node_modules unused for a year"
               />
             </picture>
           </article>
@@ -220,7 +337,7 @@
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="File Locks showing the one program that has a log file open, with an End process button"
+                alt="File locks showing the one program that has a log file open, with an End process button"
               />
             </picture>
           </article>
@@ -239,26 +356,7 @@
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="Disk Growth Watch showing a folder that grew by 85 MB in half a minute"
-              />
-            </picture>
-          </article>
-
-          <article class="tile" data-tile>
-            <h3>
-              <button type="button" aria-expanded="false" aria-controls="shot-changes">
-                What changed
-              </button>
-            </h3>
-            <p>Startup programs, installed software, listening ports and PATH, compared with the last time you looked.</p>
-            <picture class="shot tile-shot" id="shot-changes" hidden>
-              <source srcset="img/tile-changes-dark.webp" media="(prefers-color-scheme: dark)" />
-              <img
-                src="img/tile-changes-light.webp"
-                width="1536"
-                height="920"
-                loading="lazy"
-                alt="What Changed listing a software update and new listening ports since the last review"
+                alt="Disk growth showing a download growing by 85 MB in half a minute"
               />
             </picture>
           </article>
@@ -277,45 +375,7 @@
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="Security Check with seven of eight checks passed and Windows updates flagged for review"
-              />
-            </picture>
-          </article>
-
-          <article class="tile" data-tile>
-            <h3>
-              <button type="button" aria-expanded="false" aria-controls="shot-specs">
-                Hardware specs and report
-              </button>
-            </h3>
-            <p>Full inventory down to each memory module, with a one-click report to attach to a support ticket.</p>
-            <picture class="shot tile-shot" id="shot-specs" hidden>
-              <source srcset="img/tile-specs-dark.webp" media="(prefers-color-scheme: dark)" />
-              <img
-                src="img/tile-specs-light.webp"
-                width="1536"
-                height="920"
-                loading="lazy"
-                alt="Hardware Specs showing system, processor, graphics and memory details"
-              />
-            </picture>
-          </article>
-
-          <article class="tile" data-tile>
-            <h3>
-              <button type="button" aria-expanded="false" aria-controls="shot-processes">
-                Processes and memory growth
-              </button>
-            </h3>
-            <p>Sort running programs by how fast their memory is growing to catch a leak before the machine slows down.</p>
-            <picture class="shot tile-shot" id="shot-processes" hidden>
-              <source srcset="img/tile-processes-dark.webp" media="(prefers-color-scheme: dark)" />
-              <img
-                src="img/tile-processes-light.webp"
-                width="1536"
-                height="920"
-                loading="lazy"
-                alt="Processes sorted by memory growth, with the fastest-growing process highlighted"
+                alt="Security check with seven of eight checks passed and Windows updates flagged for review"
               />
             </picture>
           </article>
@@ -326,7 +386,7 @@
                 And the rest
               </button>
             </h3>
-            <p>Why so slow, Network doctor, Dev doctor, Git projects (work that exists only on this PC), Duplicates, Battery history, a Hand over checklist, WSL and Docker disk sizes, app updates through winget, a PATH fixer with undo, drive health, startup programs, speed test and a short stress test.</p>
+            <p>A health score from measured values, a live Processor view, Battery history, What changed, hardware specs with a shareable report, WSL and Docker disk sizes, winget app updates, a PATH fixer with undo, startup programs, speed test and a stress test.</p>
             <picture class="shot tile-shot" id="shot-rest" hidden>
               <source srcset="img/tile-rest-dark.webp" media="(prefers-color-scheme: dark)" />
               <img
@@ -334,7 +394,7 @@
                 width="1536"
                 height="920"
                 loading="lazy"
-                alt="All tools page listing the tools in groups"
+                alt="All tools page with Everyday, Developer and Gaming filters above the tool cards"
               />
             </picture>
           </article>
