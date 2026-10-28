@@ -2,8 +2,8 @@ package main
 
 import (
 	"embed"
-	"os"
-	"path/filepath"
+
+	"sysinfopro/internal/appdata"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -14,18 +14,18 @@ import (
 //go:embed all:frontend/build
 var assets embed.FS
 
-// webviewDataPath keeps the embedded browser's cache in the app's own folder.
-// Left unset, Wails names the folder after the exe, so every renamed copy of
-// the exe would start a new cache of 30 MB or more.
-func webviewDataPath() string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(dir, "SysInfoPro", "WebView2")
-}
-
 func main() {
+	webviewDir := ""
+	if !generatingBindings {
+		// after "Restart now", wait for the old window to close first: it holds
+		// the single-instance lock and the files a pending move has to copy
+		waitForRestart()
+		// find the data folder, and finish a move the user asked for, before
+		// anything opens the app's files
+		appdata.Init()
+		webviewDir = appdata.WebViewDir()
+	}
+
 	// Create an instance of the app structure
 	app := NewApp()
 
@@ -53,7 +53,9 @@ func main() {
 		DisableResize:   true,
 		Windows: &windows.Options{
 			EnableSwipeGestures: false,
-			WebviewUserDataPath: webviewDataPath(),
+			// with the app's other files. Left unset, Wails names the folder after the
+			// exe, so every renamed copy would start a new cache of 30 MB or more.
+			WebviewUserDataPath: webviewDir,
 		},
 	})
 

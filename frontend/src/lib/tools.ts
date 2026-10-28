@@ -251,6 +251,33 @@ export const AUDIENCES: { id: Audience; label: string }[] = [
 	{ id: 'developer', label: 'Developer' },
 	{ id: 'gaming', label: 'Gaming' }
 ];
+
+// which kinds of tools to show; remembered on this PC. All on = every tool.
+const AUDIENCE_KEY = 'sysinfopro-tool-audience';
+
+export function loadAudience(): Audience[] {
+	try {
+		const saved = JSON.parse(localStorage.getItem(AUDIENCE_KEY) ?? 'null');
+		if (Array.isArray(saved) && saved.length) return saved;
+	} catch {
+		// private window or blocked storage: fall back to everything
+	}
+	return AUDIENCES.map((a) => a.id);
+}
+
+export function saveAudience(audience: Audience[]) {
+	try {
+		localStorage.setItem(AUDIENCE_KEY, JSON.stringify(audience));
+	} catch {
+		// not remembered; still applies now
+	}
+}
+
+// turns one kind on or off; at least one stays on, so the list is never empty
+export function toggleAudience(audience: Audience[], id: Audience): Audience[] {
+	if (audience.includes(id) && audience.length === 1) return audience;
+	return audience.includes(id) ? audience.filter((a) => a !== id) : [...audience, id];
+}
 const E: Audience = 'everyday';
 const D: Audience = 'developer';
 const G: Audience = 'gaming';

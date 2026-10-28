@@ -3,7 +3,7 @@
   Builds the Wails CLI this project needs and installs it as wails-go127.
 
 .DESCRIPTION
-  The stock Wails v2.12.0 CLI cannot read Go 1.26+ source (its bundled
+  The stock Wails v2.17.0 CLI cannot read Go 1.26+ source (its bundled
   golang.org/x/tools is too old to parse the new syntax), so `wails build`
   fails on this project. This script builds the same CLI version with a newer
   golang.org/x/tools, in a throwaway module, and installs it next to the Go
@@ -16,7 +16,7 @@
   wails-go127 build -o sysinfopro-3.2.0.exe
 #>
 param(
-    [string]$WailsVersion = 'v2.12.0',
+    [string]$WailsVersion = 'v2.17.0',
     [string]$XToolsVersion = 'v0.52.0',
     [string]$Name = 'wails-go127',
     # where to put the exe; defaults to $(go env GOPATH)\bin

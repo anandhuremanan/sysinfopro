@@ -9,13 +9,13 @@ frontend in a WebView2 window. It builds on Windows 10 or 11 (64-bit) only.
 |---|---|---|
 | Go | the version in `go.mod` (`go 1.26.0`, toolchain `go1.27.3`) | With Go 1.21+ installed, `go` downloads the pinned toolchain itself. |
 | Node.js | 22 LTS (20 or newer works) | Builds the frontend (Vite 6, SvelteKit, Tailwind 4). |
-| Wails CLI | v2.12.0, built by `scripts/build-wails-cli.ps1` as `wails-go127` | The stock CLI can't read Go 1.26+ code (see below). |
+| Wails CLI | v2.17.0, built by `scripts/build-wails-cli.ps1` as `wails-go127` | The stock CLI can't read Go 1.26+ code (see below). |
 | Windows SDK | any recent Windows 10/11 SDK | Only for the Store package (`makeappx.exe`, `makepri.exe`). |
 | WebView2 runtime | built into Windows 11 and current Windows 10 | Runs the app's window. |
 
 ## 1. Build the Wails CLI (once per machine)
 
-The stock Wails v2.12.0 CLI bundles an old `golang.org/x/tools` that can't
+The stock Wails v2.17.0 CLI bundles an old `golang.org/x/tools` that can't
 parse Go 1.26+ source, so `wails build` fails on this project. The script
 builds the same CLI version with `golang.org/x/tools v0.52.0` in a throwaway
 module and installs it as `wails-go127.exe` in `$(go env GOPATH)\bin`. It never
@@ -23,7 +23,7 @@ replaces a stock `wails` install.
 
 ```powershell
 .\scripts\build-wails-cli.ps1
-wails-go127 version   # v2.12.0
+wails-go127 version   # v2.17.0
 ```
 
 ## 2. Develop

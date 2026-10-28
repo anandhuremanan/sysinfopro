@@ -2,8 +2,8 @@
 // a user's PC can be diagnosed, and keeps panics in background work from
 // silently killing the app.
 //
-// The log lives in %LOCALAPPDATA%\SysInfoPro\logs: app.log, plus up to two older
-// files (app.log.1, app.log.2), each capped at 1 MB. It holds what went wrong and
+// The log lives in %LOCALAPPDATA%\SysInfoPro\logs, or in the logs folder of a
+// moved data folder (see appdata): app.log, plus up to two older files (app.log.1, app.log.2), each capped at 1 MB. It holds what went wrong and
 // when, never file contents or personal data beyond paths the app was asked about.
 package logging
 
@@ -17,6 +17,8 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+
+	"sysinfopro/internal/appdata"
 )
 
 const (
@@ -33,15 +35,7 @@ var (
 
 // Dir is where the log files are kept
 func Dir() string {
-	base := os.Getenv("LOCALAPPDATA")
-	if base == "" {
-		if d, err := os.UserCacheDir(); err == nil {
-			base = d
-		} else {
-			base = os.TempDir()
-		}
-	}
-	return filepath.Join(base, "SysInfoPro", "logs")
+	return appdata.LogDir()
 }
 
 // Init sends slog's default logger to the log file in dir ("" for Dir()). If the

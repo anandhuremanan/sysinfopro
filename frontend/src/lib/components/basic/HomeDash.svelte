@@ -160,7 +160,11 @@
 
 <div class="h-full grid grid-cols-4 grid-rows-[minmax(0,1fr)_minmax(0,1fr)_82px] gap-3">
 	<!-- Health score (hero): worked out from measured values only; point at it for the working -->
-	<button class="{tile} row-span-2 p-4 flex flex-col gap-2" onclick={() => onOpen('score')}>
+	<button
+		class="{tile} row-span-2 p-4 flex flex-col gap-2"
+		data-tour="score"
+		onclick={() => onOpen('score')}
+	>
 		<span class="text-muted font-medium">Health score</span>
 		<span class="relative w-[124px] h-[124px] self-center my-auto {scoreTone(scored.score)}">
 			<svg
@@ -209,7 +213,7 @@
 
 	<!-- Live gauges -->
 	<!-- the whole card explains what is using the processor; the link runs a stress test -->
-	<div class="relative {tile} px-4 py-3.5 flex flex-col">
+	<div class="relative {tile} px-4 py-3.5 flex flex-col" data-tour="cpu">
 		<button
 			class="absolute inset-0 rounded-[14px] cursor-pointer"
 			aria-label="Open processor details"
@@ -218,11 +222,19 @@
 		<CpuStats onStress={() => onOpen('stress')} />
 	</div>
 
-	<button class="{tile} px-4 py-3.5 flex flex-col" onclick={() => onOpen('processes')}>
+	<button
+		class="{tile} px-4 py-3.5 flex flex-col"
+		data-tour="memory"
+		onclick={() => onOpen('processes')}
+	>
 		<RamStats />
 	</button>
 
-	<button class="{tile} px-4 py-3.5 flex flex-col justify-between" onclick={() => onOpen('space')}>
+	<button
+		class="{tile} px-4 py-3.5 flex flex-col justify-between"
+		data-tour="storage"
+		onclick={() => onOpen('space')}
+	>
 		<span class="flex justify-between text-muted font-medium w-full">
 			<span>Storage</span>
 			<span>{systemInfo.disk_type}</span>
@@ -308,7 +320,7 @@
 	</button>
 
 	<!-- Pinned tools -->
-	<nav aria-label="Tools" class="col-span-4 grid grid-cols-6 gap-3">
+	<nav aria-label="Tools" class="col-span-4 grid grid-cols-6 gap-3" data-tour="tools">
 		{#each pinnedTools as id (id)}
 			{@const tool = getTool(id)}
 			<ToolTile

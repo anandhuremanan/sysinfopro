@@ -1,4 +1,4 @@
-# Microsoft Store listing: SysInfo Pro 3.2.0
+# Microsoft Store listing: SysInfo Pro 3.2.1
 
 Copy each section into the matching field in Partner Center. Limits are Partner Center's.
 
@@ -57,7 +57,13 @@ Shrink the app to a small widget that stays on top of every app (Ctrl+Alt+W), ge
 
 ## What's new in this version (up to 1,500 characters)
 
-SysInfo Pro 3.2
+SysInfo Pro 3.2.1
+• Choose which drive SysInfo Pro keeps its files on (Settings > General).
+• A short welcome and an optional guided tour for first-time users; both can be opened again from Settings.
+• A new About section in Settings.
+• Security updates in the app framework.
+
+Also in 3.2
 • Git projects: find work that exists only on this PC, such as unpushed commits, stashes and projects with no remote.
 • Why so slow: what is holding the PC back right now, in plain words.
 • Network doctor: where the connection breaks, one link at a time.
@@ -65,8 +71,9 @@ SysInfo Pro 3.2
 • Duplicates: identical files, checked byte for byte; extra copies go to the Recycle Bin.
 • Battery: real capacity history from Windows' battery report.
 • Hand over: a checklist before you sell or return a PC.
+• Health score worked out from real readings, with a screen that explains every point.
+• Processor screen: live use for each core, speed and uptime.
 • Save a full one-page report, with personal details left out by default.
-• The home screen now lists what needs a look instead of a score, and the tools are grouped by what they are for.
 
 ## Product features (up to 20, 200 characters each)
 

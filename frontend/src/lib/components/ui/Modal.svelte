@@ -49,7 +49,8 @@
 		openStack.push(me);
 		tick().then(() => {
 			const first = dialog?.querySelector<HTMLElement>(FOCUSABLE);
-			(first ?? dialog)?.focus();
+			// focus for the keyboard, without drawing a focus ring until Tab is used
+			(first ?? dialog)?.focus({ focusVisible: false } as FocusOptions);
 		});
 		return () => {
 			const at = openStack.indexOf(me);

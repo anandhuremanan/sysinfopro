@@ -2,7 +2,10 @@
 	import {
 		AUDIENCES,
 		audienceOf,
+		loadAudience,
 		matchTool,
+		saveAudience,
+		toggleAudience,
 		tools,
 		type Audience,
 		type ToolStatus
@@ -22,27 +25,11 @@
 	const GROUPS = ['System', 'Clean up', 'Developer', 'Network'];
 
 	// which kinds of tools to show; remembered on this PC. All on = every tool.
-	const KEY = 'sysinfopro-tool-audience';
-	function remembered(): Audience[] {
-		try {
-			const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
-			if (Array.isArray(saved) && saved.length) return saved;
-		} catch {
-			// private window or blocked storage: fall back to everything
-		}
-		return AUDIENCES.map((a) => a.id);
-	}
-	let audience = $state<Audience[]>(remembered());
+	let audience = $state<Audience[]>(loadAudience());
 
 	function toggle(id: Audience) {
-		// at least one kind stays on, so the page is never empty
-		if (audience.includes(id) && audience.length === 1) return;
-		audience = audience.includes(id) ? audience.filter((a) => a !== id) : [...audience, id];
-		try {
-			localStorage.setItem(KEY, JSON.stringify(audience));
-		} catch {
-			// not remembered; still applies now
-		}
+		audience = toggleAudience(audience, id);
+		saveAudience(audience);
 	}
 
 	let ordered = $derived(GROUPS.flatMap((g) => tools.filter((t) => t.group === g)));

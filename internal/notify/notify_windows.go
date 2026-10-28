@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"sysinfopro/internal/appdata"
 	"sysinfopro/internal/winps"
 
 	"git.sr.ht/~jackmordaunt/go-toast/v2/wintoast"
@@ -59,11 +60,9 @@ func initialise() {
 	// user's registry, no administrator rights needed)
 	appID = displayName
 	iconPath := ""
-	if dir, err := os.UserConfigDir(); err == nil {
-		iconPath = filepath.Join(dir, "SysInfoPro", "notification-icon.png")
-		if os.MkdirAll(filepath.Dir(iconPath), 0o755) != nil || os.WriteFile(iconPath, icon, 0o644) != nil {
-			iconPath = ""
-		}
+	iconPath = filepath.Join(appdata.Dir(), "notification-icon.png")
+	if os.MkdirAll(filepath.Dir(iconPath), 0o755) != nil || os.WriteFile(iconPath, icon, 0o644) != nil {
+		iconPath = ""
 	}
 	setupErr = wintoast.SetAppData(wintoast.AppData{AppID: displayName, IconPath: iconPath})
 }

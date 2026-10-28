@@ -14,6 +14,7 @@ import (
 
 	"sysinfopro/functions"
 	"sysinfopro/internal/alerts"
+	"sysinfopro/internal/appdata"
 	"sysinfopro/internal/batteryreport"
 	"sysinfopro/internal/cleaner"
 	"sysinfopro/internal/cpuinfo"
@@ -89,6 +90,9 @@ func (a *App) startup(ctx context.Context) {
 		slog.Warn("log file unavailable; logging to standard error", "err", err)
 	}
 	slog.Info("SysInfo Pro starting", "version", appVersion())
+	if s := appdata.GetStatus(); s.Notice != "" {
+		slog.Info("data folder", "dir", s.Dir, "notice", s.Notice)
+	}
 
 	// one sampler for processor and memory; events go out from here, so the
 	// domain packages stay free of the UI framework

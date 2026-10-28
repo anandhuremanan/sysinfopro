@@ -10,6 +10,10 @@ export function CancelCleanJunk() {
   return window['go']['main']['App']['CancelCleanJunk']();
 }
 
+export function CancelDataFolderMove() {
+  return window['go']['main']['App']['CancelDataFolderMove']();
+}
+
 export function CancelDevCacheDelete() {
   return window['go']['main']['App']['CancelDevCacheDelete']();
 }
@@ -42,6 +46,10 @@ export function CheckInternetConnection() {
   return window['go']['main']['App']['CheckInternetConnection']();
 }
 
+export function ChooseDataFolder() {
+  return window['go']['main']['App']['ChooseDataFolder']();
+}
+
 export function CleanJunk() {
   return window['go']['main']['App']['CleanJunk']();
 }
@@ -70,6 +78,14 @@ export function FindLockingProcesses(arg1) {
   return window['go']['main']['App']['FindLockingProcesses'](arg1);
 }
 
+export function FinishTourOffer() {
+  return window['go']['main']['App']['FinishTourOffer']();
+}
+
+export function FinishWelcome() {
+  return window['go']['main']['App']['FinishWelcome']();
+}
+
 export function GetActiveSockets() {
   return window['go']['main']['App']['GetActiveSockets']();
 }
@@ -96,6 +112,10 @@ export function GetCPUStats() {
 
 export function GetChanges() {
   return window['go']['main']['App']['GetChanges']();
+}
+
+export function GetDataFolder() {
+  return window['go']['main']['App']['GetDataFolder']();
 }
 
 export function GetDiagnosticReport() {
@@ -152,6 +172,10 @@ export function GetMemoryVelocity() {
 
 export function GetNotificationStatus() {
   return window['go']['main']['App']['GetNotificationStatus']();
+}
+
+export function GetOnboarding() {
+  return window['go']['main']['App']['GetOnboarding']();
 }
 
 export function GetPrivateTerms() {
@@ -220,6 +244,10 @@ export function RemoveDuplicates(arg1) {
 
 export function RemoveUserPathEntries(arg1, arg2) {
   return window['go']['main']['App']['RemoveUserPathEntries'](arg1, arg2);
+}
+
+export function RestartApp() {
+  return window['go']['main']['App']['RestartApp']();
 }
 
 export function RevealInExplorer(arg1) {
@@ -292,4 +320,8 @@ export function UndoPathChange() {
 
 export function UpgradeWithWinget(arg1) {
   return window['go']['main']['App']['UpgradeWithWinget'](arg1);
+}
+
+export function UseDefaultDataFolder() {
+  return window['go']['main']['App']['UseDefaultDataFolder']();
 }

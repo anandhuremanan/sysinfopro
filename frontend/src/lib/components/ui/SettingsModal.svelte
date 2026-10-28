@@ -2,17 +2,24 @@
 	import { ACCENT_PRESETS, setAccent, setTheme, theme, type ThemeMode } from '$lib/theme.svelte';
 	import { enterWidget, toggleWidgetMetric, widget, widgetOptions } from '$lib/widget.svelte';
 	import {
+		CancelDataFolderMove,
+		ChooseDataFolder,
 		GetAlertSettings,
+		GetDataFolder,
 		GetDiagnosticsText,
 		GetHotkeyCombos,
 		GetHotkeySettings,
 		GetNotificationStatus,
 		GetReminderSettings,
+		RestartApp,
 		SendTestAlert,
 		SetAlertSettings,
 		SetHotkeySettings,
-		SetReminderEnabled
+		SetReminderEnabled,
+		UseDefaultDataFolder
 	} from '$lib/wailsjs/go/main/App';
+	import type { appdata } from '$lib/wailsjs/go/models';
+	import { formatBytes } from '$lib';
 	import {
 		CARD_STYLES,
 		generateSpecCardPNG,
@@ -24,8 +31,9 @@
 	// with Windows' "reduce motion" on, tabs switch without the fade
 	const reduceMotion =
 		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	import Credits from './Credits.svelte';
-	import { ClipboardSetText } from '$lib/wailsjs/runtime/runtime';
+	import Logo from './Logo.svelte';
+	import { showWelcome, startTour } from '$lib/onboarding.svelte';
+	import { BrowserOpenURL, ClipboardSetText } from '$lib/wailsjs/runtime/runtime';
 
 	// version, Windows build and recent log lines, for a bug report
 	let diagnosticsCopied = $state(false);
@@ -44,7 +52,7 @@
 
 	let { showModal = $bindable(false) } = $props();
 
-	type Tab = 'general' | 'card' | 'widget' | 'alerts';
+	type Tab = 'general' | 'card' | 'widget' | 'alerts' | 'about';
 	type AlertSettings = { enabled: boolean; min_free_gb: number; drop_gb: number };
 	type HotkeySettings = { enabled: boolean; combo: string; error?: string };
 
@@ -52,7 +60,15 @@
 		{ id: 'general', label: 'General' },
 		{ id: 'card', label: 'Card' },
 		{ id: 'widget', label: 'Widget' },
-		{ id: 'alerts', label: 'Alerts' }
+		{ id: 'alerts', label: 'Alerts' },
+		{ id: 'about', label: 'About' }
+	];
+
+	const LINKS = [
+		{ label: 'Website', url: 'https://sysinfopro.imanandhu.in' },
+		{ label: 'Source code', url: 'https://github.com/anandhuremanan/sysinfopro' },
+		{ label: 'Report a bug', url: 'https://github.com/anandhuremanan/sysinfopro/issues' },
+		{ label: 'Privacy', url: 'https://sysinfopro.imanandhu.in/privacy.html' }
 	];
 	const modes: { id: ThemeMode; label: string }[] = [
 		{ id: 'system', label: 'System' },
@@ -141,7 +157,44 @@
 		}
 	}
 
+	// where the app keeps its files; a move happens at the next start
+	let dataFolder = $state<appdata.Status | null>(null);
+	let dataFolderError = $state('');
+	let dataFolderBusy = $state(false);
+
+	async function loadDataFolder() {
+		try {
+			dataFolder = await GetDataFolder();
+		} catch (err) {
+			console.error('Failed to read the data folder:', err);
+		}
+	}
+
+	async function changeDataFolder(action: () => Promise<appdata.Status>) {
+		dataFolderBusy = true;
+		dataFolderError = '';
+		try {
+			dataFolder = await action();
+		} catch (err) {
+			dataFolderError = String(err);
+			await loadDataFolder();
+		} finally {
+			dataFolderBusy = false;
+		}
+	}
+
+	async function restart() {
+		dataFolderBusy = true;
+		try {
+			await RestartApp();
+		} catch (err) {
+			dataFolderError = String(err);
+			dataFolderBusy = false;
+		}
+	}
+
 	$effect(() => {
+		if (showModal && tab === 'general' && !dataFolder) loadDataFolder();
 		if (showModal && tab === 'alerts' && !alertSettings) loadAlerts();
 		if (showModal && tab === 'widget' && !hotkeySettings) loadHotkey();
 	});
@@ -235,24 +288,96 @@
 						</div>
 					</div>
 
-					<div class="flex items-center justify-between gap-4">
-						<div>
-							<div class="font-semibold">SysInfo Pro</div>
-							<div class="text-muted">About, credits and source code</div>
+					<div class="flex flex-col gap-2">
+						<div class="flex items-center justify-between gap-4">
+							<div class="min-w-0">
+								<div class="font-semibold">Data folder</div>
+								<div class="text-muted">
+									Settings, history and logs{dataFolder
+										? ` · ${formatBytes(dataFolder.size_bytes)}`
+										: ''}
+								</div>
+							</div>
+							<div class="flex items-center gap-2 shrink-0">
+								{#if dataFolder && !dataFolder.is_default && !dataFolder.pending}
+									<button
+										class="btn btn-secondary"
+										disabled={dataFolderBusy}
+										onclick={() => changeDataFolder(UseDefaultDataFolder)}
+									>
+										Use default
+									</button>
+								{/if}
+								<button
+									class="btn btn-secondary"
+									disabled={dataFolderBusy || !dataFolder}
+									onclick={() => changeDataFolder(ChooseDataFolder)}
+								>
+									Move...
+								</button>
+							</div>
 						</div>
-						<Credits />
+						{#if dataFolder}
+							<div class="font-mono text-xs text-muted break-all" title={dataFolder.dir}>
+								{dataFolder.dir}
+							</div>
+						{/if}
+						{#if dataFolder?.pending}
+							<div
+								class="flex items-center justify-between gap-3 rounded-xl bg-accent/10 px-3 py-2"
+							>
+								<span class="leading-snug min-w-0">
+									Moves to <span class="font-mono text-xs break-all">{dataFolder.pending_to}</span>
+									when SysInfo Pro restarts.
+								</span>
+								<div class="flex items-center gap-2 shrink-0">
+									<button
+										class="btn btn-secondary"
+										disabled={dataFolderBusy}
+										onclick={() => changeDataFolder(CancelDataFolderMove)}
+									>
+										Cancel
+									</button>
+									<button class="btn btn-primary" disabled={dataFolderBusy} onclick={restart}>
+										Restart now
+									</button>
+								</div>
+							</div>
+						{/if}
+						{#if dataFolderError}
+							<p class="text-fail leading-snug" role="alert">{dataFolderError}</p>
+						{:else if dataFolder?.notice}
+							<p class="leading-snug {dataFolder.notice_is_error ? 'text-warn' : 'text-muted'}">
+								{dataFolder.notice}
+							</p>
+						{/if}
 					</div>
 
 					<div class="flex items-center justify-between gap-4">
 						<div>
-							<div class="font-semibold">Diagnostics</div>
-							<div class="text-muted">
-								Version, Windows build and recent log lines, to paste into a bug report
-							</div>
+							<div class="font-semibold">Getting started</div>
+							<div class="text-muted">The welcome screens, or a short tour of the home screen</div>
 						</div>
-						<button class="btn btn-secondary shrink-0" onclick={copyDiagnostics}>
-							{diagnosticsCopied ? 'Copied' : 'Copy diagnostics'}
-						</button>
+						<div class="flex items-center gap-2 shrink-0">
+							<button
+								class="btn btn-secondary"
+								onclick={() => {
+									showModal = false;
+									showWelcome();
+								}}
+							>
+								Welcome screens
+							</button>
+							<button
+								class="btn btn-secondary"
+								onclick={() => {
+									showModal = false;
+									startTour();
+								}}
+							>
+								Take the tour
+							</button>
+						</div>
 					</div>
 				{:else if tab === 'card'}
 					<div class="flex flex-col gap-2.5">
@@ -355,6 +480,49 @@
 							</div>
 						</div>
 					{/if}
+				{:else if tab === 'about'}
+					<div class="flex items-center justify-between gap-4">
+						<div class="flex flex-col gap-1.5">
+							<Logo size={32} />
+							<span class="text-muted">
+								Version {__APP_VERSION__} · by Probably Fine Labs
+							</span>
+						</div>
+						<div class="flex flex-col items-center gap-1 shrink-0 text-muted text-center">
+							<img src="/Open_Source_Initiative.svg" alt="" class="w-9 h-9" />
+							<span>Open source, MIT License</span>
+						</div>
+					</div>
+
+					<p class="leading-relaxed">
+						SysInfo Pro explains, in plain words, why a Windows PC is slow, what is filling its
+						drives and what is wrong with a developer setup, and helps fix it. Every reading is what
+						Windows and the drives report, and every tool works without administrator rights.
+					</p>
+
+					<div class="flex flex-wrap gap-2">
+						{#each LINKS as link (link.url)}
+							<button class="btn btn-secondary" onclick={() => BrowserOpenURL(link.url)}>
+								{link.label}
+							</button>
+						{/each}
+					</div>
+
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<div class="font-semibold">Diagnostics</div>
+							<div class="text-muted">
+								Version, Windows build and recent log lines, to paste into a bug report
+							</div>
+						</div>
+						<button class="btn btn-secondary shrink-0" onclick={copyDiagnostics}>
+							{diagnosticsCopied ? 'Copied' : 'Copy diagnostics'}
+						</button>
+					</div>
+
+					<div class="text-muted pt-3 border-t border-line">
+						Made with Go, Wails, Svelte and Tailwind · © {new Date().getFullYear()} Probably Fine Labs
+					</div>
 				{:else if !alertSettings}
 					<div class="h-32 flex items-center justify-center text-muted motion-safe:animate-pulse">
 						Loading...

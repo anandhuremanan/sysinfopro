@@ -1,6 +1,6 @@
 // Package settings stores the app's small settings files (JSON) in one folder,
-// %APPDATA%\SysInfoPro. Writes are atomic (a temporary file renamed over the old
-// one), so a crash or power cut mid-write never leaves a half-written file, and a
+// %APPDATA%\SysInfoPro, or the folder the user moved the data to (see appdata).
+// Writes are atomic (a temporary file renamed over the old one), so a crash or power cut mid-write never leaves a half-written file, and a
 // file that cannot be read is logged rather than silently replaced by defaults.
 package settings
 
@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"sysinfopro/internal/appdata"
 )
 
 // SchemaVersion is written into every settings file. Files written before it
@@ -29,11 +31,7 @@ func Dir() (string, error) {
 	if dirOverride != "" {
 		return dirOverride, nil
 	}
-	base, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(base, "SysInfoPro"), nil
+	return appdata.Dir(), nil
 }
 
 // Path is where the settings file called name lives

@@ -19,6 +19,37 @@ export namespace alerts {
 
 }
 
+export namespace appdata {
+	
+	export class Status {
+	    dir: string;
+	    is_default: boolean;
+	    default_dir: string;
+	    size_bytes: number;
+	    pending: boolean;
+	    pending_to: string;
+	    notice: string;
+	    notice_is_error: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dir = source["dir"];
+	        this.is_default = source["is_default"];
+	        this.default_dir = source["default_dir"];
+	        this.size_bytes = source["size_bytes"];
+	        this.pending = source["pending"];
+	        this.pending_to = source["pending_to"];
+	        this.notice = source["notice"];
+	        this.notice_is_error = source["notice_is_error"];
+	    }
+	}
+
+}
+
 export namespace batteryreport {
 	
 	export class Battery {
@@ -1279,6 +1310,20 @@ export namespace main {
 	        this.removed = source["removed"];
 	        this.freed = source["freed"];
 	        this.failed = source["failed"];
+	    }
+	}
+	export class Onboarding {
+	    show_welcome: boolean;
+	    offer_tour: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Onboarding(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.show_welcome = source["show_welcome"];
+	        this.offer_tour = source["offer_tour"];
 	    }
 	}
 	export class WatchFolder {

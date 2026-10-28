@@ -12,6 +12,10 @@
 	import SettingsModal from '$lib/components/ui/SettingsModal.svelte';
 	import ReportModal from '$lib/components/ui/ReportModal.svelte';
 	import StrokeIcon from '$lib/components/ui/StrokeIcon.svelte';
+	import Tour from '$lib/components/ui/Tour.svelte';
+	import TourInvite from '$lib/components/ui/TourInvite.svelte';
+	import Welcome from '$lib/components/ui/Welcome.svelte';
+	import { loadOnboarding, onboarding } from '$lib/onboarding.svelte';
 	import { listenForAlerts, type DriveAlert } from '$lib/alerts.svelte';
 	import { type ToolStatus } from '$lib/tools';
 	import { isView, popView, pushView, screens, viewTitle, type View } from '$lib/screens';
@@ -152,6 +156,7 @@
 	}
 
 	onMount(() => {
+		loadOnboarding();
 		getSysInfo();
 		loadToolStatus();
 		initWidget();
@@ -167,6 +172,11 @@
 			clearTimeout(timer);
 			offHotkey();
 		};
+	});
+
+	// the tour walks around the home screen, so it always starts there
+	$effect(() => {
+		if (onboarding.tour && view !== 'home') stack = ['home'];
 	});
 
 	// jobs still running elsewhere show as chips in the header
@@ -261,6 +271,7 @@
 					<div class="relative">
 						<button
 							aria-label="Share"
+							data-tour="share"
 							aria-haspopup="menu"
 							aria-expanded={showShare}
 							title="Copy or save this PC's specs"
@@ -294,6 +305,7 @@
 				{/if}
 				<button
 					aria-label="Shrink to widget"
+					data-tour="widget"
 					title="Shrink to a small always-visible widget"
 					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
 					onclick={enterWidget}
@@ -302,6 +314,7 @@
 				</button>
 				<button
 					aria-label="Settings"
+					data-tour="settings"
 					title="Settings"
 					class="w-7 h-7 rounded-lg flex items-center justify-center text-muted cursor-pointer hover:text-ink hover:bg-line transition-colors"
 					onclick={() => (showSettings = true)}
@@ -390,4 +403,15 @@
 			{/snippet}
 		</Modal>
 	</section>
+{/if}
+
+{#if !widget.active}
+	{#if onboarding.welcome}
+		<Welcome />
+	{:else if onboarding.tour && view === 'home' && systemInfo}
+		<Tour />
+	{:else if onboarding.invite && view === 'home' && systemInfo}
+		<!-- after the welcome screens, a first-time user is offered the tour once -->
+		<TourInvite />
+	{/if}
 {/if}
