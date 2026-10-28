@@ -48,7 +48,6 @@ release checklist. Security problems: see [SECURITY.md](SECURITY.md).
 
 [MIT](LICENSE) © 2025-2026 Probably Fine Labs.
 
-Releases on GitHub are signed. Free code signing provided by
-[SignPath.io](https://signpath.io), certificate by
-[SignPath Foundation](https://signpath.org); see the
+The Microsoft Store version is signed by Microsoft. The exe on GitHub releases
+is built by CI from this repository and is not code-signed yet; see the
 [code signing policy](https://sysinfopro.imanandhu.in/code-signing.html).

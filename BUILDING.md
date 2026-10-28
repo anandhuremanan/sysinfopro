@@ -102,11 +102,15 @@ the exe and, if the repository variables `MSIX_IDENTITY_NAME`,
 `MSIX_PUBLISHER` and `MSIX_PUBLISHER_DISPLAY_NAME` are set, the MSIX. Both are
 kept as artifacts. Nothing is published: upload the package in Partner Center.
 
-## Code signing (SignPath Foundation)
+## Code signing (SignPath)
 
-The exe on the GitHub releases page is signed for free through the
-[SignPath Foundation](https://signpath.org) open-source programme. The Store
-package doesn't need this: Microsoft signs it.
+The GitHub exe is not signed yet. The SignPath Foundation's free open-source
+programme declined the first application (October 2026) because the project
+did not yet have enough public visibility; reapply once it has more stars,
+references and community activity. The Store package doesn't need this:
+Microsoft signs it. The release workflow's signing steps below stay switched
+off until the variables are set, so they are harmless in the meantime, and
+they work the same with a paid SignPath subscription.
 
 One-time setup:
 
