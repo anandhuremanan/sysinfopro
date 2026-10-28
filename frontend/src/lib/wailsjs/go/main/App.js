@@ -34,6 +34,18 @@ export function CancelLeftoverSearch() {
   return window['go']['main']['App']['CancelLeftoverSearch']();
 }
 
+export function CancelMove() {
+  return window['go']['main']['App']['CancelMove']();
+}
+
+export function CancelShred() {
+  return window['go']['main']['App']['CancelShred']();
+}
+
+export function CancelWipe() {
+  return window['go']['main']['App']['CancelWipe']();
+}
+
 export function CheckDevTools() {
   return window['go']['main']['App']['CheckDevTools']();
 }
@@ -56,6 +68,10 @@ export function CleanJunk() {
 
 export function DeleteDevCaches(arg1) {
   return window['go']['main']['App']['DeleteDevCaches'](arg1);
+}
+
+export function DescribeShredDrives(arg1) {
+  return window['go']['main']['App']['DescribeShredDrives'](arg1);
 }
 
 export function DiagnoseSlowness() {
@@ -222,16 +238,44 @@ export function IsStoreApp() {
   return window['go']['main']['App']['IsStoreApp']();
 }
 
+export function ListMovable() {
+  return window['go']['main']['App']['ListMovable']();
+}
+
 export function ListVirtualDisks() {
   return window['go']['main']['App']['ListVirtualDisks']();
+}
+
+export function MeasureFolder(arg1) {
+  return window['go']['main']['App']['MeasureFolder'](arg1);
+}
+
+export function MoveDestinations() {
+  return window['go']['main']['App']['MoveDestinations']();
+}
+
+export function MoveItem(arg1, arg2) {
+  return window['go']['main']['App']['MoveItem'](arg1, arg2);
+}
+
+export function MoveItemBack(arg1) {
+  return window['go']['main']['App']['MoveItemBack'](arg1);
 }
 
 export function PickFile(arg1) {
   return window['go']['main']['App']['PickFile'](arg1);
 }
 
+export function PickFiles(arg1) {
+  return window['go']['main']['App']['PickFiles'](arg1);
+}
+
 export function PickFolder(arg1) {
   return window['go']['main']['App']['PickFolder'](arg1);
+}
+
+export function PickMoveFolder() {
+  return window['go']['main']['App']['PickMoveFolder']();
 }
 
 export function PruneDocker() {
@@ -306,6 +350,10 @@ export function SetWindowVisible(arg1) {
   return window['go']['main']['App']['SetWindowVisible'](arg1);
 }
 
+export function ShredFiles(arg1, arg2) {
+  return window['go']['main']['App']['ShredFiles'](arg1, arg2);
+}
+
 export function TerminateProcess(arg1) {
   return window['go']['main']['App']['TerminateProcess'](arg1);
 }
@@ -324,4 +372,8 @@ export function UpgradeWithWinget(arg1) {
 
 export function UseDefaultDataFolder() {
   return window['go']['main']['App']['UseDefaultDataFolder']();
+}
+
+export function WipeFreeSpace(arg1) {
+  return window['go']['main']['App']['WipeFreeSpace'](arg1);
 }

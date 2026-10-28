@@ -1,4 +1,4 @@
-# Microsoft Store listing: SysInfo Pro 3.2.1
+# Microsoft Store listing: SysInfo Pro 3.2.2
 
 Copy each section into the matching field in Partner Center. Limits are Partner Center's.
 
@@ -57,23 +57,22 @@ Shrink the app to a small widget that stays on top of every app (Ctrl+Alt+W), ge
 
 ## What's new in this version (up to 1,500 characters)
 
-SysInfo Pro 3.2.1
+SysInfo Pro 3.2.2
+• Move off C: move big caches (npm, pip, Go, NuGet, Gradle and more), WSL disks and browser data to another drive without breaking them, and move them back any time.
+• File shredder: overwrite files before deleting them, and wipe a drive's free space. It tells you honestly what overwriting can and cannot promise on SSDs.
+• Clearing the Go module cache and other read-only caches is more than twice as fast.
+
+Also in 3.2.1
 • Choose which drive SysInfo Pro keeps its files on (Settings > General).
-• A short welcome and an optional guided tour for first-time users; both can be opened again from Settings.
-• A new About section in Settings.
-• Security updates in the app framework.
+• A short welcome and an optional guided tour for first-time users.
 
 Also in 3.2
-• Git projects: find work that exists only on this PC, such as unpushed commits, stashes and projects with no remote.
+• Git projects: work that exists only on this PC, such as unpushed commits and stashes.
 • Why so slow: what is holding the PC back right now, in plain words.
 • Network doctor: where the connection breaks, one link at a time.
-• Dev doctor: which python, node or java really runs, and what shadows it.
-• Duplicates: identical files, checked byte for byte; extra copies go to the Recycle Bin.
-• Battery: real capacity history from Windows' battery report.
-• Hand over: a checklist before you sell or return a PC.
+• Dev doctor: which python, node or java really runs.
+• Duplicates, Battery history and a Hand over checklist before you sell a PC.
 • Health score worked out from real readings, with a screen that explains every point.
-• Processor screen: live use for each core, speed and uptime.
-• Save a full one-page report, with personal details left out by default.
 
 ## Product features (up to 20, 200 characters each)
 
@@ -89,13 +88,13 @@ Also in 3.2
 10. Battery capacity history from Windows' own battery report
 11. Hand over: a checklist before you sell or return a PC
 12. Find the largest folders and files on any drive, in the background
-13. Watch a drive or folder to see what is growing, and how fast
+13. Move off C: move big caches, WSL disks and browser data to another drive, and back
 14. See which program is using a port or holding a file open
 15. Read-only security check: antivirus, firewall, updates, BitLocker and more
 16. Real drive health: wear, temperature and hours
 17. One-page report to share, with personal details left out
 18. Floating widget that stays on top, and alerts before a drive fills up
-19. Ctrl+K quick search across every tool
+19. File shredder: overwrite files before deleting them, and wipe free space
 20. No account, no analytics, no ads
 
 ## Keywords (up to 7)

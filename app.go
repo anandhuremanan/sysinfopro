@@ -55,6 +55,9 @@ type App struct {
 
 	// the one running instance of each long job; a new run cancels the old one
 	diskScanJob, leftoverJob, devDeleteJob, cleanJob, gitJob, dupesJob cancelSlot
+	shredJob, wipeJob, moveJob                                         cancelSlot
+	// the drive whose free space is being wiped ("C:"); its alerts pause meanwhile
+	wipingDrive atomic.Value
 
 	// live processor and memory readings, sampled by one goroutine
 	metrics *functions.Monitor
@@ -249,6 +252,9 @@ func (a *App) watchDrives(ctx context.Context) {
 			now := time.Now()
 			for _, d := range drives {
 				name := strings.TrimRight(d.Path, `\/`)
+				if wiping, _ := a.wipingDrive.Load().(string); wiping != "" && strings.EqualFold(wiping, name) {
+					continue // filling up on purpose while its free space is wiped
+				}
 				for _, alert := range a.alerts.Observe(name, d.FreeBytes, d.TotalBytes, now) {
 					a.raise(alert)
 				}

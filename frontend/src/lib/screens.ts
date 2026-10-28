@@ -9,10 +9,12 @@ import DiskCleaner from '$lib/components/advanced/DiskCleaner.svelte';
 import DuplicateFinder from '$lib/components/advanced/DuplicateFinder.svelte';
 import EnvPathInspector from '$lib/components/advanced/EnvPathInspector.svelte';
 import FileLocks from '$lib/components/advanced/FileLocks.svelte';
+import FileShredder from '$lib/components/advanced/FileShredder.svelte';
 import GitSweep from '$lib/components/advanced/GitSweep.svelte';
 import GrowthWatch from '$lib/components/advanced/GrowthWatch.svelte';
 import Handover from '$lib/components/advanced/Handover.svelte';
 import HardwareSpecs from '$lib/components/advanced/HardwareSpecs.svelte';
+import MoveOffC from '$lib/components/advanced/MoveOffC.svelte';
 import NetworkDoctor from '$lib/components/advanced/NetworkDoctor.svelte';
 import PortInspector from '$lib/components/advanced/PortInspector.svelte';
 import ScoreView from '$lib/components/advanced/ScoreView.svelte';
@@ -53,6 +55,8 @@ export const screens: Record<ScreenId, Component<any>> = {
 	changes: WhatChanged,
 	stress: StressBenchmark,
 	locks: FileLocks,
+	move: MoveOffC,
+	shred: FileShredder,
 	health: DiskCleaner,
 	space: DiskAnalyzer,
 	growth: GrowthWatch,

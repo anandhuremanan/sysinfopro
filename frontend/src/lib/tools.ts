@@ -20,7 +20,9 @@ export type ToolId =
 	| 'slow'
 	| 'battery'
 	| 'handover'
-	| 'gitsweep';
+	| 'gitsweep'
+	| 'move'
+	| 'shred';
 
 export type Tool = {
 	id: ToolId;
@@ -199,6 +201,23 @@ export const tools: Tool[] = [
 		icon: 'M8 8h11v13H8zM5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1'
 	},
 	{
+		id: 'move',
+		name: 'Move off C:',
+		hint: 'Make room',
+		group: 'Clean up',
+		keywords:
+			'move relocate migrate drive space c: cache npm pip go gradle nuget wsl chrome edge firefox browser profile junction',
+		icon: 'M3 5h8v14H3zM14 12h7M18 8l4 4-4 4'
+	},
+	{
+		id: 'shred',
+		name: 'File shredder',
+		hint: 'Delete for good',
+		group: 'Clean up',
+		keywords: 'shred wipe secure delete erase overwrite privacy recover forensic free space cipher',
+		icon: 'M6 10V4a1 1 0 0 1 1-1h8l3 3v4M3 10h18v4H3zM6 14v7M10 14v5M14 14v7M18 14v4'
+	},
+	{
 		id: 'env',
 		name: 'PATH',
 		hint: 'PATH entries',
@@ -303,5 +322,7 @@ export const audienceOf: Record<ToolId, Audience[]> = {
 	env: [D],
 	speed: [E, G],
 	netdoctor: [E, D, G],
-	ports: [D]
+	ports: [D],
+	move: [E, D],
+	shred: [E, D]
 };

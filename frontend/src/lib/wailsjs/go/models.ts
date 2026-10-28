@@ -1312,6 +1312,22 @@ export namespace main {
 	        this.failed = source["failed"];
 	    }
 	}
+	export class MoveDestination {
+	    drive: string;
+	    free_bytes: number;
+	    folder: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MoveDestination(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.drive = source["drive"];
+	        this.free_bytes = source["free_bytes"];
+	        this.folder = source["folder"];
+	    }
+	}
 	export class Onboarding {
 	    show_welcome: boolean;
 	    offer_tour: boolean;
@@ -1540,6 +1556,61 @@ export namespace process {
 
 }
 
+export namespace relocate {
+	
+	export class Item {
+	    id: string;
+	    name: string;
+	    group: string;
+	    method: string;
+	    path: string;
+	    size_bytes: number;
+	    on_system_drive: boolean;
+	    moved: boolean;
+	    moved_from: string;
+	    blocker: string;
+	    note: string;
+	    guide: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Item(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.group = source["group"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.size_bytes = source["size_bytes"];
+	        this.on_system_drive = source["on_system_drive"];
+	        this.moved = source["moved"];
+	        this.moved_from = source["moved_from"];
+	        this.blocker = source["blocker"];
+	        this.note = source["note"];
+	        this.guide = source["guide"];
+	    }
+	}
+	export class Result {
+	    id: string;
+	    to: string;
+	    note: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.to = source["to"];
+	        this.note = source["note"];
+	    }
+	}
+
+}
+
 export namespace reminder {
 	
 	export class Settings {
@@ -1601,6 +1672,79 @@ export namespace security {
 	        this.warned = source["warned"];
 	        this.failed = source["failed"];
 	        this.unknown = source["unknown"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace shred {
+	
+	export class Drive {
+	    drive: string;
+	    kind: string;
+	    bitlocker: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Drive(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.drive = source["drive"];
+	        this.kind = source["kind"];
+	        this.bitlocker = source["bitlocker"];
+	    }
+	}
+	export class Skip {
+	    path: string;
+	    reason: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Skip(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.reason = source["reason"];
+	    }
+	}
+	export class Result {
+	    shredded: number;
+	    bytes: number;
+	    skipped: Skip[];
+	    notes: string[];
+	    stopped: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Result(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.shredded = source["shredded"];
+	        this.bytes = source["bytes"];
+	        this.skipped = this.convertValues(source["skipped"], Skip);
+	        this.notes = source["notes"];
+	        this.stopped = source["stopped"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

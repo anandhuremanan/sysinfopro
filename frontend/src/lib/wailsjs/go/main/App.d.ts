@@ -6,6 +6,7 @@ import {system} from '../models';
 import {handover} from '../models';
 import {cleaner} from '../models';
 import {devcache} from '../models';
+import {shred} from '../models';
 import {slownow} from '../models';
 import {dupes} from '../models';
 import {gitsweep} from '../models';
@@ -25,6 +26,7 @@ import {reminder} from '../models';
 import {security} from '../models';
 import {process} from '../models';
 import {winget} from '../models';
+import {relocate} from '../models';
 import {netdoctor} from '../models';
 
 export function AnalyzeDiskUsage(arg1:string):Promise<storage.FolderUsage>;
@@ -43,6 +45,12 @@ export function CancelGitSweep():Promise<void>;
 
 export function CancelLeftoverSearch():Promise<void>;
 
+export function CancelMove():Promise<void>;
+
+export function CancelShred():Promise<void>;
+
+export function CancelWipe():Promise<void>;
+
 export function CheckDevTools():Promise<Array<system.DevTool>>;
 
 export function CheckHandover():Promise<handover.Report>;
@@ -54,6 +62,8 @@ export function ChooseDataFolder():Promise<appdata.Status>;
 export function CleanJunk():Promise<cleaner.Summary>;
 
 export function DeleteDevCaches(arg1:Array<string>):Promise<devcache.DeleteResult>;
+
+export function DescribeShredDrives(arg1:Array<string>):Promise<Array<shred.Drive>>;
 
 export function DiagnoseSlowness():Promise<slownow.Report>;
 
@@ -137,11 +147,25 @@ export function GetWingetUpgrades():Promise<winget.Result>;
 
 export function IsStoreApp():Promise<boolean>;
 
+export function ListMovable():Promise<Array<relocate.Item>>;
+
 export function ListVirtualDisks():Promise<Array<vdisk.Disk>>;
+
+export function MeasureFolder(arg1:string):Promise<number>;
+
+export function MoveDestinations():Promise<Array<main.MoveDestination>>;
+
+export function MoveItem(arg1:string,arg2:string):Promise<relocate.Result>;
+
+export function MoveItemBack(arg1:string):Promise<relocate.Result>;
 
 export function PickFile(arg1:string):Promise<string>;
 
+export function PickFiles(arg1:string):Promise<Array<string>>;
+
 export function PickFolder(arg1:string):Promise<string>;
+
+export function PickMoveFolder():Promise<string>;
 
 export function PruneDocker():Promise<string>;
 
@@ -179,6 +203,8 @@ export function SetWidgetMode(arg1:boolean):Promise<void>;
 
 export function SetWindowVisible(arg1:boolean):Promise<void>;
 
+export function ShredFiles(arg1:Array<string>,arg2:number):Promise<shred.Result>;
+
 export function TerminateProcess(arg1:number):Promise<void>;
 
 export function TerminateProcessChecked(arg1:number,arg2:string,arg3:number):Promise<void>;
@@ -188,3 +214,5 @@ export function UndoPathChange():Promise<system.EnvPathAnalysis>;
 export function UpgradeWithWinget(arg1:string):Promise<void>;
 
 export function UseDefaultDataFolder():Promise<appdata.Status>;
+
+export function WipeFreeSpace(arg1:string):Promise<void>;

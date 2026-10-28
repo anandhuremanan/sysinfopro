@@ -110,3 +110,37 @@ func broadcastEnvironmentChange() {
 	procSendMessageTimeout.Call(hwndBroadcast, wmSettingChange, 0, uintptr(unsafe.Pointer(env)),
 		smtoAbortIfHung, timeoutMilliseconds, uintptr(unsafe.Pointer(&result)))
 }
+
+// UserVariable reads a user environment variable as it is stored, or "" when
+// it is not set
+func UserVariable(name string) string {
+	v, err := readValue(registry.CURRENT_USER, userEnvKey, name)
+	if err != nil {
+		return ""
+	}
+	return v
+}
+
+// SetUserVariable stores a user environment variable, or removes it when value
+// is "", and tells running programs; new terminals and apps then see it. User
+// variables need no administrator rights.
+func SetUserVariable(name, value string) error {
+	key, err := registry.OpenKey(registry.CURRENT_USER, userEnvKey, registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	if value == "" {
+		err = key.DeleteValue(name)
+		if errors.Is(err, registry.ErrNotExist) {
+			err = nil
+		}
+	} else {
+		err = key.SetStringValue(name, value)
+	}
+	if err != nil {
+		return err
+	}
+	broadcastEnvironmentChange()
+	return nil
+}

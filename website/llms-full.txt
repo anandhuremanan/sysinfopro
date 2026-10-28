@@ -15,7 +15,7 @@
 
 ## Tools
 
-The 22 tools are grouped by what they are for. The All tools screen can be filtered to Everyday, Developer or Gaming tools (any combination); search always covers every tool.
+The 24 tools are grouped by what they are for. The All tools screen can be filtered to Everyday, Developer or Gaming tools (any combination); search always covers every tool.
 
 ### System
 
@@ -36,6 +36,8 @@ The 22 tools are grouped by what they are for. The All tools screen can be filte
 - **Startup**: programs that start when you sign in.
 - **Software**: checks developer tools against their latest releases and updates installed apps through Windows Package Manager (winget).
 - **Duplicates**: finds files with exactly the same contents, checked byte for byte; extra copies go to the Recycle Bin and one copy is always kept. Program and project folders are skipped.
+- **Move off C:**: moves big caches and app data off the system drive without breaking them. npm, pnpm, Yarn, pip, Go, NuGet and Gradle caches move with each tool's own setting; Maven, Cargo and browser data (Chrome, Edge, Brave, Firefox) move with a folder link left in the old place; WSL distributions move with WSL's own move command. Each move checks the program is closed, leaves the original untouched if anything fails, and can be moved back. Programs in Program Files are not moved.
+- **File shredder**: overwrites files with 1, 3 or 7 passes before deleting them, gives them a meaningless name first, and can wipe a drive's free space with Windows' cipher tool. It says plainly that on SSDs some old data can survive any overwrite unless the drive is encrypted with BitLocker, and refuses files that are open, hard-linked or stored only in OneDrive.
 
 ### Developer
 

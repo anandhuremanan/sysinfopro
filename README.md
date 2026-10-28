@@ -9,15 +9,21 @@ without administrator rights, so it runs on a locked-down work laptop too.
 
 ## What it does
 
-22 tools in four groups:
+24 tools in four groups:
 
 - **System:**
   - Specs, Security check and Battery history.
   - Why so slow, which explains what is holding the PC back right now.
   - Hand over, a checklist before you sell or return a PC.
   - What changed, and a short Stress test.
-- **Clean up:** Disk & health, Disk usage, Disk growth, Startup, Software
-  updates (winget) and Duplicates (to the Recycle Bin, one copy always kept).
+- **Clean up:**
+  - Disk & health, Disk usage, Disk growth, Startup and Software updates
+    (winget).
+  - Duplicates (to the Recycle Bin, one copy always kept).
+  - Move off C:, which moves big caches, WSL disks and browser data to another
+    drive and can move them back.
+  - File shredder, which overwrites files before deleting them, and wipes free
+    space.
 - **Developer:**
   - Dev caches and WSL & Docker disk sizes.
   - File locks.

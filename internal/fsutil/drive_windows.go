@@ -1,6 +1,6 @@
 //go:build windows
 
-package appdata
+package fsutil
 
 import (
 	"path/filepath"
@@ -8,9 +8,9 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// isFixedDrive is true for a folder on an internal drive (not removable,
+// IsFixedDrive is true for a folder on an internal drive (not removable,
 // network, optical or RAM disk)
-func isFixedDrive(path string) bool {
+func IsFixedDrive(path string) bool {
 	vol := filepath.VolumeName(path)
 	if vol == "" {
 		return false
@@ -22,8 +22,8 @@ func isFixedDrive(path string) bool {
 	return windows.GetDriveType(root) == windows.DRIVE_FIXED
 }
 
-// freeSpace is the space the current user can use on path's drive
-func freeSpace(path string) (uint64, bool) {
+// FreeSpace is the space the current user can use on path's drive
+func FreeSpace(path string) (uint64, bool) {
 	root, err := windows.UTF16PtrFromString(filepath.VolumeName(path) + `\`)
 	if err != nil {
 		return 0, false

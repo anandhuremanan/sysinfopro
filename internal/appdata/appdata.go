@@ -24,6 +24,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"sysinfopro/internal/fsutil"
 )
 
 const (
@@ -281,7 +283,7 @@ func checkTarget(picked string) (string, error) {
 		return "", errors.New("choose a folder on a drive, such as D:\\")
 	}
 	picked = filepath.Clean(picked)
-	if !isFixedDrive(picked) {
+	if !fsutil.IsFixedDrive(picked) {
 		return "", errors.New("choose a folder on a drive that is always connected; USB sticks, memory cards and network drives are not supported")
 	}
 	for _, env := range []string{"WINDIR", "ProgramFiles", "ProgramFiles(x86)"} {
@@ -333,7 +335,7 @@ func checkTarget(picked string) (string, error) {
 		return "", fmt.Errorf("SysInfo Pro cannot write to %s: %w", target, werr)
 	}
 
-	if free, ok := freeSpace(picked); ok {
+	if free, ok := fsutil.FreeSpace(picked); ok {
 		mu.Lock()
 		dir := active.Dir
 		mu.Unlock()

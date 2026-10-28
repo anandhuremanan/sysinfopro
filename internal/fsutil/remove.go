@@ -17,8 +17,9 @@ var ErrStopped = errors.New("stopped")
 // onFile with the size of each removed file. Files that cannot be removed (most
 // often because a program has them open) are skipped and counted; everything
 // else still goes. Links and junctions are removed themselves, never followed.
-// Read-only files (the Go module cache is written read-only on purpose) are made
-// writable first.
+// Read-only files (the Go module cache is written read-only on purpose) are
+// removed in one step where Windows allows it (see removeFile), which is what
+// keeps caches of many small read-only files from taking minutes.
 func RemoveTree(ctx context.Context, root string, onFile func(size int64)) (skipped int, err error) {
 	var dirs []string
 	var firstErr error
@@ -50,7 +51,7 @@ func RemoveTree(ctx context.Context, root string, onFile func(size int64)) (skip
 		if info, err := d.Info(); err == nil && info.Mode().IsRegular() {
 			size = info.Size()
 		}
-		if err := RemoveOne(path); err != nil {
+		if err := removeFile(path); err != nil {
 			remember(err)
 			return nil
 		}
